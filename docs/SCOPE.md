@@ -90,6 +90,9 @@ closed:
 with no browser can install MUIOGO at the pin, start the server, create a case
 from the demo data, run it with GLPK or CBC, and download the result CSVs.
 
+The install story (MUIOGO + OG models + ogclews-link + this repo, one line,
+correct environments) is assessed and designed in `INSTALL_DESIGN.md`.
+
 ## The skill inventory
 
 Ten capabilities from the vision, mapped to nine skills in four groups.
