@@ -36,8 +36,23 @@ This is a research repo, so process is deliberately light:
 
 ## Getting started
 
-1. Install MUIOGO at the pinned version: `./scripts/install-muiogo.sh`
-2. Read `docs/SCOPE.md`, pick a phase-0 item, and go.
+One command installs and verifies the whole headless stack — MUIOGO (with
+solvers and demo data), optional OG country model(s), and ogclews-link — each
+via its own upstream installer, each in its own environment:
+
+```bash
+./scripts/install.sh --og og-phl
+```
+
+Flags: `--dest DIR` (workspace, default `~/muiogo-ai-workspace`), `--og
+KEYS|none`, `--og-home DIR`, `--no-link`, `--no-demo-data`, `--port N`. The
+run ends with a verification battery (demo case solves with CBC, OG models
+import from their own venvs, link `--check` passes) and writes
+`<workspace>/manifest.json`, which skills read to find every component.
+Resume-safe: re-running skips finished steps. See `docs/INSTALL_DESIGN.md`
+for the assessment behind it.
+
+Working on the repo itself: read `docs/SCOPE.md`, pick a phase item, and go.
 
 ## License
 
