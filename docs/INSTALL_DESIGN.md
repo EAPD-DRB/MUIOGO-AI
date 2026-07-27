@@ -9,6 +9,39 @@ Assessed 2026-07-27 by reading and (where noted) running the actual installers.
 MUIOGO @ `3db8b816` (the pin), ogclews-link @ local checkout, OG universal
 installer @ PSLmodels/OG-Core master.
 
+## 0. Verification log (2026-07-27, macOS)
+
+Run-verified, not just read:
+
+- **MUIOGO upstream installer, headless end-to-end**: fetched
+  `install.sh` from EAPD-DRB/MUIOGO main, ran `--dest <dir> --yes`
+  non-interactively to completion ("MUIOGO is installed and ready"); the fresh
+  install answered `/getCases` → `["CLEWs Demo"]`. Two behaviors confirmed by
+  execution: `--dest` must be an existing **parent** directory (the clone
+  lands at `<dest>/MUIOGO`), and `--yes` really does auto-start the app and
+  open a browser (finding #1) — the process had to be killed by port lookup.
+- **OG universal installer, headless**: fetched from PSLmodels/OG-Core master
+  and ran `--list-json` locally (catalog: og-core, og-eth, og-zaf, og-idn,
+  og-phl, og-bra). A full country install was NOT run (multi-minute, ~GB) —
+  its non-interactive flags are verified from its own usage text and from the
+  two wrappers below.
+- **MUIOGO delegates to the upstream OG installer** (code):
+  `API/Classes/OGCore/Installer.py` downloads the script from the PSLmodels
+  raw URLs in `Config`, caches it, and invokes
+  `bash install.sh --dest … --yes --no-log --repo <key>` under
+  `ogc_clean_env()`.
+- **ogclews-link delegates to the same upstream installer** (code):
+  `scripts/setup.sh` uses a local `../OG-Core/scripts/install.sh` if present,
+  else curls the PSLmodels raw URL.
+- **ogclews-link installer, headless**: repo is public, `setup.sh` fetchable
+  raw, contains zero `read` prompts; ran `--check` (correctly reported no
+  venv) then full `setup.sh` (created the venv, verified the CLI); the
+  `ogclews-link` CLI (`run`, `list`, `channels`, `models`) works.
+
+Post-install interfaces available to skills: MUIOGO → HTTP API;
+OG model → `<model>/.venv/bin/python` (subprocessed, never imported);
+link → `ogclews-link` CLI + `OGCLEWS_*` env vars + its model registry.
+
 ## 1. What exists today (component inventory)
 
 ### MUIOGO installer — `MUIOGO/scripts/install.sh` (+ `install.ps1`)
