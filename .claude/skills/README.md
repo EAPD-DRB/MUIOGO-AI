@@ -4,7 +4,7 @@ One directory per skill, `<name>/SKILL.md` plus any reference files. Names and
 scope come from the inventory in `docs/SCOPE.md`:
 
 - Group A (operate): `muiogo-install`, `muiogo-run`, `muiogo-scenarios`
-- Group B (OG integration): `og-calibrate`, `og-clews-linked-run`
+- Group B (OG integration): `og-clews-linked-run`
 - Group C (analyze): `muiogo-interpret`, `muiogo-visualize`, `muiogo-brief`
 - Group D (teach): `muiogo-tutor`, `og-clews-tutor`
 
@@ -30,8 +30,7 @@ mirrored from Model-tools (canonical there — update there first, re-copy here)
 | `worktree-orchard` | **here** | Read-only checkout/worktree sprawl inventory (`scripts/orchard.py`) |
 | `calibration-provenance` | **here** | Trace any parameter to its authoritative source; record the chain |
 
-Overlap note for the SCOPE.md roadmap: planned `og-calibrate` is largely covered by
-`og-country-calibration`, and parts of planned `muiogo-visualize`/`muiogo-brief` by
+Overlap note: parts of planned `muiogo-visualize`/`muiogo-brief` overlap
 `og-analysis-studio` — reconcile before building those.
 
 ### Approval gates (binding on every OG skill above)
