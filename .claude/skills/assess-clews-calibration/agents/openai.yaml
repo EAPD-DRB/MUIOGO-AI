@@ -1,0 +1,4 @@
+interface:
+  display_name: "Assess CLEWs Calibration"
+  short_description: "Audit OSeMOSYS-CLEWs calibration quality"
+  default_prompt: "Use $assess-clews-calibration to evaluate this model’s calibration quality, weaknesses, and fitness for purpose."
