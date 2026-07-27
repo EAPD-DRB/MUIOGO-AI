@@ -1,0 +1,19 @@
+{
+    "_readme": [
+        "CLEWs country catalog — the CLEWs mirror of the OG universal installer's repos.json.",
+        "Each entry names a repo that ships portable MUIO cases; per-country details live in",
+        "countries/<ISO3>.json (overlay manifests, hosted here until the clews-country.json",
+        "spec migrates into the country repos themselves — see clews/README.md).",
+        "iso3 is the join key for matching a CLEWs country to its OG model (og-<iso3>)."
+    ],
+    "schema_version": 1,
+    "repos": [
+        {
+            "key": "clews-phl",
+            "owner": "EAPD-DRB",
+            "repo": "CLEWs-PHL",
+            "iso3": "PHL",
+            "description": "Philippines CLEWs country model (portable MUIO cases, v12 lineage)"
+        }
+    ]
+}

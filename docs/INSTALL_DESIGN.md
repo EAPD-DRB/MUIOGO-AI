@@ -196,6 +196,35 @@ link, and the skills all see the same single registry.
   installation; `test-drive.sh` remains the worked example for that).
 - No reimplementation of any component's install logic.
 
+## 4b. CLEWs countries and matching (added 2026-07-27)
+
+OG countries are code packages with a machine-readable catalog; CLEWs
+countries are data packages (versioned "portable MUIO cases" in EAPD-DRB
+repos, e.g. CLEWs-PHL v12) described only by READMEs, with layouts that vary
+by repo. MUIOGO installs a CLEWs country by getting a case directory into
+`WebAPP/DataStorage/` — headless, the validated path is its own
+`POST /uploadCase` (multipart zip; same handler as the GUI's restore).
+
+Design (piloted here, PHL first):
+
+- **Self-describing country manifests** — `clews-country.json` per country
+  repo: iso3/un_code/name, the cases with roles and a recommended default,
+  archive names + checksum file, and the link's coupling fields. Hosted as
+  overlays in `clews/countries/<ISO3>.json` until the spec is proposed to the
+  CLEWs repos; an in-repo manifest wins once it exists.
+- **A CLEWs catalog** — `clews/clews-repos.json`, mirroring the OG
+  installer's `repos.json` (key, owner, repo, iso3).
+- **Matching = join on ISO3.** OG derives `PHL` from `OG-PHL`; the CLEWs
+  manifest declares it. `--country PHL` resolves the OG model, the CLEWs
+  case (recommended by default, `--case` to override), link registration,
+  and — when the manifest carries coupling fields — the link's countries
+  entry. No central mapping table anywhere; each layer publishes its own
+  catalog. (PHL generates no link entry: it ships inside ogclews-link as the
+  packaged worked example.)
+- Long-term home: the catalog and case-install capability belong upstream in
+  MUIOGO (a "CLEWs countries" surface symmetric to its OG calibrations tab);
+  developed quietly here first per Marcelo's call (2026-07-27).
+
 ## 5. Delivery plan
 
 | Step | Delivers | Gate |

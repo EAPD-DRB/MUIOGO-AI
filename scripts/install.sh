@@ -20,8 +20,15 @@
 #   ./scripts/install.sh [options]
 # Options:
 #   --dest DIR          Workspace directory (default: ~/muiogo-ai-workspace)
+#   --country ISO3s     Comma-separated countries (PHL,...). Resolves BOTH sides
+#                       by the ISO3 join: the OG model (og-<iso3>) via the
+#                       upstream catalog AND the CLEWs case via clews/ manifests.
 #   --og KEYS           Comma-separated OG models to install (og-phl,og-eth,...)
 #                       from the upstream catalog. Default: none.
+#   --clews KEYS        Comma-separated CLEWs countries (clews-phl,...) from
+#                       clews/clews-repos.json; installs the recommended portable
+#                       case into MUIOGO via its /uploadCase endpoint.
+#   --case NAME         Override the recommended case (single --clews/--country only)
 #   --og-home DIR       Where OG models/state live (default: ~/.muiogo, MUIOGO's
 #                       own default, so the GUI, the link, and skills all see them)
 #   --no-link           Skip ogclews-link
@@ -40,6 +47,9 @@ MUIOGO_AI_REPO_URL="https://github.com/EAPD-DRB/MUIOGO-AI.git"
 
 DEST="${HOME}/muiogo-ai-workspace"
 OG_KEYS=""
+CLEWS_KEYS=""
+COUNTRIES=""
+CASE_OVERRIDE=""
 OG_HOME="${HOME}/.muiogo"
 WITH_LINK=1
 NO_DEMO_DATA=0
@@ -50,6 +60,9 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --dest)         DEST="$2";      shift 2 ;;
         --og)           OG_KEYS="$2";   shift 2 ;;
+        --clews)        CLEWS_KEYS="$2"; shift 2 ;;
+        --country)      COUNTRIES="$2"; shift 2 ;;
+        --case)         CASE_OVERRIDE="$2"; shift 2 ;;
         --og-home)      OG_HOME="$2";   shift 2 ;;
         --no-link)      WITH_LINK=0;    shift ;;
         --no-demo-data) NO_DEMO_DATA=1; shift ;;
@@ -134,6 +147,21 @@ command -v uv >/dev/null || { curl -LsSf https://astral.sh/uv/install.sh | sh >/
 ( cd "$AI_DIR/client" && clean_env uv sync -q ) || die "uv sync failed in $AI_DIR/client"
 record muiogo-ai OK "$AI_DIR"
 ok "client env ready"
+
+# --country ISO3: resolve both sides by the join key. OG side becomes og-<iso3>
+# (validated against the upstream catalog in step 3); CLEWs side requires a
+# manifest at clews/countries/<ISO3>.json.
+if [[ -n "$COUNTRIES" ]]; then
+    IFS=',' read -ra CC <<< "$COUNTRIES"
+    for c in "${CC[@]}"; do
+        c="$(echo "$c" | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')"
+        [[ -f "$AI_DIR/clews/countries/$c.json" ]] || die "no CLEWs manifest for $c (clews/countries/$c.json)"
+        lc="$(echo "$c" | tr '[:upper:]' '[:lower:]')"
+        OG_KEYS="${OG_KEYS:+$OG_KEYS,}og-$lc"
+        CLEWS_KEYS="${CLEWS_KEYS:+$CLEWS_KEYS,}clews-$lc"
+    done
+    ok "country resolution: og=[$OG_KEYS] clews=[$CLEWS_KEYS]"
+fi
 
 # ── 2. MUIOGO via its upstream installer ─────────────────────────────────────
 CURRENT_STEP="muiogo"
@@ -258,7 +286,78 @@ start_muiogo() {
 }
 start_muiogo
 
-# 5a. register each OG model in MUIOGO's registry (async job; env already synced)
+# 5a. install CLEWs country case(s) through MUIOGO's own /uploadCase endpoint
+# (the same validated path the GUI's restore uses).
+declare -a CLEWS_INSTALLED_CASES=() CLEWS_INSTALLED_KEYS=()
+if [[ -n "$CLEWS_KEYS" ]]; then
+    IFS=',' read -ra CKEYS <<< "$CLEWS_KEYS"
+    for ckey in "${CKEYS[@]}"; do
+        ckey="$(echo "$ckey" | tr -d '[:space:]')"
+        ISO3="$(python3 -c '
+import json, sys
+data = json.load(open(sys.argv[1]))
+for r in data["repos"]:
+    if r["key"] == sys.argv[2]:
+        print(r["iso3"]); break
+' "$AI_DIR/clews/clews-repos.json" "$ckey")"
+        [[ -z "$ISO3" ]] && die "CLEWs key '$ckey' not in clews/clews-repos.json"
+        CMANIFEST="$AI_DIR/clews/countries/$ISO3.json"
+        [[ -f "$CMANIFEST" ]] || die "missing CLEWs manifest: $CMANIFEST"
+        SEL="$(python3 -c '
+import json, sys
+m = json.load(open(sys.argv[1])); want = sys.argv[2]
+cases = m["cases"]
+if want:
+    match = [c for c in cases if c["case"] == want]
+    if not match:
+        sys.exit("case %s not in manifest for %s" % (want, m["iso3"]))
+    c = match[0]
+else:
+    rec = [c for c in cases if c.get("recommended")]
+    c = rec[0] if rec else cases[0]
+s = m["source"]
+print(c["case"], c["archive"], s["owner"], s["repo"], s["ref"], s["dir"], s.get("sha256sums",""))
+' "$CMANIFEST" "$CASE_OVERRIDE")" || die "case selection failed for $ckey"
+        read -r CCASE CARCHIVE COWNER CREPO CREF CDIR CSHAF <<< "$SEL"
+        if api /getCases 30 | grep -q "\"$CCASE\""; then
+            skip "$CCASE"
+            CLEWS_INSTALLED_CASES+=("$CCASE"); CLEWS_INSTALLED_KEYS+=("$ckey")
+            record "$ckey" SKIP "$CCASE"
+            continue
+        fi
+        RAWBASE="https://raw.githubusercontent.com/$COWNER/$CREPO/$CREF/$CDIR"
+        echo "  downloading $CARCHIVE from $COWNER/$CREPO@$CREF"
+        curl -fsSL -o "$DEST/$CARCHIVE" "$RAWBASE/$CARCHIVE" || die "download failed: $RAWBASE/$CARCHIVE"
+        if [[ -n "$CSHAF" ]]; then
+            curl -fsSL -o "$DEST/$CARCHIVE.sums" "$RAWBASE/$CSHAF" || die "checksum file missing: $RAWBASE/$CSHAF"
+            python3 -c '
+import hashlib, sys
+name, zpath, sums = sys.argv[1:4]
+want = None
+for line in open(sums):
+    parts = line.split()
+    if len(parts) >= 2 and parts[-1].lstrip("*./") == name:
+        want = parts[0]
+if want is None: sys.exit(f"{name} not listed in checksum file")
+got = hashlib.sha256(open(zpath, "rb").read()).hexdigest()
+sys.exit(0 if got == want else f"sha256 mismatch for {name}: {got} != {want}")
+' "$CARCHIVE" "$DEST/$CARCHIVE" "$DEST/$CARCHIVE.sums" || die "checksum verification failed for $CARCHIVE"
+            ok "sha256 verified"
+        fi
+        curl -s -m 300 -F "file=@$DEST/$CARCHIVE" "http://127.0.0.1:${PORT}/uploadCase" > "$DEST/upload-$ckey.log" 2>&1
+        if api /getCases 30 | grep -q "\"$CCASE\""; then
+            ok "case installed in MUIOGO: $CCASE"
+            rm -f "$DEST/$CARCHIVE" "$DEST/$CARCHIVE.sums"
+            CLEWS_INSTALLED_CASES+=("$CCASE"); CLEWS_INSTALLED_KEYS+=("$ckey")
+            record "$ckey" OK "$CCASE"
+        else
+            warn "upload response: $(head -c 200 "$DEST/upload-$ckey.log")"
+            die "case $CCASE not present after upload — see $DEST/upload-$ckey.log"
+        fi
+    done
+fi
+
+# 5b. register each OG model in MUIOGO's registry (async job; env already synced)
 for i in "${!OG_INSTALLED_KEYS[@]}"; do
     CID="$(echo "${OG_INSTALLED_REPOS[$i]}" | awk -F- '{print toupper($NF)}')"
     BODY="$(python3 - "$CID" "${OG_INSTALLED_NAMES[$i]}" "$OG_HOME/og-models/${OG_INSTALLED_REPOS[$i]}" "${OG_INSTALLED_PKGS[$i]}" <<'PY'
@@ -290,7 +389,7 @@ PY
     fi
 done
 
-# 5b. verification battery
+# 5c. verification battery
 if [[ $NO_VERIFY -eq 0 ]]; then
     CASES="$(api /getCases)"
     echo "$CASES" | grep -q "CLEWs Demo" && ok "MUIOGO serves; demo case present" \
@@ -328,9 +427,17 @@ print(json.dumps(arr))
 PY
 )"
 done
-python3 - "$DEST" "$MUIOGO_DIR" "$AI_DIR" "${LINK_DIR:-}" "$OG_JSON" "$PORT" "$OG_HOME" <<'PY'
+CLEWS_JSON="[]"
+for i in "${!CLEWS_INSTALLED_CASES[@]}"; do
+    CLEWS_JSON="$(python3 -c '
+import json, sys
+arr = json.loads(sys.argv[1])
+arr.append({"key": sys.argv[2], "case": sys.argv[3]})
+print(json.dumps(arr))' "$CLEWS_JSON" "${CLEWS_INSTALLED_KEYS[$i]}" "${CLEWS_INSTALLED_CASES[$i]}")"
+done
+python3 - "$DEST" "$MUIOGO_DIR" "$AI_DIR" "${LINK_DIR:-}" "$OG_JSON" "$PORT" "$OG_HOME" "$CLEWS_JSON" <<'PY'
 import json, subprocess, sys, datetime, shutil
-dest, muiogo, ai, link, og_json, port, og_home = sys.argv[1:8]
+dest, muiogo, ai, link, og_json, port, og_home, clews_json = sys.argv[1:9]
 def ref(path):
     if not path: return None
     r = subprocess.run(["git", "-C", path, "rev-parse", "--short=8", "HEAD"],
@@ -351,6 +458,7 @@ manifest = {
     "ogclews_link": {"path": link or None, "ref": ref(link),
                      "python": f"{link}/.venv/bin/python" if link else None},
     "og_models": json.loads(og_json),
+    "clews_cases": json.loads(clews_json),
     "solvers": {"glpsol": ver("glpsol", "--version"), "cbc": shutil.which("cbc")},
 }
 out = f"{dest}/manifest.json"

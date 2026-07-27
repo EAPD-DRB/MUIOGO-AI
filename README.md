@@ -41,11 +41,16 @@ solvers and demo data), optional OG country model(s), and ogclews-link — each
 via its own upstream installer, each in its own environment:
 
 ```bash
-./scripts/install.sh --og og-phl
+./scripts/install.sh --country PHL
 ```
 
-Flags: `--dest DIR` (workspace, default `~/muiogo-ai-workspace`), `--og
-KEYS|none`, `--og-home DIR`, `--no-link`, `--no-demo-data`, `--port N`. The
+`--country ISO3` resolves everything by the ISO3 join: the OG model via the
+upstream OG-Core catalog, the CLEWs country case (recommended portable case,
+`--case` to override) installed through MUIOGO's own upload endpoint, and
+link registration. See `clews/README.md` for how countries are described and
+matched. Finer-grained flags: `--dest DIR` (workspace, default
+`~/muiogo-ai-workspace`), `--og KEYS`, `--clews KEYS`, `--og-home DIR`,
+`--no-link`, `--no-demo-data`, `--port N`. The
 run ends with a verification battery (demo case solves with CBC, OG models
 import from their own venvs, link `--check` passes) and writes
 `<workspace>/manifest.json`, which skills read to find every component.

@@ -1,0 +1,38 @@
+{
+    "schema_version": 1,
+    "iso3": "PHL",
+    "un_code": "608",
+    "name": "Philippines",
+    "source": {
+        "owner": "EAPD-DRB",
+        "repo": "CLEWs-PHL",
+        "ref": "main",
+        "dir": "Philippines_v12_CLEWs_build/muio",
+        "sha256sums": "SHA256SUMS"
+    },
+    "cases": [
+        {
+            "case": "Philippines_v12",
+            "role": "source",
+            "archive": "Philippines_v12_v12.0.0_MUIO.zip"
+        },
+        {
+            "case": "Philippines_v12_ENV_LAND",
+            "role": "env-land",
+            "archive": "Philippines_v12_ENV_LAND_v12.0.0_MUIO.zip"
+        },
+        {
+            "case": "Philippines_v12_ENV_LAND_WATER_DIAGNOSTIC",
+            "role": "analysis",
+            "recommended": true,
+            "archive": "Philippines_v12_ENV_LAND_WATER_DIAGNOSTIC_v12.0.0_MUIO.zip"
+        }
+    ],
+    "og": {
+        "key": "og-phl"
+    },
+    "link": {
+        "packaged_reference": true,
+        "_note": "ogclews-link ships Philippines (v9 cases) as its in-code worked example, so no ogclews_countries.json entry is generated. Coupling fields for the v12 lineage (power_prefix, electricity_fuel, runs) are TBD and belong in CLEWs-PHL's own clews-country.json once the spec migrates upstream."
+    }
+}
