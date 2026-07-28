@@ -571,12 +571,13 @@ report
 # ── optional: skills into the user's AI assistant ────────────────────────────
 # Always optional, never silent: writing into someone's home directory is their
 # call, so a non-interactive run just prints how to do it later.
-SKILL_COUNT="$(ls -d "$AI_DIR"/skills/*/ 2>/dev/null | wc -l | tr -d ' ')"
+SKILL_COUNT="$(ls -d "$AI_DIR"/.agents/skills/*/ 2>/dev/null | wc -l | tr -d ' ')"
 if [[ $NO_SKILLS -eq 0 && "$SKILL_COUNT" -gt 0 ]]; then
     echo ""
     printf "  ${BOLD}Modelling skills${RESET}\n"
-    echo "  This project ships $SKILL_COUNT skills that teach an AI assistant how to build,"
-    echo "  calibrate, run, and review these models (see skills/README.md)."
+    echo "  $SKILL_COUNT skills teach an AI assistant how to build, calibrate, run, and"
+    echo "  review these models. They are already active inside this repository."
+    echo "  Installing them makes them available in your other projects too."
     SKILL_ARGS=()
     [[ -n "$SKILLS_TOOL" ]] && SKILL_ARGS+=("--tool" "$SKILLS_TOOL")
     [[ $ASSUME_YES -eq 1 ]] && SKILL_ARGS+=("--yes")
@@ -594,7 +595,7 @@ if [[ $NO_SKILLS -eq 0 && "$SKILL_COUNT" -gt 0 ]]; then
     if [[ $SKILLS_DECISION -eq 1 ]]; then
         printf "  Skipped. You can always install them yourself, any time:\n"
         echo_cmd "$AI_DIR/scripts/install-skills.sh"
-        printf "  ${DIM}or copy any folder from $AI_DIR/skills/ into your assistant's skills folder.${RESET}\n"
+        printf "  ${DIM}or copy any folder from $AI_DIR/.agents/skills/ into your assistant's skills folder.${RESET}\n"
     fi
 fi
 

@@ -2,8 +2,13 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # MUIOGO-AI skills installer for macOS and Linux.
 #
-# Copies the modelling skills into your AI assistant's skills folder:
-#   1. Read the catalogue in skills/ (one folder per skill)
+# You do NOT need this to use the skills inside this repository: they live in
+# .agents/skills/ (read by Codex) with .claude/skills/ symlinks (read by Claude
+# Code), so both assistants pick them up automatically when you work here.
+#
+# Use this script to make the skills available EVERYWHERE ELSE — your own model
+# repositories, or every project you open:
+#   1. Read the catalogue in .agents/skills/ (one folder per skill)
 #   2. Ask which assistant you use (or take --tool / --dir)
 #   3. Copy the selected skills there, replacing any older copy
 #   4. Report what was installed
@@ -17,13 +22,15 @@
 #   ./scripts/install-skills.sh --tool claude        # skip the menu
 #   ./scripts/install-skills.sh --tool both --yes    # hands-free
 #   ./scripts/install-skills.sh --only og-run-preflight,og-solver-diagnosis
+#   ./scripts/install-skills.sh --relink             # rebuild in-repo symlinks
 #   ./scripts/install-skills.sh --help
 # ──────────────────────────────────────────────────────────────────────────────
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-SKILLS_DIR="$PROJECT_ROOT/skills"
+SKILLS_DIR="$PROJECT_ROOT/.agents/skills"
+CLAUDE_LINK_DIR="$PROJECT_ROOT/.claude/skills"
 
 # ── Assistant catalog ─────────────────────────────────────────────────────────
 # Each entry: KEY|DISPLAY NAME|SKILLS DIRECTORY
@@ -39,6 +46,7 @@ ONLY=""
 ASSUME_YES=0
 DO_LIST=0
 DO_LIST_JSON=0
+DO_RELINK=0
 
 usage() {
     cat <<EOF
@@ -51,6 +59,9 @@ Options:
   -h, --help              Show this message and exit.
       --list              Print the skill catalogue (human-readable) and exit.
       --list-json         Print the skill catalogue as JSON and exit.
+      --relink            Rebuild this repo's .claude/skills symlinks (one per
+                          skill, pointing at .agents/skills) and exit. Run this
+                          after adding or renaming a skill.
   -y, --yes               Auto-confirm every prompt (non-interactive). Requires
                           --tool or --dir, since the assistant cannot be guessed.
       --tool KEY          Install for a known assistant: claude, codex, or both.
@@ -75,6 +86,7 @@ while [[ $# -gt 0 ]]; do
         -y|--yes)    ASSUME_YES=1;     shift ;;
         --list)      DO_LIST=1;        shift ;;
         --list-json) DO_LIST_JSON=1;   shift ;;
+        --relink)    DO_RELINK=1;      shift ;;
         -h|--help)   usage; exit 0 ;;
         *) echo "Unknown option: $1" >&2; exit 1 ;;
     esac
@@ -143,6 +155,28 @@ sentence = re.split(r"(?<=[.!?])\s", desc)[0]
 print(sentence[:96])
 PY
 }
+
+# ── In-repo symlinks (Claude Code reads .claude/skills; a per-skill entry may
+# be a symlink, which is the form Claude Code documents as supported) ─────────
+if [[ $DO_RELINK -eq 1 ]]; then
+    section "Rebuilding .claude/skills symlinks"
+    mkdir -p "$CLAUDE_LINK_DIR" || err "cannot create $CLAUDE_LINK_DIR"
+    # Drop existing symlinks only; never touch a real directory someone added.
+    for existing in "$CLAUDE_LINK_DIR"/*; do
+        [[ -L "$existing" ]] && rm -f "$existing"
+    done
+    for s in "${AVAILABLE[@]}"; do
+        ln -sfn "../../.agents/skills/$s" "$CLAUDE_LINK_DIR/$s"
+        if [[ -f "$CLAUDE_LINK_DIR/$s/SKILL.md" ]]; then
+            print_pass "$s"
+        else
+            print_fail "$s" "symlink does not resolve"
+        fi
+    done
+    echo
+    printf "  %d symlinks rebuilt in .claude/skills\n" "${#AVAILABLE[@]}"
+    exit 0
+fi
 
 if [[ $DO_LIST -eq 1 ]]; then
     printf "  ${BOLD}%-30s %s${RESET}\n" "SKILL" "WHAT IT DOES"

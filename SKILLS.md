@@ -2,24 +2,31 @@
 
 Skills are instruction packs that teach an AI assistant how to do a specific
 modelling job properly — the methods, the checks, and the traps. They are plain
-folders of Markdown (plus a few helper scripts), so they work with any
-assistant that supports skills; nothing here is tied to one product.
+folders of Markdown (plus a few helper scripts) following the
+[Agent Skills](https://agentskills.io) open standard, so they work with any
+assistant that supports it; nothing here is tied to one product.
 
-**To install them:**
+## Nothing to install (in this repository)
+
+Open this repository in Claude Code or Codex and the skills are already
+active. The files live in `.agents/skills/`, the cross-assistant standard
+location that Codex reads from a repository, and `.claude/skills/` holds one
+symlink per skill, which is how Claude Code reads them. Just ask for the job in
+plain language — *"assess this model's calibration"*, *"check things before I
+launch this run"* — and your assistant follows the skill.
+
+## To use them everywhere else
+
+To get the skills in your own model repositories, or in every project you open:
 
 ```bash
 ./scripts/install-skills.sh
 ```
 
-It asks which assistant you use and copies the skills where that assistant
-looks for them. You can install all of them or pick individual ones, and you
-can re-run it any time to update. To do it by hand instead, copy a folder into
-your assistant's skills directory (`~/.claude/skills/` for Claude Code,
-`~/.codex/skills/` for Codex) and restart the assistant.
-
-Once installed, ask for the job in plain language — "assess this model's
-calibration", "check things before I launch this run" — and the assistant
-follows the skill.
+It asks which assistant you use (Claude Code, Codex, both, or a folder you
+name) and copies the skills there. Re-run it any time to update. By hand, copy
+any folder from `.agents/skills/` into your assistant's skills directory
+(`~/.claude/skills/` or `~/.codex/skills/`) and restart the assistant.
 
 ## CLEWs — energy, land, and water models
 
@@ -51,12 +58,20 @@ follows the skill.
 
 ## Notes for maintainers
 
-Each skill is one directory containing `SKILL.md` (the instructions, with a
-name and description in the frontmatter), optional `references/` for deeper
-material, `scripts/` for helpers, and `assets/` for templates. Some also carry
-`agents/openai.yaml` with Codex display metadata. `.claude/skills` is a symlink
-to this directory, so Claude Code picks the skills up automatically for anyone
-working in this repo.
+Each skill is one directory under `.agents/skills/` containing `SKILL.md` (the
+instructions, with a name and description in the frontmatter), optional
+`references/` for deeper material, `scripts/` for helpers, and `assets/` for
+templates. Some also carry `agents/openai.yaml` with Codex display metadata.
+
+`.agents/skills/` is the single source of truth. `.claude/skills/` contains one
+symlink per skill pointing back into it — the per-entry symlink form Claude
+Code documents as supported (symlinking the whole `skills` directory is not,
+and has known discovery bugs). After adding or renaming a skill, rebuild the
+symlinks:
+
+```bash
+./scripts/install-skills.sh --relink
+```
 
 Canonical homes differ, so update in the right place. Canonical in
 [Model-tools](https://github.com/EAPD-DRB/Model-tools) and mirrored here —
