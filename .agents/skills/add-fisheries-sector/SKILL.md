@@ -220,3 +220,12 @@ State:
 > registers. Remaining data gaps and uncertainties are explicit.
 
 Do not describe solver success as historical calibration or policy validation.
+
+## Related skills
+
+- `muiogo-scenarios` — for a POLICY overlay on an existing model rather than a new sector.
+- `clews-model-review` — checking the model still hangs together afterwards.
+- `muiogo-run`, `muiogo-analyze` — re-solving and quantifying what changed.
+
+These live in the MUIOGO-AI collection; if one is not available to you,
+do the job directly and say which skill would have covered it.

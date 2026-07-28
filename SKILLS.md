@@ -120,14 +120,21 @@ symlinks:
 ./scripts/install-skills.sh --relink
 ```
 
-Canonical homes differ, so update in the right place. Canonical in
-[Model-tools](https://github.com/EAPD-DRB/Model-tools) and mirrored here —
-edit there first, then re-copy: the five CLEWs skills plus
-`og-country-calibration`, `og-scenario-report`, and `og-analysis-studio`.
-`pull-handoff` and `push-handoff` are also mirrored from Model-tools.
-Canonical **here**: `og-run-preflight`, `og-solver-diagnosis`,
-`og-repo-fleet-sync`, `worktree-orchard`, `calibration-provenance`, and the
-`muiogo-*` skills.
+Canonical homes differ, so update in the right place — and both repos are
+ours, so a shared skill gets fixed at its source rather than patched here.
+
+**Canonical in [Model-tools](https://github.com/EAPD-DRB/Model-tools)**, mirrored
+here byte-identically (edit there, then re-copy): the five CLEWs skills
+(`build-clews-model`, `assess-clews-calibration`, `clews-model-review`,
+`add-fisheries-sector`, `add-environmental-accounting`), the three
+general-audience OG skills (`og-country-calibration`, `og-scenario-report`,
+`og-analysis-studio`), and both handoff skills (`pull-handoff`,
+`push-handoff`).
+
+**Canonical here**: the `muiogo-*` skills, which depend on this repo's
+`muiogo` command line, plus `og-run`, `og-clews-linked-run`,
+`og-run-preflight`, `og-solver-diagnosis`, `og-repo-fleet-sync`,
+`worktree-orchard`, and `calibration-provenance`.
 
 **Approval gates, binding on every skill above:** skills propose, draft, and
 prepare; the user decides. A skill may edit files and commit locally, but must

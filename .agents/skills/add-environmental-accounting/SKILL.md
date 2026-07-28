@@ -267,3 +267,12 @@ Do not claim completion unless:
   row, validates all linked activity/use identities, marks published values
   as reporting-layer rather than solver output, and is clearly disclosed to
   the user.
+
+## Related skills
+
+- `muiogo-scenarios` — for a POLICY overlay rather than a new accounting layer.
+- `clews-model-review` — checking structure after the change.
+- `muiogo-run`, `muiogo-analyze` — re-solving and quantifying the difference.
+
+These live in the MUIOGO-AI collection; if one is not available to you,
+do the job directly and say which skill would have covered it.

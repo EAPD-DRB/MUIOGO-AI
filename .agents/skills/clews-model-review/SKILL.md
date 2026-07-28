@@ -1,6 +1,6 @@
 ---
 name: clews-model-review
-description: Evaluate a MUIOGO CLEWs model for structure and data consistency against the NamibiaCLEWs benchmark. Use when asked to review, audit, or judge whether a CLEWs model under WebAPP/DataStorage/ is well-structured, or to flag data inconsistencies in one.
+description: Evaluate a MUIOGO CLEWs model for structure and data consistency against the NamibiaCLEWs benchmark. Use when asked to review, audit, or judge whether a CLEWs model under WebAPP/DataStorage/ is well-structured, or to flag data inconsistencies in one. This checks STRUCTURE: for whether a model is calibrated well enough to answer a question use assess-clews-calibration, and for MUIOGO's mechanical input-consistency checks before a solve use muiogo-provision.
 ---
 
 # CLEWs Model Review
@@ -71,3 +71,12 @@ Report a short scorecard: one line per model with a verdict (BENCHMARK / STRONG 
 ## Updating this skill
 
 Add or adjust checks by editing this file and `audit.py`. When you learn a new defect pattern or change the benchmark, update both the rubric here and the corresponding check in the script so they stay in sync.
+
+## Related skills
+
+- `assess-clews-calibration` — whether the model is calibrated well enough for a question.
+- `muiogo-provision` — MUIOGO's ten input-consistency checks, before a long solve.
+- `muiogo-run` — solving a case; `muiogo-analyze` — comparing and charting the results.
+
+These live in the MUIOGO-AI collection; if one is not available to you,
+do the job directly and say which skill would have covered it.

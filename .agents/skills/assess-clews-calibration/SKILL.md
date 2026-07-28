@@ -1,6 +1,6 @@
 ---
 name: assess-clews-calibration
-description: Evaluate how well an OSeMOSYS or full CLEWs model is calibrated to a country, identify strong and weak points, classify it as Not assessable, Unacceptable, Acceptable, Good, or Excellent, and judge fitness for a stated use. Use when auditing a country model, reviewing a historical/base-year calibration, checking whether results are reproduced independently rather than forced, comparing modeled values with observations, or assessing a MUIOGO model folder.
+description: Evaluate how well an OSeMOSYS or full CLEWs model is calibrated to a country, identify strong and weak points, classify it as Not assessable, Unacceptable, Acceptable, Good, or Excellent, and judge fitness for a stated use. Use when auditing a country model, reviewing a historical/base-year calibration, checking whether results are reproduced independently rather than forced, comparing modeled values with observations, or assessing a MUIOGO model folder. This grades CALIBRATION QUALITY: for structural and referential defects use clews-model-review, and to describe a model and its calibration to someone rather than grade it use muiogo-explain.
 ---
 
 # Assess CLEWs Calibration
@@ -67,3 +67,12 @@ Lead with a decision-ready summary:
 - **Required improvements:** ordered by which change could alter the grade
 
 Include the score as supporting information, not as a substitute for the grade rationale.
+
+## Related skills
+
+- `clews-model-review` — structural and referential integrity.
+- `muiogo-explain` — describing the model and its calibration to a person.
+- `build-clews-model` — building the model in the first place.
+
+These live in the MUIOGO-AI collection; if one is not available to you,
+do the job directly and say which skill would have covered it.

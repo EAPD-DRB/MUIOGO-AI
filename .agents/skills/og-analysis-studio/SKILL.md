@@ -89,3 +89,13 @@ Prose shaped to the audience (ministry memo, technical annex, slide narrative, r
   write-up that outlives the session must identify its runs.
 - Drafts are drafts: show the user before anything is sent, published, or committed anywhere
   outside the analysis directory.
+
+## Related skills
+
+- `og-scenario-report` — when the standard baseline-vs-reform deliverable is what is wanted.
+- `og-run` — launching the solves this analyses.
+- `muiogo-analyze` — the CLEWs/MUIOGO equivalent; this skill is OG-Core only.
+- `og-country-calibration` — if the answer depends on a calibration choice.
+
+These live in the MUIOGO-AI collection; if one is not available to you,
+do the job directly and say which skill would have covered it.

@@ -449,3 +449,12 @@ State:
 
 Report solver success as technical validity only. Never present it as evidence
 of country calibration.
+
+## Related skills
+
+- `muiogo-provision` — importing an already-built case archive instead of building one.
+- `clews-model-review`, `assess-clews-calibration` — checking what you built.
+- `muiogo-run`, `muiogo-scenarios`, `muiogo-analyze` — running it and reading the results.
+
+These live in the MUIOGO-AI collection; if one is not available to you,
+do the job directly and say which skill would have covered it.

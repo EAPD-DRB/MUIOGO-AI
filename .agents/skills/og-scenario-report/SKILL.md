@@ -80,3 +80,13 @@ when relevant, and only then:
 - Multi-industry runs: aggregate consumption comparisons use `p_tilde·C`, never raw `C` (see
   `og-country-calibration` → comparison dashboard); the bundled script sums industry dimensions,
   which is correct for quantities in numeraire units but check before quoting sector detail.
+
+## Related skills
+
+- `og-run` — producing the OUTPUT_BASELINE / OUTPUT_REFORM directories this reads.
+- `og-analysis-studio` — when the question needs bespoke figures rather than the standard deliverable.
+- `muiogo-analyze` — the equivalent for CLEWs/MUIOGO results, which this skill does NOT cover.
+- `og-solver-diagnosis` — if the run you are reporting on looks unhealthy.
+
+These live in the MUIOGO-AI collection; if one is not available to you,
+do the job directly and say which skill would have covered it.

@@ -48,3 +48,11 @@ Read applicable `AGENTS.md` files before acting.
 Report which repositories changed, the installed case paths, any backup paths,
 and any repository skipped for local changes. If `Model-tools` changed, tell
 the user that Codex may need a reload before newly installed skills appear.
+
+## Related skills
+
+- `muiogo-provision` — the generic path: import any case archive, not just the EAPD ones.
+- `muiogo-run`, `muiogo-analyze` — solving and reading what you just installed.
+
+These live in the MUIOGO-AI collection; if one is not available to you,
+do the job directly and say which skill would have covered it.

@@ -71,3 +71,11 @@ Read every applicable `AGENTS.md` before acting.
 
 Report each repository as unchanged, committed, pushed, or blocked; list every
 archive and hash; and state exactly which validation checks ran.
+
+## Related skills
+
+- `muiogo-provision` — the generic path: export any case as a shareable zip.
+- `muiogo-run` — every run also records a RUN.json provenance stamp worth shipping.
+
+These live in the MUIOGO-AI collection; if one is not available to you,
+do the job directly and say which skill would have covered it.
