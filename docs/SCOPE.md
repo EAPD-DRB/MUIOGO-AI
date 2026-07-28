@@ -43,7 +43,7 @@ create a second, drifting integration surface.
 The stack, bottom to top:
 
 ```
-skills (agent-facing, judgment + workflow)     → .claude/skills/  (this repo)
+skills (agent-facing, judgment + workflow)     → skills/          (this repo)
    │
 muiogo client  (thin Python client + CLI;      → client/          (this repo)
    │            mechanical HTTP work, no judgment)
@@ -59,7 +59,7 @@ also independently useful to non-agent users.
 ### Where things live (repo organization)
 
 - **This repo (MUIOGO-AI)** holds the research: skills under
-  `.claude/skills/`, the `muiogo-client` package under `client/`, design notes
+  `skills/`, the `muiogo-client` package under `client/`, design notes
   under `docs/`, and studies under `experiments/`. Process is light: push to
   `main`, issues optional (see `README.md` working agreements).
 - **MUIOGO** receives only the small enabling changes headless operation needs
@@ -116,7 +116,7 @@ Ten capabilities from the vision, mapped to nine skills in four groups.
 ### Group B — OG integration (Phase 2)
 
 4. ~~**`og-calibrate`**~~ — covered by `og-country-calibration`, installed in
-   `.claude/skills/`.
+   `skills/`.
 5. **`og-clews-linked-run`** — run CLEWs and OG-Core coupled: hand OSeMOSYS
    results (energy investment, prices, emissions) to OG-Core inputs and
    vice versa, execute both, and reconcile. **Dependency:** the linkage engine

@@ -20,8 +20,10 @@ the architecture, the skill inventory, and the current phase.
 
 ## Layout
 
-- `.claude/skills/<name>/SKILL.md` — one directory per skill; names and scope
-  come from the inventory in `docs/SCOPE.md`.
+- `skills/<name>/SKILL.md` — one directory per skill, tool-neutral and
+  browsable; `.claude/skills` is a symlink to it so Claude Code auto-loads
+  them. Users install copies with `scripts/install-skills.sh`. See
+  `skills/README.md` for the catalogue, canonical homes, and approval gates.
 - `client/` — the `muiogo-client` package (Python + CLI). Mechanical HTTP work
   lives here so skills stay small; no analysis or judgment in the client.
 - `experiments/` — dated subdirectories (`YYYY-MM-topic/`), each with a short
