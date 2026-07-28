@@ -20,6 +20,14 @@ import os
 from pathlib import Path
 
 MANIFEST_NAME = "manifest.json"
+
+# Two worlds are expected to coexist on one machine and must not contend:
+#   - an ADOPTED world: checkouts someone uses for live work, on its own branches
+#   - an INSTALLED world: a self-contained runtime the installer built
+# They get different default ports so a command can never silently drive the wrong
+# server, and each manifest records which kind it is.
+LIVE_PORT = 5002        # adopted world: MUIOGO's own default
+RUNTIME_PORT = 5102     # installed world: deliberately not MUIOGO's default
 CANONICAL_DIR = Path.home() / ".muiogo"
 DEFAULT_WORKSPACE = Path.home() / "muiogo-ai"
 LEGACY_WORKSPACE = Path.home() / "muiogo-ai-workspace"
@@ -164,7 +172,8 @@ def _git_ref(path):
         return None
 
 
-def build_manifest(muiogo_path, og_models=(), link_path=None, port=5002, workspace=None):
+def build_manifest(muiogo_path, og_models=(), link_path=None, port=LIVE_PORT,
+                   workspace=None, kind="adopted"):
     """A manifest describing installations that already exist on this machine."""
     import datetime
     import shutil
@@ -189,7 +198,8 @@ def build_manifest(muiogo_path, og_models=(), link_path=None, port=5002, workspa
     return {
         "generated": datetime.datetime.now().isoformat(timespec="seconds"),
         "workspace": str(workspace or muiogo_path.parent),
-        "adopted": True,
+        "kind": kind,
+        "adopted": kind == "adopted",
         "muiogo": {
             "path": str(muiogo_path), "ref": _git_ref(muiogo_path),
             "python": str(venv_python(muiogo_path) or ""),
@@ -207,7 +217,7 @@ def build_manifest(muiogo_path, og_models=(), link_path=None, port=5002, workspa
     }
 
 
-def adopt(muiogo_path, og_models=(), link_path=None, port=5002):
+def adopt(muiogo_path, og_models=(), link_path=None, port=LIVE_PORT):
     """Record existing installations as the workspace. Returns (path, manifest)."""
     manifest = build_manifest(muiogo_path, og_models, link_path, port)
     CANONICAL_DIR.mkdir(parents=True, exist_ok=True)
@@ -216,13 +226,57 @@ def adopt(muiogo_path, og_models=(), link_path=None, port=5002):
     return dest, manifest
 
 
+def describe_kind(data):
+    """A short, honest label for which world a manifest describes."""
+    kind = data.get("kind") or ("adopted" if data.get("adopted") else "installed")
+    if kind == "adopted":
+        return "adopted", "your own checkouts, used for live work"
+    return "installed", "a self-contained runtime built by the installer"
+
+
+def list_workspaces(start=None):
+    """Every workspace manifest on this machine, so the active one is visible.
+
+    Without this, which world a command acts on is implicit — whichever manifest
+    the search order happened to reach first.
+    """
+    active = find_manifest(start)
+    seen, out = set(), []
+    for path in candidate_paths(start):
+        if not path.is_file() or not _looks_like_manifest(path):
+            continue
+        real = path.resolve()
+        if real in seen:
+            continue
+        seen.add(real)
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, ValueError):
+            continue
+        kind, _ = describe_kind(data)
+        muiogo = data.get("muiogo") or {}
+        out.append({
+            "manifest": str(path),
+            "kind": kind,
+            "workspace": data.get("workspace"),
+            "muiogo_path": muiogo.get("path"),
+            "port": muiogo.get("port"),
+            "active": active is not None and path.resolve() == active.resolve(),
+        })
+    return out
+
+
 def summary(start=None):
     """A flat, printable picture of the installation for orientation."""
     data, path = load(start)
     muiogo = data.get("muiogo") or {}
     link = data.get("ogclews_link") or {}
+    kind, kind_note = describe_kind(data)
     return {
         "manifest": str(path),
+        "kind": kind,
+        "kind_note": kind_note,
         "workspace": data.get("workspace"),
         "generated": data.get("generated"),
         "muiogo_path": muiogo.get("path"),

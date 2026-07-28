@@ -3,6 +3,7 @@
 Orientation (works with no server running):
   muiogo status                                      where everything is installed
   muiogo adopt --scan | --auto                       use installs you already have
+  muiogo worlds                                      which workspaces exist; * = active
 
 Models and scenarios:
   muiogo cases                                       list cases
@@ -52,22 +53,43 @@ def _answers(url):
 
 
 def _resolve_url(args):
-    """Explicit --url wins, then whichever candidate actually answers.
+    """Explicit --url wins; otherwise this workspace's own URL. Never guess.
 
-    The manifest records the port used at install time, but a server may be
-    running on the default instead — so probe rather than assume, and fall back
-    to the manifest's URL so an error message names the intended target.
+    Falling back to "whatever port answers" was actively dangerous: with two
+    worlds on one machine — live checkouts and an installed runtime — a command
+    meant for one could silently drive the other's server. So we use the
+    workspace's recorded URL and say so if nothing is listening there.
     """
     if getattr(args, "url", None):
         return args.url
     try:
-        preferred = workspace.summary()["muiogo_url"] or DEFAULT_URL
+        return workspace.summary()["muiogo_url"] or DEFAULT_URL
     except workspace.WorkspaceError:
-        preferred = DEFAULT_URL
-    for candidate in (preferred, DEFAULT_URL):
-        if _answers(candidate):
-            return candidate
-    return preferred
+        return DEFAULT_URL
+
+
+def _warn_other_world(args):
+    """Warn when another world's server is up but this one's is not."""
+    if getattr(args, "url", None):
+        return
+    try:
+        info = workspace.summary()
+    except workspace.WorkspaceError:
+        return
+    mine = info["muiogo_url"]
+    if not mine or _answers(mine):
+        return
+    for other in workspace.list_workspaces():
+        if other["active"] or not other.get("port"):
+            continue
+        url = f"http://127.0.0.1:{other['port']}"
+        if _answers(url):
+            print(f"note: nothing is listening on {mine} for the "
+                  f"{info['kind']} workspace, but a {other['kind']} workspace IS "
+                  f"running on {url}.\n"
+                  f"      Start this one with `muiogo serve`, or target the other "
+                  f"explicitly with --url {url}.", file=sys.stderr)
+            return
 
 
 def _client(args):
@@ -114,14 +136,16 @@ def cmd_status(args):
         print(f"No workspace found.\n{exc}", file=sys.stderr)
         return 1
 
-    print(f"manifest      {info['manifest']}")
+    print(f"world         {info['kind'].upper()}  ({info['kind_note']})")
     print(f"workspace     {info['workspace']}")
-    print(f"installed     {info['generated']}")
+    print(f"manifest      {info['manifest']}")
+    print(f"recorded      {info['generated']}")
     live = _checkout_state(info["muiogo_path"])
     print(f"MUIOGO        {info['muiogo_path']}  ({live})")
     print(f"model data    {info['data_storage']}")
     print(f"server URL    {info['muiogo_url']}")
 
+    others = [w for w in workspace.list_workspaces() if not w["active"]]
     client = MuiogoClient(base_url=info["muiogo_url"] or DEFAULT_URL, timeout=5)
     try:
         cases = client.list_cases()
@@ -164,6 +188,26 @@ def cmd_status(args):
     solvers = info["solvers"]
     if solvers:
         print(f"  solvers     glpk={bool(solvers.get('glpsol'))} cbc={bool(solvers.get('cbc'))}")
+    if others:
+        print()
+        print(f"{len(others)} other workspace(s) on this machine — `muiogo worlds` to see them,")
+        print("MUIOGO_WORKSPACE=<dir> to switch.")
+    return 0
+
+
+def cmd_worlds(args):
+    """List every workspace on this machine and mark the active one."""
+    rows = workspace.list_workspaces()
+    if not rows:
+        print("No workspaces found. `muiogo adopt --scan` finds existing checkouts.")
+        return 1
+    for w in rows:
+        mark = "*" if w["active"] else " "
+        live = "running" if w.get("port") and _answers(f"http://127.0.0.1:{w['port']}") else "stopped"
+        print(f" {mark} {w['kind']:<10} port {str(w.get('port') or '?'):<5} {live:<8} {w['muiogo_path']}")
+        print(f"   {'':<10} {w['manifest']}")
+    print()
+    print("* = active. Switch with:  MUIOGO_WORKSPACE=<workspace dir> muiogo status")
     return 0
 
 
@@ -249,6 +293,7 @@ def cmd_adopt(args):
 
 
 def cmd_cases(args):
+    _warn_other_world(args)
     for case in _client(args).list_cases():
         print(case)
     return 0
@@ -315,6 +360,7 @@ def _record_provenance(args, run, solver):
 
 
 def cmd_run(args):
+    _warn_other_world(args)
     body = _client(args).run(args.case, args.run, solver=args.solver)
     print(f"status: {body.get('status_code')}")
     timer = (body.get("timer") or "").strip()
@@ -370,6 +416,7 @@ def cmd_verify(args):
 
 
 def cmd_batch(args):
+    _warn_other_world(args)
     runs = [r.strip() for r in args.runs.split(",") if r.strip()]
     if not runs:
         print("No runs given.", file=sys.stderr)
@@ -415,6 +462,7 @@ def cmd_log(args):
 
 
 def cmd_results(args):
+    _warn_other_world(args)
     client = _client(args)
     if args.out:
         paths = client.download_all_csvs(args.case, args.run, args.out)
@@ -426,6 +474,7 @@ def cmd_results(args):
 
 
 def cmd_variables(args):
+    _warn_other_world(args)
     """What result variables a solved run offers."""
     from muiogo_client import analysis
     names = analysis.available_variables(_data_storage(args), args.case, args.run)
@@ -622,6 +671,8 @@ def main(argv=None):
     p.add_argument("--port", type=int, default=5002)
     p.set_defaults(func=cmd_adopt)
 
+    sub.add_parser("worlds", help="list workspaces on this machine, mark the active one"
+                   ).set_defaults(func=cmd_worlds)
     sub.add_parser("cases", help="list cases").set_defaults(func=cmd_cases)
 
     p = sub.add_parser("scenarios", help="scenarios and runs defined in a case")
@@ -735,6 +786,17 @@ def main(argv=None):
     except (MuiogoError, ServerError, workspace.WorkspaceError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
+    except Exception as exc:                                     # noqa: BLE001
+        # A stopped server is the common case here and deserves a sentence
+        # rather than a stack trace from deep inside urllib3.
+        name = type(exc).__name__
+        if "Connect" in name or "Timeout" in name:
+            url = _resolve_url(args)
+            print(f"error: no MUIOGO server is answering at {url}.\n"
+                  f"       Start it with `muiogo serve`, or see `muiogo worlds`.",
+                  file=sys.stderr)
+            return 1
+        raise
 
 
 if __name__ == "__main__":

@@ -275,6 +275,35 @@ Design (piloted here, PHL first):
   MUIOGO (a "CLEWs countries" surface symmetric to its OG calibrations tab);
   developed quietly here first per Marcelo's call (2026-07-27).
 
+## 4c. Two worlds that must not collide (2026-07-28)
+
+A machine is expected to carry both: **adopted** checkouts someone runs manually,
+on their own branches, and an **installed** self-contained runtime. Every piece of
+shared state was audited; three surfaces could collide.
+
+| Surface | Default | Resolution |
+|---|---|---|
+| MUIOGO's OG registry | user-level `~/.muiogo/og-state`, one entry per country | the installer writes `MUIOGO_OG_DATA_DIR` into `<master>/MUIOGO/.env`, so the installed world has its own registry however it is launched |
+| Server port | both default to 5002 | the installed world defaults to **5102**; 5002 is left to manual checkouts |
+| Which workspace is active | implicit — whichever manifest the search found first | every manifest records `kind` (`adopted`/`installed`); `muiogo status` leads with it and `muiogo worlds` lists all of them |
+
+The port fix mattered more than it looks. URL resolution used to fall back to
+"whichever port answers", so a command meant for one world could silently drive
+the other's server. It now uses only the active workspace's URL, and warns when
+that server is down while another world's is up.
+
+Safe by construction: runtime logs are per-checkout (`<checkout>/.runtime/logs`),
+and the link's model registry is resolved relative to its own checkout. Browser
+cookies ignore port, so two GUIs share a cookie jar — but the differing secret
+keys mean the other's cookie simply fails to decode, giving a session reset
+rather than cross-driving.
+
+**OG-Core is not installed as a component.** `ogcore` is a dependency that every
+country model already carries in its own venv — verified: OG-PHL imports ogcore
+0.18.0 from `OG-PHL/.venv/.../site-packages`, never from a checkout. The OG-Core
+repo is 2.8 GB, 1.9 GB of which is git history, and is needed only to develop
+OG-Core itself. Asking for `--og og-core` is skipped with that explanation.
+
 ## 5. Delivery plan
 
 | Step | Delivers | Gate |

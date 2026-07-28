@@ -38,7 +38,8 @@
 #   --skills-tool KEY   Which assistant gets the skills: claude, codex, or both
 #   -y, --yes           Auto-confirm every prompt (non-interactive). Skills are
 #                       installed only when --skills-tool is also given.
-#   --port N            Port for MUIOGO during install/verify (default 5002)
+#   --port N            Port for this installation (default 5102, so it never
+#                       contends with a MUIOGO you run manually on 5002)
 #   -h, --help          This message
 # ──────────────────────────────────────────────────────────────────────────────
 set -uo pipefail
@@ -61,7 +62,8 @@ NO_VERIFY=0
 NO_SKILLS=0
 SKILLS_TOOL=""
 ASSUME_YES=0
-PORT=5002
+PORT=5102        # the installed world; MUIOGO's own default 5002 is left to
+                 # checkouts used for live work, so the two never contend
 
 usage() {
     cat <<EOF
@@ -91,7 +93,8 @@ Options:
       --no-verify         Skip the final verification battery (discouraged).
       --no-skills         Don't offer to install the skills at the end.
       --skills-tool KEY   Assistant for the skills: claude, codex, or both.
-      --port N            Port for MUIOGO during install and verify (default 5002).
+      --port N            Port for this installation (default 5102). MUIOGO's own
+                          default 5002 is left free for checkouts you run yourself.
 
 Examples:
   $0                                          # MUIOGO + solvers + demo data
@@ -387,6 +390,17 @@ if [[ -n "$OG_KEYS" ]]; then
     IFS=',' read -ra KEYS <<< "$OG_KEYS"
     for key in "${KEYS[@]}"; do
         key="$(echo "$key" | tr -d '[:space:]')"
+        # ogcore is a DEPENDENCY, not something to run. Every country model
+        # already carries its own copy inside its venv — verified: OG-PHL imports
+        # ogcore 0.18.0 from OG-PHL/.venv/.../site-packages, never from a checkout.
+        # The OG-Core repo is 2.8 GB (1.9 GB of it git history) and is only needed
+        # to develop OG-Core itself, which is not what this runtime is for.
+        if [[ "$key" == "og-core" ]]; then
+            print_skip "og-core" "a dependency of every country model, not a runtime component"
+            echo "        Each country model already has ogcore in its own venv."
+            echo "        Clone the OG-Core repo separately if you want to develop it."
+            continue
+        fi
         ENTRY="$(printf '%s' "$CATALOG_JSON" | python3 -c '
 import json, sys
 data = json.load(sys.stdin)
@@ -624,6 +638,8 @@ def ver(cmd, *args):
 manifest = {
     "generated": datetime.datetime.now().isoformat(timespec="seconds"),
     "workspace": dest,
+    "kind": "installed",          # a self-contained runtime, not adopted checkouts
+    "adopted": False,
     "muiogo": {"path": muiogo, "ref": ref(muiogo), "python": f"{muiogo}/.venv/bin/python",
                "url": f"http://127.0.0.1:{port}", "port": int(port),
                "og_models_dir": f"{og_home}/og-models", "og_state_dir": f"{og_home}/og-state"},
