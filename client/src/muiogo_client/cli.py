@@ -13,7 +13,8 @@ Models and scenarios:
   muiogo delete --case NAME --yes                    delete a case
 
 Running:
-  muiogo serve  [--root PATH] [--port 5002]          headless server (foreground)
+  muiogo serve  [--detach]                           headless server; --detach backgrounds it
+  muiogo stop                                        stop it (by pid, not by port)
   muiogo run    --case NAME --run RUN [--solver cbc] generate + solve one run
   muiogo batch  --case NAME --runs A,B,C             generate + solve several (CBC)
   muiogo log    --case NAME --run RUN                solver log for a run
@@ -133,8 +134,29 @@ def cmd_status(args):
     try:
         info = workspace.summary()
     except workspace.WorkspaceError as exc:
-        print(f"No workspace found.\n{exc}", file=sys.stderr)
+        if getattr(args, "json", False):
+            import json as _json
+            print(_json.dumps({"error": str(exc)}))
+        else:
+            print(f"No workspace found.\n{exc}", file=sys.stderr)
         return 1
+
+    if getattr(args, "json", False):
+        import json as _json
+        client = MuiogoClient(base_url=info["muiogo_url"] or DEFAULT_URL, timeout=5)
+        try:
+            info["cases"] = client.list_cases()
+            info["server_running"] = True
+        except Exception:                                        # noqa: BLE001
+            info["server_running"] = False
+            from pathlib import Path as _P
+            ds = info.get("data_storage")
+            info["cases"] = sorted(
+                x.name for x in _P(ds).iterdir() if (x / "genData.json").is_file()
+            ) if ds and _P(ds).is_dir() else []
+        info["other_workspaces"] = [w for w in workspace.list_workspaces() if not w["active"]]
+        print(_json.dumps(info, indent=2, default=str))
+        return 0
 
     print(f"world         {info['kind'].upper()}  ({info['kind_note']})")
     print(f"workspace     {info['workspace']}")
@@ -198,6 +220,12 @@ def cmd_status(args):
 def cmd_worlds(args):
     """List every workspace on this machine and mark the active one."""
     rows = workspace.list_workspaces()
+    if getattr(args, "json", False):
+        import json as _json
+        for w in rows:
+            w["running"] = bool(w.get("port")) and _answers(f"http://127.0.0.1:{w['port']}")
+        print(_json.dumps(rows, indent=2, default=str))
+        return 0 if rows else 1
     if not rows:
         print("No workspaces found. `muiogo adopt --scan` finds existing checkouts.")
         return 1
@@ -628,6 +656,25 @@ def cmd_og(args):
     return 0
 
 
+def cmd_stop(args):
+    """Stop the server this workspace started, by pid rather than by port."""
+    root = args.root
+    if not root:
+        root = workspace.summary()["muiogo_path"]
+    port = args.port or workspace.summary().get("muiogo_port") or 5002
+    server = MuiogoServer(root, port=port)
+    pid = server.stop_detached()
+    if pid:
+        print(f"stopped server (pid {pid})")
+        return 0
+    if server.is_running():
+        print("a server is answering but this workspace has no pidfile — it was "
+              "started another way, so stop it where you started it.", file=sys.stderr)
+        return 1
+    print("no server running for this workspace")
+    return 0
+
+
 def cmd_serve(args):
     root = args.root
     if not root:
@@ -642,6 +689,12 @@ def cmd_serve(args):
         except workspace.WorkspaceError:
             port = 5002
     server = MuiogoServer(root, port=port)
+    if args.detach:
+        pid = server.start_detached(log_path=args.log)
+        print(f"MUIOGO serving headless on {server.url} (pid {pid})")
+        print(f"  log:  {args.log or server.pidfile().with_suffix('.log')}")
+        print(f"  stop: muiogo stop")
+        return 0
     server.start()
     print(f"MUIOGO serving headless on {server.url} — Ctrl+C to stop.")
     try:
@@ -660,8 +713,9 @@ def main(argv=None):
     parser.add_argument("--data-storage", help="MUIOGO DataStorage path (default: from manifest)")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("status", help="where everything is installed (no server needed)"
-                   ).set_defaults(func=cmd_status)
+    p = sub.add_parser("status", help="where everything is installed (no server needed)")
+    p.add_argument("--json", action="store_true", help="machine-readable output")
+    p.set_defaults(func=cmd_status)
     p = sub.add_parser("adopt", help="point the tooling at existing installations")
     p.add_argument("--scan", action="store_true", help="show what was found, change nothing")
     p.add_argument("--auto", action="store_true", help="adopt everything discovered")
@@ -671,8 +725,9 @@ def main(argv=None):
     p.add_argument("--port", type=int, default=5002)
     p.set_defaults(func=cmd_adopt)
 
-    sub.add_parser("worlds", help="list workspaces on this machine, mark the active one"
-                   ).set_defaults(func=cmd_worlds)
+    p = sub.add_parser("worlds", help="list workspaces on this machine, mark the active one")
+    p.add_argument("--json", action="store_true", help="machine-readable output")
+    p.set_defaults(func=cmd_worlds)
     sub.add_parser("cases", help="list cases").set_defaults(func=cmd_cases)
 
     p = sub.add_parser("scenarios", help="scenarios and runs defined in a case")
@@ -778,7 +833,15 @@ def main(argv=None):
     p = sub.add_parser("serve", help="run a headless MUIOGO server in the foreground")
     p.add_argument("--root", help="MUIOGO checkout (default: from manifest)")
     p.add_argument("--port", type=int, default=None, help="default: the workspace's port, else 5002")
+    p.add_argument("--detach", action="store_true",
+                   help="run in the background and record the pid (headless default choice)")
+    p.add_argument("--log", help="where a detached server writes its output")
     p.set_defaults(func=cmd_serve)
+
+    p = sub.add_parser("stop", help="stop this workspace's detached server")
+    p.add_argument("--root", help="MUIOGO checkout (default: from manifest)")
+    p.add_argument("--port", type=int, default=None)
+    p.set_defaults(func=cmd_stop)
 
     args = parser.parse_args(argv)
     try:

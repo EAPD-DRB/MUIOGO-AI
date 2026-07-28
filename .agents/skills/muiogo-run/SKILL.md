@@ -33,25 +33,32 @@ Result - Optimal solution found - Total time (CPU seconds):       1.06
 
 ## Starting and stopping the server
 
-`muiogo serve` runs in the foreground and holds the terminal. Start it in the
-background so you can keep working, and always confirm it answered:
+Start it detached — this is the headless default and it manages the process for
+you:
 
 ```bash
-muiogo serve > /tmp/muiogo-server.log 2>&1 &
-sleep 5
-muiogo status          # must show: server  running — N case(s)
+muiogo serve --detach     # backgrounds it, prints the pid and the log path
+muiogo status             # confirm: server  running — N case(s)
 ```
 
-Stop it when the work is done:
+Stop it the same way:
 
 ```bash
-kill $(lsof -ti :5002)          # use the port muiogo status reported
+muiogo stop
 ```
 
-Two things to know. The port comes from the installation, not always 5002 —
-`muiogo status` prints it and every command defaults to it. And MUIOGO solves
-synchronously: one solve occupies the server, so do not fire runs in parallel
-against a single server; use `muiogo batch` instead.
+**Stop with `muiogo stop`, never by port.** It stops the exact process it
+started, from a pidfile in `~/.muiogo/servers/`. Killing whatever holds a port —
+`kill $(lsof -ti :5002)` — can match an unrelated process; that has actually
+happened. Run-state lives outside every checkout, so a detached server never
+leaves untracked files in a model repository.
+
+Two things to know. The port comes from the workspace, and the two worlds differ
+on purpose: an installed runtime defaults to 5102, checkouts you run manually
+keep MUIOGO's own 5002. `muiogo worlds` shows which workspaces exist, their
+ports, and which is active. And MUIOGO solves synchronously: one solve occupies
+the server, so do not fire runs in parallel against a single server; use
+`muiogo batch`.
 
 ## Solvers
 

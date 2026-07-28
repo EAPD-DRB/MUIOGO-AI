@@ -32,6 +32,13 @@ server        not running   (start it: muiogo serve)
   solvers     glpk=True cbc=True
 ```
 
+`muiogo status --json` gives the same thing machine-readably when you are
+scripting rather than reading. `muiogo worlds` lists every workspace on the
+machine and marks the active one — worth checking whenever a path looks
+unfamiliar, because a machine may carry both an **adopted** world (checkouts
+someone runs manually, on their own branches, port 5002) and an **installed**
+runtime (self-contained, port 5102). Never assume which one you are in.
+
 Take every path from that output. Never hardcode a path, and never reuse a path
 from an example — including the examples in this or any other skill file.
 
