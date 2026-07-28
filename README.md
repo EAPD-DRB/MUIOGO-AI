@@ -50,9 +50,13 @@ repository. You can say no and do it later — see below.
 
 The skills teach an AI assistant how to build, calibrate, run, and review these
 models. **Inside this repository there is nothing to install** — open it in
-Claude Code or Codex and the skills are already active. Ask for what you want
-in plain language, for example *"assess the calibration of this CLEWs model"* or
-*"run the preflight checks before I start this solve"*.
+Claude Code or Codex (`cd MUIOGO-AI`, then `claude` or `codex`) and the skills
+are already active. Ask for what you want in plain language, for example
+*"assess the calibration of this CLEWs model"* or *"run the preflight checks
+before I start this solve"*.
+
+New to this? [docs/USING_THE_SKILLS.md](docs/USING_THE_SKILLS.md) walks through
+three worked examples with the exact prompts to type.
 
 To use them in your own model repositories too:
 

@@ -11,9 +11,21 @@ assistant that supports it; nothing here is tied to one product.
 Open this repository in Claude Code or Codex and the skills are already
 active. The files live in `.agents/skills/`, the cross-assistant standard
 location that Codex reads from a repository, and `.claude/skills/` holds one
-symlink per skill, which is how Claude Code reads them. Just ask for the job in
-plain language — *"assess this model's calibration"*, *"check things before I
-launch this run"* — and your assistant follows the skill.
+symlink per skill, which is how Claude Code reads them.
+
+## How you use one
+
+Describe the job in plain language and your assistant picks the matching skill:
+
+> assess how well this CLEWs model is calibrated
+
+To name one explicitly, use `/skill-name` in Claude Code or `$skill-name` in
+Codex.
+
+**[docs/USING_THE_SKILLS.md](docs/USING_THE_SKILLS.md) has three worked
+examples** — asking questions about a run you already have, reviewing a model's
+structure, and running a scenario — with the exact prompts and the real numbers
+to expect from the demo model.
 
 ## To use them everywhere else
 
