@@ -11,7 +11,8 @@ Search order (first hit wins):
                                                  installer, alongside the
                                                  og-models/og-state that MUIOGO
                                                  itself already keeps there
-  3. ~/muiogo-ai-workspace/manifest.json      -- the installer's default workspace
+  3. ~/muiogo-ai/manifest.json                -- the installer's master directory
+     (and ~/muiogo-ai-workspace, its former name)
   4. ./manifest.json, walking up to the root  -- you are inside a workspace
 """
 import json
@@ -20,7 +21,8 @@ from pathlib import Path
 
 MANIFEST_NAME = "manifest.json"
 CANONICAL_DIR = Path.home() / ".muiogo"
-DEFAULT_WORKSPACE = Path.home() / "muiogo-ai-workspace"
+DEFAULT_WORKSPACE = Path.home() / "muiogo-ai"
+LEGACY_WORKSPACE = Path.home() / "muiogo-ai-workspace"
 
 
 class WorkspaceError(RuntimeError):
@@ -45,6 +47,7 @@ def candidate_paths(start=None):
         paths.append(Path(env).expanduser() / MANIFEST_NAME)
     paths.append(CANONICAL_DIR / MANIFEST_NAME)
     paths.append(DEFAULT_WORKSPACE / MANIFEST_NAME)
+    paths.append(LEGACY_WORKSPACE / MANIFEST_NAME)
     here = Path(start or Path.cwd()).resolve()
     for parent in [here, *here.parents]:
         paths.append(parent / MANIFEST_NAME)
@@ -128,7 +131,7 @@ def discover(roots=None):
     """
     if roots is None:
         roots = [Path.home() / "Projects", CANONICAL_DIR / "og-models",
-                 DEFAULT_WORKSPACE, Path.home()]
+                 DEFAULT_WORKSPACE, LEGACY_WORKSPACE, Path.home()]
     found = {"muiogo": [], "og_models": [], "link": []}
     seen = set()
     for root in roots:

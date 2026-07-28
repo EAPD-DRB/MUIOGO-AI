@@ -19,7 +19,7 @@ That prints the whole installation and needs no running server:
 
 ```
 manifest      /Users/<you>/.muiogo/manifest.json
-workspace     /Users/<you>/muiogo-ai-workspace
+workspace     /Users/<you>/muiogo-ai
 installed     2026-07-28T11:09:12
 MUIOGO        <workspace>/MUIOGO  (ref 3db8b816)
 model data    <workspace>/MUIOGO/WebAPP/DataStorage

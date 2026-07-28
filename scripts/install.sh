@@ -19,7 +19,7 @@
 # Usage:
 #   ./scripts/install.sh [options]
 # Options:
-#   --dest DIR          Workspace directory (default: ~/muiogo-ai-workspace)
+#   --dest DIR          Master directory for everything (default: ~/muiogo-ai)
 #   --country ISO3s     Comma-separated countries (PHL,...). Resolves BOTH sides
 #                       by the ISO3 join: the OG model (og-<iso3>) via the
 #                       upstream catalog AND the CLEWs case via clews/ manifests.
@@ -29,8 +29,8 @@
 #                       clews/clews-repos.json; installs the recommended portable
 #                       case into MUIOGO via its /uploadCase endpoint.
 #   --case NAME         Override the recommended case (single --clews/--country only)
-#   --og-home DIR       Where OG models/state live (default: ~/.muiogo, MUIOGO's
-#                       own default, so the GUI, the link, and skills all see them)
+#   --og-home DIR       Where OG models and their registry live (default: inside
+#                       --dest, keeping this installation self-contained)
 #   --no-link           Skip ogclews-link
 #   --no-demo-data      Pass through to the MUIOGO installer
 #   --no-verify         Skip the final verification battery (discouraged)
@@ -49,12 +49,12 @@ OG_CATALOG_URL="https://raw.githubusercontent.com/PSLmodels/OG-Core/master/scrip
 LINK_REPO_URL="https://github.com/marcelolafleur/ogclews-link.git"
 MUIOGO_AI_REPO_URL="https://github.com/EAPD-DRB/MUIOGO-AI.git"
 
-DEST="${HOME}/muiogo-ai-workspace"
+DEST="${HOME}/muiogo-ai"
 OG_KEYS=""
 CLEWS_KEYS=""
 COUNTRIES=""
 CASE_OVERRIDE=""
-OG_HOME="${HOME}/.muiogo"
+OG_HOME=""      # defaults to the workspace; see below
 WITH_LINK=1
 NO_DEMO_DATA=0
 NO_VERIFY=0
@@ -75,14 +75,17 @@ Usage:
 Options:
   -h, --help              Show this message and exit.
   -y, --yes               Auto-confirm every prompt (non-interactive).
-      --dest DIR          Workspace directory (default: ~/muiogo-ai-workspace).
+      --dest DIR          Master directory holding MUIOGO, the OG models, the
+                          link and their registries (default: ~/muiogo-ai).
+                          Kept separate from repos you use for live work.
       --country ISO3s     Countries to set up, comma-separated (e.g. PHL).
                           Resolves BOTH sides from the one key: the OG model
                           (og-<iso3>) and the CLEWs case.
       --og KEYS           OG models only (og-phl,og-eth,...); 'none' for none.
       --clews KEYS        CLEWs countries only (clews-phl,...).
       --case NAME         Use a specific CLEWs case instead of the recommended one.
-      --og-home DIR       Where OG models and state live (default: ~/.muiogo).
+      --og-home DIR       Where OG models and their registry live
+                          (default: inside --dest, so nothing is shared).
       --no-link           Skip ogclews-link.
       --no-demo-data      Don't install MUIOGO's demo data.
       --no-verify         Skip the final verification battery (discouraged).
@@ -118,6 +121,10 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 [[ "$OG_KEYS" == "none" ]] && OG_KEYS=""
+# Everything this installer creates lives under one directory, so it never
+# competes with checkouts you use for live work — including MUIOGO's OG registry,
+# which holds only one entry per country and would otherwise displace yours.
+[[ -z "$OG_HOME" ]] && OG_HOME="$DEST"
 
 # ── Colors (detect before any stdout redirect) ────────────────────────────────
 if [[ -t 1 ]]; then

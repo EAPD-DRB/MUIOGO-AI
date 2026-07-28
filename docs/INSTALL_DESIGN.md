@@ -91,18 +91,42 @@ link → `ogclews-link` CLI + `OGCLEWS_*` env vars + its model registry.
 
 ## 2. Environment topology (what "correct environments" means)
 
+Everything the installer creates lives under **one master directory**, default
+`~/muiogo-ai`, so it never competes with checkouts used for live work:
+
 ```
-<workspace>/MUIOGO/.venv              MUIOGO app (Flask, waitress, ...)
-~/.muiogo/og-models/<OG-XXX>/.venv    one env per OG country model (uv)
-~/.muiogo/og-state/                   MUIOGO's OG registry + install jobs + caches
-<workspace>/ogclews-link/.venv        link env (small; never imports ogcore)
-<workspace>/MUIOGO-AI/client/.venv    muiogo-client + CLI
+~/muiogo-ai/                          the master directory (--dest)
+  MUIOGO/.venv                        MUIOGO app (Flask, waitress, ...)
+  og-models/<OG-XXX>/.venv            one env per OG country model (uv)
+  og-state/                           THIS installation's OG registry + jobs
+  ogclews-link/.venv                  link env (small; never imports ogcore)
+  manifest.json                       what is installed and where
+~/.muiogo/manifest.json               a pointer, so any directory can find it
 system (brew/apt/dnf)                 GLPK + CBC solver binaries
 ```
 
 Isolation rules that must survive composition: the OG installer runs with a
 clean env (no active venv); the link never shares an env with OG models or
 MUIOGO; solvers are system-level and resolved by MUIOGO at request time.
+
+### Why the registry lives inside the master directory (verified 2026-07-28)
+
+MUIOGO's OG registry is a dict **keyed by country code** — `{"calibrations":
+{"PHL": {...}, "ZAF": {...}}}` — so it holds exactly one entry per country.
+Registering a second clone of OG-PHL overwrites the first. With the registry at
+the shared default `~/.muiogo/og-state/`, installing an isolated OG-PHL would
+silently displace the one someone uses for live work.
+
+Putting `og-state/` inside the master directory, and pointing the server at it
+through `MUIOGO_OG_DATA_DIR`, gives this installation its own registry. Two
+clones of the same country can then coexist, each registered in its own
+workspace, and `MUIOGO_WORKSPACE` selects which one the tooling uses.
+
+Multiple clones are otherwise unproblematic: git keeps no machine-level record
+of them, so a repo may be cloned any number of times, on different branches.
+The two things that do bite are disk (an OG country model is 0.7–2.8 GB) and
+Python shadowing — every clone needs its own `.venv`, and a run must use that
+checkout's interpreter, which is what `og-run-preflight` checks.
 
 ## 3. Integration findings (gaps the plan must close)
 
@@ -138,7 +162,7 @@ adds ordering, clean-env handling, a manifest, and end-to-end verification.
 Structure copied from `test-drive.sh`: zero-input with flags, resume-safe,
 every step idempotent, step-report table at the end.
 
-### Workspace layout (default `~/muiogo-ai-workspace`, `--dest` to change)
+### Workspace layout (default `~/muiogo-ai`, `--dest` to change)
 
 ```
 <workspace>/
@@ -237,4 +261,4 @@ Design (piloted here, PHL first):
 
 Open decisions for Marcelo: default OG country set for `--og` (none vs
 `og-phl` as the worked example), and whether the workspace default should be
-`~/muiogo-ai-workspace` or something shorter.
+`~/muiogo-ai` or something shorter.

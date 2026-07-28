@@ -25,7 +25,7 @@ Three separate things, worth keeping straight:
 | Thing | Where it lives |
 |---|---|
 | **The skills** | Active automatically inside this repository. For other projects, run `./scripts/install-skills.sh` once. |
-| **MUIOGO and your models** | The workspace the installer created: `~/muiogo-ai-workspace/MUIOGO`, with model data under `WebAPP/DataStorage/`. |
+| **MUIOGO and your models** | The workspace the installer created: `~/muiogo-ai/MUIOGO`, with model data under `WebAPP/DataStorage/`. |
 | **Your assistant session** | Wherever you start Claude Code or Codex. |
 
 **You don't have to keep these straight — the assistant does it.** The installer
@@ -75,13 +75,13 @@ This one uses the `clews-model-review` skill, which checks a model against a
 reference for orphaned IDs, stranded commodities, unit slips, and solve status.
 Ask:
 
-> Review the CLEWs Demo model in ~/muiogo-ai-workspace/MUIOGO/WebAPP/DataStorage
+> Review the CLEWs Demo model in ~/muiogo-ai/MUIOGO/WebAPP/DataStorage
 > for structure and data consistency
 
 The skill runs its bundled checker. You can also run it yourself:
 
 ```bash
-python3 .agents/skills/clews-model-review/audit.py --datastorage ~/muiogo-ai-workspace/MUIOGO/WebAPP/DataStorage "CLEWs Demo"
+python3 .agents/skills/clews-model-review/audit.py --datastorage ~/muiogo-ai/MUIOGO/WebAPP/DataStorage "CLEWs Demo"
 ```
 
 On the demo model it reports 16 years (2020–2035), 30 technologies, 22
