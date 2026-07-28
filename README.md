@@ -1,63 +1,104 @@
 # MUIOGO-AI
 
-Side research on running [MUIOGO](https://github.com/EAPD-DRB/MUIOGO) headless
-through a collection of agent skills: install it, calibrate OG country models,
-build and run CLEWs scenarios, run linked OG-CLEWS workflows, interpret and
-visualize the results, and produce short analytical write-ups — all without the
-GUI.
+Run [MUIOGO](https://github.com/EAPD-DRB/MUIOGO) — the UN DESA modelling
+interface for CLEWs and OG-Core — without the GUI, driven by AI skills:
+install it, run scenarios, couple it with OG country models, and get
+analytical outputs on demand.
 
-This repo is exploratory and separate from MUIOGO on purpose. Nothing here is
-proposed for MUIOGO's `main` until it has proven itself; when a piece matures,
-it is offered upstream through MUIOGO's normal issue + PR process. MUIOGO is
-treated as an installed dependency (pinned, see `scripts/`), never as a code
-import: everything drives its HTTP API, the same surface the GUI uses.
+Works on macOS and Linux. Windows is not supported yet.
 
-Start with [docs/SCOPE.md](docs/SCOPE.md) — the vision, architecture,
-skill inventory, and phased plan.
+## Install (about 15 minutes)
 
-## Layout
+**1. Open a terminal** (macOS: press Cmd+Space, type `Terminal`, press Enter).
 
-- `docs/` — scope, design notes, decisions
-- `.claude/skills/` — the agent skills (the heart of the project)
-- `client/` — `muiogo-client`, a thin Python client + CLI for the MUIOGO HTTP API
-- `experiments/` — scenario studies, notebooks, throwaway explorations
-- `scripts/` — setup helpers, including the pinned MUIOGO installer
+**2. Install Git** (skip if you have it):
 
-## Working agreements
+macOS:
 
-This is a research repo, so process is deliberately light:
+```bash
+xcode-select --install
+```
 
-- Pushing to `main` is fine; branches are for anything you want eyes on first.
-- Issues are optional; write findings down in `docs/` or `experiments/` instead
-  of letting them live in chat threads.
-- The one hard rule: the client and skills talk to MUIOGO over HTTP only —
-  no imports of MUIOGO's backend classes. That keeps this work honest
-  (identical behavior to the GUI) and upstreamable.
+Linux (Debian/Ubuntu):
 
-## Getting started
+```bash
+sudo apt install git gh
+```
 
-One command installs and verifies the whole headless stack — MUIOGO (with
-solvers and demo data), optional OG country model(s), and ogclews-link — each
-via its own upstream installer, each in its own environment:
+**3. Sign in to GitHub** (needed while this project is private; on macOS
+install the GitHub tool first with `brew install gh` — if `brew` is missing,
+get it at [brew.sh](https://brew.sh)):
+
+```bash
+gh auth login
+```
+
+Press Enter to accept the defaults and sign in through your browser.
+
+**4. Go to your projects folder and download MUIOGO-AI:**
+
+```bash
+cd ~
+gh repo clone EAPD-DRB/MUIOGO-AI
+cd MUIOGO-AI
+```
+
+**5. Install everything** (MUIOGO, the Philippines example country, and the
+OG-CLEWS link — the script checks that it all works before finishing):
 
 ```bash
 ./scripts/install.sh --country PHL
 ```
 
-`--country ISO3` resolves everything by the ISO3 join: the OG model via the
-upstream OG-Core catalog, the CLEWs country case (recommended portable case,
-`--case` to override) installed through MUIOGO's own upload endpoint, and
-link registration. See `clews/README.md` for how countries are described and
-matched. Finer-grained flags: `--dest DIR` (workspace, default
-`~/muiogo-ai-workspace`), `--og KEYS`, `--clews KEYS`, `--og-home DIR`,
-`--no-link`, `--no-demo-data`, `--port N`. The
-run ends with a verification battery (demo case solves with CBC, OG models
-import from their own venvs, link `--check` passes) and writes
-`<workspace>/manifest.json`, which skills read to find every component.
-Resume-safe: re-running skips finished steps. See `docs/INSTALL_DESIGN.md`
-for the assessment behind it.
+**6. Start MUIOGO:**
 
-Working on the repo itself: read `docs/SCOPE.md`, pick a phase item, and go.
+```bash
+client/.venv/bin/muiogo serve --root ~/muiogo-ai-workspace/MUIOGO
+```
+
+Leave that window open. To use the web interface, open
+[http://127.0.0.1:5002](http://127.0.0.1:5002) in your browser. Press
+Ctrl+C in the terminal to stop.
+
+## If something goes wrong
+
+- **"port 5002 is already in use"** — add `--port 5003` to the command.
+- **A message about conda** — run `conda deactivate` and try again.
+- **"could not clone"** — step 3 (GitHub sign-in) didn't finish; run
+  `gh auth login` again.
+- Still stuck? The installer writes logs into `~/muiogo-ai-workspace/` —
+  share the newest `.log` file when asking for help.
+
+## Manual installation
+
+The one-line installer above just runs each project's own installer for you.
+To do it by hand instead:
+
+1. **MUIOGO** — follow the install instructions in the
+   [MUIOGO README](https://github.com/EAPD-DRB/MUIOGO#installation).
+2. **An OG country model** — use the OG-Core universal installer:
+
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/PSLmodels/OG-Core/master/scripts/install.sh -o og-install.sh
+   bash og-install.sh --repo og-phl --dest ~/.muiogo/og-models --yes
+   ```
+
+3. **ogclews-link** — clone it and run its setup:
+
+   ```bash
+   git clone https://github.com/marcelolafleur/ogclews-link.git
+   cd ogclews-link && ./scripts/setup.sh --og-path ~/.muiogo/og-models/OG-PHL
+   ```
+
+## For contributors
+
+- Layout: `docs/` (scope and design), `.claude/skills/` (the agent skills),
+  `client/` (Python client + `muiogo` CLI), `clews/` (country catalog),
+  `experiments/` (studies).
+- Start with [docs/SCOPE.md](docs/SCOPE.md); install details are in
+  [docs/INSTALL_DESIGN.md](docs/INSTALL_DESIGN.md).
+- One hard rule: talk to MUIOGO over HTTP only — never import its backend
+  code. Process is light: push to `main`, branch when you want review.
 
 ## License
 
