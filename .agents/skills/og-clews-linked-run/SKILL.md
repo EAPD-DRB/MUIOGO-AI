@@ -32,28 +32,43 @@ You need a registered OG model whose calibration is **multi-industry**. Register
 one with:
 
 ```bash
-.venv/bin/ogclews-link models register --path <og-models>/OG-PHL
+.venv/bin/ogclews-link models register --path <path to OG-XXX>
 ```
 
-Read the output carefully. A single-industry calibration reports:
+Read what it prints — that output is the answer, and it varies by checkout:
 
 ```
-[x] og-phl  ogphl  0.1.1  calib=single-industry  couplable=0
-    single-industry calibration -- no electricity industry; energy channels skip
+electricity isolated as its own industry -- couplable on energy
+[x] og-phl  ogphl  0.1.0  calib=ogphl_multisector_default_parameters.json  couplable=1
 ```
 
-`couplable=0` means the energy channels **cannot run** — a single-industry model
-has no electricity industry for a price or cost-push signal to act on. This is
-the normal state of a freshly installed country model, so expect it. The fix is a
-multi-industry calibration; OG-PHL ships
-`examples/run_og_phl_multi_industry.py` for exactly that. Building it is a long
-solve — propose it and let the user launch it (see `og-run`).
+`couplable=1` means the energy channels can act. `couplable=0` with
 
-Tell the user plainly when you hit this:
+```
+single-industry calibration -- no electricity industry; energy channels skip
+```
+
+means they would silently do nothing.
+
+**Check before concluding anything.** A *freshly installed* country model is
+single-industry, so a brand-new install will report `couplable=0`. But a checkout
+someone has been working in may already be on a multi-industry calibration branch
+and report `couplable=1` — that is common, because multi-industry work is exactly
+what people do on these repos. Never assume from the fact of installation; run
+`models register` (or `models list`) and read the flag.
+
+Also read the qualifiers in that output, not just the flag. A model can be
+couplable and still approximate — for example a route-A good that is only partly
+electricity is reported as DILUTED, meaning the demand-side wedge is a proxy. Pass
+that caveat on when you report results.
+
+If it really is `couplable=0`, say so plainly rather than running anyway:
 
 > The installed OG-PHL is a single-industry calibration, so the energy channels
 > would silently skip. A coupled energy-price run needs the multi-industry
 > calibration, which is a multi-hour solve. Shall I set that up?
+
+Building it is `examples/run_og_<xxx>_multi_industry.py` — see `og-run`.
 
 ## What you can run
 
