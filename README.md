@@ -72,16 +72,16 @@ See [SKILLS.md](SKILLS.md) for the full list and what each one does.
 ## Start MUIOGO
 
 ```bash
-client/.venv/bin/muiogo serve --root ~/muiogo-ai/MUIOGO
+muiogo use runtime && muiogo serve --detach
 ```
 
 Leave that window open. For the web interface, open
-[http://127.0.0.1:5002](http://127.0.0.1:5002) in your browser. Press
+[http://127.0.0.1:5102](http://127.0.0.1:5102) in your browser. Press
 Ctrl+C in the terminal to stop.
 
 ## If something goes wrong
 
-- **"port 5002 is already in use"** — add `--port 5003` to the command.
+- **"port … is already in use"** — add `--port 5103` to the command. (The installed runtime uses 5102; 5002 is left for a MUIOGO you run yourself.)
 - **A message about conda** — run `conda deactivate` and try again.
 - Still stuck? The installer writes logs into `~/muiogo-ai/` —
   share the newest `.log` file when asking for help.

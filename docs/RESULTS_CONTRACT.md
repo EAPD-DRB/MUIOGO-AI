@@ -51,8 +51,8 @@ WebAPP/DataStorage/
 Two findings that matter whenever you compare against results you did not
 generate:
 
-- **The demo case ships a stale CO2TAX result.** `res/CO2TAX/csv` reports
-  730,895 → 600,590 tonnes cumulative CO2, but re-solving the same case with the
+- **The demo case ships a stale CO2TAX result.** `res/CO2TAX/csv` as shipped
+  reports 600,590 tonnes cumulative CO2, but re-solving the same case with the
   shipped input data gives **513,337** (objective 69,679.03), reproducibly and
   identically in both the original case and a fresh copy. REF (730,895) and
   RETRG (707,668) do reproduce. So the stored CO2TAX outputs were produced by

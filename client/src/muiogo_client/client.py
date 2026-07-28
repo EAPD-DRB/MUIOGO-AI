@@ -30,14 +30,27 @@ class MuiogoClient:
 
     # -- plumbing ------------------------------------------------------------
 
+    def _explain(self, r, path):
+        """Turn an HTTP error into a sentence, keeping MUIOGO's own message."""
+        detail = ""
+        try:
+            body = r.json()
+            if isinstance(body, dict):
+                detail = body.get("message") or body.get("msg") or ""
+        except ValueError:
+            detail = (r.text or "").strip()[:200]
+        return MuiogoError(f"{path} failed ({r.status_code}){': ' + detail if detail else ''}")
+
     def _get(self, path, **kwargs):
         r = self._http.get(f"{self.base_url}{path}", timeout=self.timeout, **kwargs)
-        r.raise_for_status()
+        if not r.ok:
+            raise self._explain(r, path)
         return r
 
     def _post_json(self, path, payload):
         r = self._http.post(f"{self.base_url}{path}", json=payload, timeout=self.timeout)
-        r.raise_for_status()
+        if not r.ok:
+            raise self._explain(r, path)
         body = r.json()
         if isinstance(body, dict) and body.get("status_code") == "error":
             raise MuiogoError(body.get("message") or str(body))
@@ -278,19 +291,36 @@ class MuiogoClient:
         """Country calibrations installed on this machine."""
         return self._countries(self._get("/ogc/getInstalledCalibrations").json())
 
-    def og_install(self, catalog_key=None, repo_url=None, branch=None):
+    def og_install(self, catalog_key=None, repo_url=None, branch=None,
+                   country_id=None, country_name=None, dest_parent=None):
         """Start an OG country-model install. Returns the job's install_id.
+
+        The route requires source_type and country_id, and catalog_key or
+        repo_url depending on the source. For a catalogue install it re-keys the
+        record by the catalogue's own country_id, so ours only needs to be valid.
 
         Asynchronous: the install clones and syncs a full model environment,
         which takes minutes. Poll with og_install_status().
         """
         if not (catalog_key or repo_url):
             raise MuiogoError("give either catalog_key or repo_url")
-        payload = {}
         if catalog_key:
-            payload["catalog_key"] = catalog_key
-        if repo_url:
-            payload["repo_url"] = repo_url
+            payload = {
+                "source_type": "catalog",
+                "catalog_key": catalog_key,
+                # og-zaf -> ZAF; the route overrides this with the catalogue's own
+                # value, but it must be present and well-formed to pass validation.
+                "country_id": country_id or catalog_key.rsplit("-", 1)[-1].upper(),
+            }
+        else:
+            if not country_id:
+                raise MuiogoError("installing from a repo_url needs country_id")
+            payload = {"source_type": "repo_url", "repo_url": repo_url,
+                       "country_id": country_id}
+        if country_name:
+            payload["country_name"] = country_name
+        if dest_parent:
+            payload["dest_parent"] = str(dest_parent)
         if branch:
             payload["branch"] = branch
         return self._post_json("/ogc/installCalibration", payload)

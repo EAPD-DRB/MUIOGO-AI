@@ -203,6 +203,7 @@ clean_env() { env -u VIRTUAL_ENV -u CONDA_DEFAULT_ENV -u CONDA_PREFIX -u CONDA_S
 # No-op `open`/`xdg-open` shim so the MUIOGO installer's auto-start can't pop
 # a browser. The auto-start itself is absorbed as our health probe.
 SHIM_DIR="$(mktemp -d)"
+CLEANUP_PATHS+=("$SHIM_DIR")
 for cmd in open xdg-open; do
     printf '#!/bin/sh\nexit 0\n' > "$SHIM_DIR/$cmd" && chmod +x "$SHIM_DIR/$cmd"
 done
@@ -228,7 +229,21 @@ stop_server() {
         local pid; pid="$(server_pid)"
         [[ -n "$pid" ]] && kill "$pid" 2>/dev/null && sleep 1
     fi
+    return 0
 }
+
+# Nothing we create should outlive a failure: not the verification server, not the
+# scratch directories. die() exits without unwinding, so this has to be a trap.
+CLEANUP_PATHS=()
+cleanup() {
+    stop_server
+    local p
+    for p in ${CLEANUP_PATHS[@]+"${CLEANUP_PATHS[@]}"}; do
+        [[ -n "$p" && "$p" == /*/* ]] && rm -rf "$p"
+    done
+    return 0
+}
+trap cleanup EXIT
 api() { curl -s -m "${2:-10}" "http://127.0.0.1:${PORT}${1}"; }
 wait_api() { # wait_api SECONDS — until /getCases answers
     local deadline=$(( $(date +%s) + $1 ))
@@ -329,6 +344,7 @@ if [[ -x "$MUIOGO_DIR/.venv/bin/python" && -f "$MUIOGO_DIR/API/app.py" ]]; then
     record muiogo SKIP "$MUIOGO_DIR"
 else
     TMP_INST="$(mktemp -d)/muiogo-install.sh"
+    CLEANUP_PATHS+=("$(dirname "$TMP_INST")")
     curl -fsSL "$MUIOGO_INSTALLER_URL" -o "$TMP_INST" || die "could not fetch the MUIOGO installer"
     EXTRA=(); [[ $NO_DEMO_DATA -eq 1 ]] && EXTRA+=("--no-demo-data")
     # --yes auto-starts the app (no --no-start upstream yet). We absorb that:
@@ -337,11 +353,26 @@ else
     PATH="$SHIM_DIR:$PATH" PORT="$PORT" clean_env bash "$TMP_INST" --dest "$DEST" --yes ${EXTRA[@]+"${EXTRA[@]}"} > "$LOG" 2>&1 &
     INSTALL_BASH_PID=$!
     echo "  installing (log: $LOG) — this takes a few minutes on first run"
-    if wait_api 900; then
+    # Upstream only auto-starts the app when every one of its steps passed, so a
+    # component failure means the port never binds. Watch the child too, or we sit
+    # here for the full timeout and then report the wrong cause.
+    INSTALL_OK=0
+    DEADLINE=$(( $(date +%s) + 900 ))
+    while [[ $(date +%s) -lt $DEADLINE ]]; do
+        if port_busy; then INSTALL_OK=1; break; fi
+        if ! kill -0 "$INSTALL_BASH_PID" 2>/dev/null; then
+            die "the MUIOGO installer exited without starting the app — see $LOG"
+        fi
+        sleep 2
+    done
+    if [[ $INSTALL_OK -eq 1 ]]; then
         ok "installer finished; app answered on port $PORT"
     else
-        kill "$INSTALL_BASH_PID" 2>/dev/null
-        die "MUIOGO never answered on port $PORT — see $LOG"
+        # Signal the whole tree: killing only the top-level bash leaves uv and
+        # python children writing into the master directory.
+        pkill -P "$INSTALL_BASH_PID" 2>/dev/null || true
+        kill "$INSTALL_BASH_PID" 2>/dev/null || true
+        die "MUIOGO never answered on port $PORT within 15 minutes — see $LOG"
     fi
     stop_server
     record muiogo OK "$MUIOGO_DIR"
@@ -379,20 +410,39 @@ fi
 #
 # Only for an installation THIS script created. A checkout that was already here
 # keeps whatever registry its owner set up; we do not rewrite someone's .env.
-if [[ $MUIOGO_WAS_HERE -eq 0 ]]; then
-    ENV_FILE="$MUIOGO_DIR/.env"
-    touch "$ENV_FILE"
-    for pair in "MUIOGO_OG_DATA_DIR=$OG_HOME/og-state" "MUIOGO_OG_MODELS_DIR=$OG_HOME/og-models"; do
-        key="${pair%%=*}"
-        if grep -q "^${key}=" "$ENV_FILE" 2>/dev/null; then
-            warn "$key already set in $ENV_FILE — leaving it"
-        else
-            printf '%s\n' "$pair" >> "$ENV_FILE"
-        fi
-    done
-    ok "OG registry pinned to this installation ($OG_HOME/og-state)"
+# Run this EVERY time, not only on a fresh clone. It was gated on
+# MUIOGO_WAS_HERE, which is inferred from disk artifacts — so any second run, or a
+# resume after a partial first run, skipped it and left the installed world reading
+# the shared user-level registry. That is exactly the two-worlds collision this
+# exists to prevent, and nothing downstream would have caught it: the installer's
+# own verification passes the variables explicitly, and the client injects them
+# from the manifest. It would only surface later, when someone started the
+# installed MUIOGO by its own start.sh.
+#
+# The per-key guard below is the idempotency test, so re-entering is safe. We only
+# refuse when a key is already present with a DIFFERENT value — that is someone
+# else's choice and not ours to overwrite.
+ENV_FILE="$MUIOGO_DIR/.env"
+[[ -f "$ENV_FILE" ]] || : > "$ENV_FILE"
+# A file not ending in a newline would glue our first key onto the last line.
+[[ -s "$ENV_FILE" && -n "$(tail -c1 "$ENV_FILE")" ]] && printf '\n' >> "$ENV_FILE"
+ENV_OK=1
+for pair in "MUIOGO_OG_DATA_DIR=$OG_HOME/og-state" "MUIOGO_OG_MODELS_DIR=$OG_HOME/og-models"; do
+    key="${pair%%=*}"; want="${pair#*=}"
+    existing="$(grep -m1 "^${key}=" "$ENV_FILE" 2>/dev/null | cut -d= -f2-)"
+    if [[ -z "$existing" ]]; then
+        printf '%s\n' "$pair" >> "$ENV_FILE"
+    elif [[ "$existing" != "$want" ]]; then
+        warn "$key in $ENV_FILE points at $existing, not $want — leaving it alone"
+        warn "  this installation will share that registry; fix it if that is not what you want"
+        ENV_OK=0
+    fi
+done
+if [[ $ENV_OK -eq 1 ]]; then
+    ok "OG registry isolated to this installation ($OG_HOME/og-state)"
+    record og-registry OK "$OG_HOME/og-state"
 else
-    warn "MUIOGO was already here — not touching its .env; it keeps its own registry"
+    record og-registry FAIL "existing .env points elsewhere"
 fi
 
 for solver in glpsol cbc; do
@@ -405,6 +455,7 @@ declare -a OG_INSTALLED_KEYS=() OG_INSTALLED_REPOS=() OG_INSTALLED_PKGS=() OG_IN
 if [[ -n "$OG_KEYS" ]]; then
     step_banner "3" "OG model(s): $OG_KEYS (upstream OG-Core installer)"
     OG_INST="$(mktemp -d)/og-install.sh"
+    CLEANUP_PATHS+=("$(dirname "$OG_INST")")
     curl -fsSL "$OG_INSTALLER_URL" -o "$OG_INST" || die "could not fetch the OG-Core installer"
     CATALOG_JSON="$(curl -fsSL "$OG_CATALOG_URL")" || die "could not fetch the OG catalog (repos.json)"
     IFS=',' read -ra KEYS <<< "$OG_KEYS"
@@ -706,10 +757,10 @@ CLIENT_PY="$AI_DIR/client/.venv/bin/python"
 if [[ -x "$CLIENT_PY" ]]; then
     PUBLISHED="$("$CLIENT_PY" -c "
 from muiogo_client import workspace
-print(workspace.publish('$DEST/manifest.json') or '')
+print(workspace.publish('$DEST/manifest.json', name='runtime') or '')
 " 2>/dev/null)"
     if [[ -n "$PUBLISHED" ]]; then
-        ok "discoverable from anywhere: $PUBLISHED"
+        ok "registered as world 'runtime': $PUBLISHED"
     else
         warn "could not publish the manifest to ~/.muiogo — 'muiogo status' will need MUIOGO_WORKSPACE"
     fi
@@ -719,6 +770,10 @@ fi
 record manifest OK "$DEST/manifest.json"
 
 report
+FAILED_STEPS=0
+for _s in ${STEP_STATES[@]+"${STEP_STATES[@]}"}; do
+    [[ "$_s" == "FAIL" ]] && FAILED_STEPS=$((FAILED_STEPS + 1))
+done
 
 # ── optional: skills into the user's AI assistant ────────────────────────────
 # Always optional, never silent: writing into someone's home directory is their
@@ -755,8 +810,17 @@ if [[ $NO_SKILLS -eq 0 && "$SKILL_COUNT" -gt 0 ]]; then
 fi
 
 echo ""
+# The banner must reflect the recorded steps. It used to be unconditional, so a
+# failed step still ended in a green "installed and verified" and exit 0.
+if [[ $FAILED_STEPS -gt 0 ]]; then
+    printf "  ${RED}${BOLD}%d step(s) failed — this installation is NOT verified.${RESET}\n" "$FAILED_STEPS"
+    echo    "  Review the report above. Re-running is safe: finished steps are skipped."
+    echo    "  Workspace : $DEST"
+    exit 1
+fi
 printf "  ${GREEN}${BOLD}MUIOGO-AI stack installed and verified.${RESET}\n"
 echo    "  Workspace : $DEST"
 echo    "  Manifest  : $DEST/manifest.json"
-echo    "  Start MUIOGO headless:  $AI_DIR/client/.venv/bin/muiogo serve --root $MUIOGO_DIR"
+echo    "  World     : runtime (port $PORT) — \`muiogo worlds\` shows all of them"
+echo    "  Start it:   muiogo use runtime && muiogo serve --detach"
 exit 0

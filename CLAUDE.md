@@ -12,7 +12,7 @@ the architecture, the skill inventory, and the current phase.
   in `docs/` and propose the fix upstream in MUIOGO; do not work around it by
   importing code.
 - **MUIOGO is a pinned dependency.** Install and run it via
-  `scripts/install-muiogo.sh` (pin in `scripts/MUIOGO_PIN`). Bump the pin
+  `scripts/install.sh` (pin in `scripts/MUIOGO_PIN`). Bump the pin
   deliberately, in its own commit, after checking the run still passes.
 - **Upstreaming is deliberate.** Changes MUIOGO itself needs (e.g. headless
   server flags) are developed there under its rules (issue first, feature

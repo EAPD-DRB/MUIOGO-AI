@@ -19,6 +19,33 @@ class AnalysisError(RuntimeError):
     pass
 
 
+# Dimension columns are the OSeMOSYS index letters; anything else is a value.
+_DIMENSION_COLUMNS = set(DIMENSION_NAMES) | {"e", "y"}
+
+
+def _value_column(df, var):
+    """The column holding the numbers, chosen by name rather than position.
+
+    Taking the last column silently sums the wrong one for any result file whose
+    value is not last — and produces a plausible number, which is worse than an
+    error. Prefer a column named after the variable, then the only non-dimension
+    column, and refuse rather than guess.
+    """
+    if var in df.columns:
+        return var
+    candidates = [c for c in df.columns if c not in _DIMENSION_COLUMNS]
+    if len(candidates) == 1:
+        return candidates[0]
+    numeric = [c for c in candidates if str(df[c].dtype).startswith(("float", "int"))]
+    if len(numeric) == 1:
+        return numeric[0]
+    raise AnalysisError(
+        f"cannot tell which column holds the values in {var}.csv "
+        f"(columns: {', '.join(df.columns)}). "
+        f"Refusing to guess — that would give a plausible wrong number."
+    )
+
+
 def results_dir(data_storage, case, run):
     return Path(data_storage) / case / "res" / run / "csv"
 
@@ -68,6 +95,11 @@ def compare(data_storage, case, runs, var, filters=None, by=None):
             warnings.append(str(exc))
             continue
 
+        if "y" not in df.columns:
+            raise AnalysisError(
+                f"{var}.csv has no year column, so it cannot be compared over time "
+                f"(columns: {', '.join(df.columns)})"
+            )
         missing = [c for c in list(filters) + ([by] if by else []) if c not in df.columns]
         if missing:
             raise AnalysisError(
@@ -81,7 +113,7 @@ def compare(data_storage, case, runs, var, filters=None, by=None):
             warnings.append(f"no rows left for run {run} after filtering")
             continue
 
-        value_col = df.columns[-1]
+        value_col = _value_column(df, var)
         if by:
             grouped = df.groupby(["y", by])[value_col].sum().unstack(by)
             for group in grouped.columns:

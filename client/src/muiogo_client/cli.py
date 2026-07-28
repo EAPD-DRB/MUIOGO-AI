@@ -3,7 +3,8 @@
 Orientation (works with no server running):
   muiogo status                                      where everything is installed
   muiogo adopt --scan | --auto                       use installs you already have
-  muiogo worlds                                      which workspaces exist; * = active
+  muiogo worlds                                      which worlds exist; * = active
+  muiogo use <name>                                  switch world (live | runtime)
 
 Models and scenarios:
   muiogo cases                                       list cases
@@ -212,8 +213,22 @@ def cmd_status(args):
         print(f"  solvers     glpk={bool(solvers.get('glpsol'))} cbc={bool(solvers.get('cbc'))}")
     if others:
         print()
-        print(f"{len(others)} other workspace(s) on this machine — `muiogo worlds` to see them,")
-        print("MUIOGO_WORKSPACE=<dir> to switch.")
+        print(f"{len(others)} other world(s) on this machine — `muiogo worlds` to see them,")
+        print("`muiogo use <name>` to switch.")
+    return 0
+
+
+def cmd_use(args):
+    """Point the tooling at a registered world, explicitly."""
+    try:
+        workspace.set_active(args.name)
+    except workspace.WorkspaceError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    info = workspace.summary()
+    print(f"active world: {args.name} ({info['kind']})")
+    print(f"  MUIOGO  {info['muiogo_path']}")
+    print(f"  server  {info['muiogo_url']}")
     return 0
 
 
@@ -232,10 +247,11 @@ def cmd_worlds(args):
     for w in rows:
         mark = "*" if w["active"] else " "
         live = "running" if w.get("port") and _answers(f"http://127.0.0.1:{w['port']}") else "stopped"
-        print(f" {mark} {w['kind']:<10} port {str(w.get('port') or '?'):<5} {live:<8} {w['muiogo_path']}")
+        print(f" {mark} {w.get('name','?'):<9} {w['kind']:<10} port {str(w.get('port') or '?'):<5} "
+              f"{live:<8} {w['muiogo_path']}")
         print(f"   {'':<10} {w['manifest']}")
     print()
-    print("* = active. Switch with:  MUIOGO_WORKSPACE=<workspace dir> muiogo status")
+    print("* = active. Switch with:  muiogo use <name>")
     return 0
 
 
@@ -724,6 +740,10 @@ def main(argv=None):
     p.add_argument("--link", help="path to an ogclews-link checkout")
     p.add_argument("--port", type=int, default=5002)
     p.set_defaults(func=cmd_adopt)
+
+    p = sub.add_parser("use", help="switch which world the tooling acts on")
+    p.add_argument("name")
+    p.set_defaults(func=cmd_use)
 
     p = sub.add_parser("worlds", help="list workspaces on this machine, mark the active one")
     p.add_argument("--json", action="store_true", help="machine-readable output")

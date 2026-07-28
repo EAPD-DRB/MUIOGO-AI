@@ -28,9 +28,19 @@ MANIFEST_NAME = "manifest.json"
 # server, and each manifest records which kind it is.
 LIVE_PORT = 5002        # adopted world: MUIOGO's own default
 RUNTIME_PORT = 5102     # installed world: deliberately not MUIOGO's default
+
 CANONICAL_DIR = Path.home() / ".muiogo"
 DEFAULT_WORKSPACE = Path.home() / "muiogo-ai"
 LEGACY_WORKSPACE = Path.home() / "muiogo-ai-workspace"
+
+# One record PER WORLD, never one shared slot. A single canonical manifest meant
+# that installing a runtime overwrote the only record of the adopted world — and
+# re-adopting to recover clobbered the runtime's record in the other direction,
+# with no way out but hand-editing JSON. Each world now owns a file, and a
+# separate pointer says which is active.
+WORLDS_DIR = CANONICAL_DIR / "worlds"
+ACTIVE_FILE = CANONICAL_DIR / "active"
+LEGACY_MANIFEST = CANONICAL_DIR / MANIFEST_NAME
 
 
 class WorkspaceError(RuntimeError):
@@ -47,13 +57,62 @@ def _looks_like_manifest(path):
     return isinstance(data, dict) and "muiogo" in data
 
 
+def world_file(name):
+    return WORLDS_DIR / f"{name}.json"
+
+
+def active_world():
+    """Name of the world the tooling is currently pointed at, or None."""
+    try:
+        name = ACTIVE_FILE.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return name if name and world_file(name).is_file() else None
+
+
+def known_worlds():
+    """Every registered world: {name: path}, newest naming wins."""
+    if not WORLDS_DIR.is_dir():
+        return {}
+    return {p.stem: p for p in sorted(WORLDS_DIR.glob("*.json"))}
+
+
+def register_world(name, manifest, make_active=True):
+    """Record a world under its own name. Never disturbs another world's record."""
+    WORLDS_DIR.mkdir(parents=True, exist_ok=True)
+    path = world_file(name)
+    path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    if make_active:
+        set_active(name)
+    return path
+
+
+def set_active(name):
+    """Point the tooling at a registered world."""
+    if not world_file(name).is_file():
+        raise WorkspaceError(f"no world named {name!r} (have: {', '.join(known_worlds()) or 'none'})")
+    CANONICAL_DIR.mkdir(parents=True, exist_ok=True)
+    ACTIVE_FILE.write_text(f"{name}\n", encoding="utf-8")
+    # Kept in step for anything still reading the old single-slot location.
+    try:
+        LEGACY_MANIFEST.write_text(world_file(name).read_text(encoding="utf-8"),
+                                   encoding="utf-8")
+    except OSError:
+        pass
+    return name
+
+
 def candidate_paths(start=None):
     """Every place a manifest might live, in search order."""
     paths = []
     env = os.environ.get("MUIOGO_WORKSPACE", "").strip()
     if env:
         paths.append(Path(env).expanduser() / MANIFEST_NAME)
-    paths.append(CANONICAL_DIR / MANIFEST_NAME)
+    active = active_world()
+    if active:
+        paths.append(world_file(active))
+    paths.extend(known_worlds().values())
+    paths.append(LEGACY_MANIFEST)
     paths.append(DEFAULT_WORKSPACE / MANIFEST_NAME)
     paths.append(LEGACY_WORKSPACE / MANIFEST_NAME)
     here = Path(start or Path.cwd()).resolve()
@@ -82,20 +141,23 @@ def load(start=None):
         return json.load(f), path
 
 
-def publish(manifest_path):
-    """Copy a workspace manifest to the canonical ~/.muiogo/manifest.json.
+def publish(manifest_path, name=None, make_active=True):
+    """Register a workspace as a named world so it can be found from anywhere.
 
-    The installer calls this so later sessions can find the workspace from
-    anywhere. Returns the canonical path, or None if it could not be written.
+    Registers under its own name rather than overwriting a shared slot, so
+    installing a runtime can never destroy the record of an adopted world.
+    Returns the registered path, or None if it could not be written.
     """
     src = Path(manifest_path)
     try:
-        CANONICAL_DIR.mkdir(parents=True, exist_ok=True)
-        dest = CANONICAL_DIR / MANIFEST_NAME
-        if src.resolve() == dest.resolve():
-            return dest
-        dest.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
-        return dest
+        data = json.loads(src.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if name is None:
+        kind, _ = describe_kind(data)
+        name = "runtime" if kind == "installed" else "live"
+    try:
+        return register_world(name, data, make_active=make_active)
     except OSError:
         return None
 
@@ -217,13 +279,14 @@ def build_manifest(muiogo_path, og_models=(), link_path=None, port=LIVE_PORT,
     }
 
 
-def adopt(muiogo_path, og_models=(), link_path=None, port=LIVE_PORT):
-    """Record existing installations as the workspace. Returns (path, manifest)."""
+def adopt(muiogo_path, og_models=(), link_path=None, port=LIVE_PORT, name="live"):
+    """Register existing installations as a named world. Returns (path, manifest).
+
+    Writes only that world's own record, so an installed runtime registered
+    separately is untouched.
+    """
     manifest = build_manifest(muiogo_path, og_models, link_path, port)
-    CANONICAL_DIR.mkdir(parents=True, exist_ok=True)
-    dest = CANONICAL_DIR / MANIFEST_NAME
-    dest.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-    return dest, manifest
+    return register_world(name, manifest), manifest
 
 
 def describe_kind(data):
@@ -241,12 +304,16 @@ def list_workspaces(start=None):
     the search order happened to reach first.
     """
     active = find_manifest(start)
+    names = {v.resolve(): k for k, v in known_worlds().items()}
+    # The legacy single-slot file is a mirror of the active world, not a world of
+    # its own — listing it would show a phantom duplicate.
+    skip = {LEGACY_MANIFEST.resolve()} if names else set()
     seen, out = set(), []
     for path in candidate_paths(start):
         if not path.is_file() or not _looks_like_manifest(path):
             continue
         real = path.resolve()
-        if real in seen:
+        if real in seen or real in skip:
             continue
         seen.add(real)
         try:
@@ -258,6 +325,7 @@ def list_workspaces(start=None):
         muiogo = data.get("muiogo") or {}
         out.append({
             "manifest": str(path),
+            "name": names.get(real, "(unregistered)"),
             "kind": kind,
             "workspace": data.get("workspace"),
             "muiogo_path": muiogo.get("path"),

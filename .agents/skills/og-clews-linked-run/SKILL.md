@@ -162,6 +162,12 @@ figure deck. When interpreting:
 - An OG solve that will not converge → `og-solver-diagnosis`.
 - Explaining what the linkage means conceptually → `muiogo-explain`.
 
+## Platform
+
+The link is bash-only today, so coupled runs need macOS or Linux. PowerShell
+support is being added upstream; until it lands, say so plainly rather than
+attempting a Windows workaround.
+
 ## Approval gates
 
 Propose, draft, and prepare; the user decides. Registering a model and inspecting

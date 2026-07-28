@@ -304,6 +304,34 @@ country model already carries in its own venv — verified: OG-PHL imports ogcor
 repo is 2.8 GB, 1.9 GB of which is git history, and is needed only to develop
 OG-Core itself. Asking for `--og og-core` is skipped with that explanation.
 
+## 4d. Windows: what stands between here and support (2026-07-28)
+
+Assessed against the code, not assumed. The upstream components are in better
+shape than our own layer.
+
+| Piece | Windows today | Evidence |
+|---|---|---|
+| MUIOGO install | ✅ ships `install.ps1` | `MUIOGO/scripts/` |
+| OG country models | ✅ already handled | `Installer.py` branches on `Config.SYSTEM == "Windows"` and invokes `install.ps1` with PowerShell flags, so `muiogo og install` works there through the API |
+| OG-Core installer | ✅ ships `install.ps1` | PSLmodels repo |
+| Solvers (GLPK/CBC) | ✅ | MUIOGO's `setup_dev.py` downloads the Windows binaries (25 platform-specific lines) |
+| `muiogo` client | ✅ after this round | interpreter resolution, backgrounding and termination are now platform-aware; `lsof` dropped |
+| Repo-scoped skills | ✅ after this round | real copies instead of symlinks, which a Windows clone would have broken |
+| **ogclews-link** | ❌ bash only | **being fixed upstream separately; we pull it when it lands** |
+| **our composed installer** | ❌ bash only | the remaining piece in our control |
+
+So the sequence is: the link gains PowerShell upstream, we pull it, and the last
+gap is a PowerShell twin of `scripts/install.sh`. That twin is deliberately not
+written yet — shipping untested PowerShell as though it worked would be worse
+than not shipping it. When it is written it needs to do what the bash version
+does: run each component's own installer in turn, keep the master directory
+self-contained, write `<master>/MUIOGO/.env` so the OG registry stays isolated,
+publish the manifest, and end with the same verification battery.
+
+Until then: **macOS and Linux**. The individual pieces can be driven on Windows
+today (MUIOGO's `install.ps1`, then `muiogo og install` through the API), which
+is a usable if manual path.
+
 ## 5. Delivery plan
 
 | Step | Delivers | Gate |

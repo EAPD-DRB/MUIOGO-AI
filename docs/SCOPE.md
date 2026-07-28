@@ -67,7 +67,7 @@ also independently useful to non-agent users.
   are developed in MUIOGO under its own rules — issue first, feature branch,
   PR — and are useful to MUIOGO independent of this research.
 - **MUIOGO is a pinned dependency** here: installed via
-  `scripts/install-muiogo.sh` at the ref in `scripts/MUIOGO_PIN`, so everyone
+  `scripts/install.sh` at the ref in `scripts/MUIOGO_PIN`, so everyone
   runs research against the same version.
 - **Graduation path**: when a skill or the client is mature enough that every
   MUIOGO checkout should carry it, that is the signal to propose it upstream —
@@ -92,6 +92,17 @@ from the demo data, run it with GLPK or CBC, and download the result CSVs.
 
 The install story (MUIOGO + OG models + ogclews-link + this repo, one line,
 correct environments) is assessed and designed in `INSTALL_DESIGN.md`.
+
+## Delivered (2026-07-28)
+
+Everything in the inventory below has shipped, in some cases under different
+names. `muiogo-install` became `muiogo-provision` (it also imports, exports and
+validates); `muiogo-interpret`, `muiogo-visualize` and `muiogo-brief` ship
+together as `muiogo-analyze`; the Group D tutors ship as `muiogo-explain`;
+`og-calibrate` was already covered by `og-country-calibration`. Added beyond the
+plan: `muiogo-workspace`, `og-run`, and `og-clews-linked-run`. See
+[SKILLS.md](../SKILLS.md) for the catalogue as built. The inventory is kept below
+as the original design record.
 
 ## The skill inventory
 
