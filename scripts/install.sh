@@ -347,6 +347,31 @@ if [[ -f "$MUIOGO_PIN_FILE" ]]; then
         ok "MUIOGO pinned to $PIN"
     fi
 fi
+# Pin this installation's OG registry into its own .env. MUIOGO resolves
+# MUIOGO_OG_DATA_DIR / MUIOGO_OG_MODELS_DIR through load_dotenv(), so writing them
+# here makes the isolation hold however MUIOGO is started — our `muiogo serve`,
+# its own start.sh, or the GUI. Without it, every MUIOGO on the machine shares
+# ~/.muiogo/og-state, whose registry holds one entry per country and would
+# displace a model you use for live work.
+#
+# Only for an installation THIS script created. A checkout that was already here
+# keeps whatever registry its owner set up; we do not rewrite someone's .env.
+if [[ $MUIOGO_WAS_HERE -eq 0 ]]; then
+    ENV_FILE="$MUIOGO_DIR/.env"
+    touch "$ENV_FILE"
+    for pair in "MUIOGO_OG_DATA_DIR=$OG_HOME/og-state" "MUIOGO_OG_MODELS_DIR=$OG_HOME/og-models"; do
+        key="${pair%%=*}"
+        if grep -q "^${key}=" "$ENV_FILE" 2>/dev/null; then
+            warn "$key already set in $ENV_FILE — leaving it"
+        else
+            printf '%s\n' "$pair" >> "$ENV_FILE"
+        fi
+    done
+    ok "OG registry pinned to this installation ($OG_HOME/og-state)"
+else
+    warn "MUIOGO was already here — not touching its .env; it keeps its own registry"
+fi
+
 for solver in glpsol cbc; do
     command -v "$solver" >/dev/null || warn "solver '$solver' not on PATH — MUIOGO resolves standard locations, but check the install log"
 done

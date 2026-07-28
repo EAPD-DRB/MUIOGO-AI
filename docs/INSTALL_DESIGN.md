@@ -117,10 +117,36 @@ Registering a second clone of OG-PHL overwrites the first. With the registry at
 the shared default `~/.muiogo/og-state/`, installing an isolated OG-PHL would
 silently displace the one someone uses for live work.
 
-Putting `og-state/` inside the master directory, and pointing the server at it
-through `MUIOGO_OG_DATA_DIR`, gives this installation its own registry. Two
-clones of the same country can then coexist, each registered in its own
-workspace, and `MUIOGO_WORKSPACE` selects which one the tooling uses.
+A new MUIOGO install does **not** get its own registry automatically. Config.py
+resolves it as `MUIOGO_OG_DATA_DIR` or, failing that, the user-level
+`~/.muiogo/og-state` — deliberately, so the CLEWs case picker never sees it
+(MUIOGO issue #500). So every MUIOGO on the machine shares one registry unless
+that variable is set.
+
+Setting it as a process environment variable is not enough either: it would only
+apply when MUIOGO is started through our tooling, and the same install started
+by its own `start.sh` would silently fall back to the shared registry.
+
+The resolution is MUIOGO's own configuration mechanism. `Config.py` calls
+`load_dotenv()`, so the installer writes into `<master>/MUIOGO/.env`:
+
+```
+MUIOGO_OG_DATA_DIR=<master>/og-state
+MUIOGO_OG_MODELS_DIR=<master>/og-models
+```
+
+That holds however MUIOGO is launched — `muiogo serve`, its own `start.sh`, or
+the GUI — because all of them run from the MUIOGO root, where `load_dotenv()`
+looks. Verified: `load_dotenv()` picks those values up from a `.env` beside the
+app.
+
+Two clones of the same country can then coexist, each registered in its own
+workspace, with `MUIOGO_WORKSPACE` selecting which one the tooling uses.
+
+**Only for installations the installer creates.** A checkout that was already
+there keeps whatever registry its owner configured; rewriting someone's `.env`
+would change how their own MUIOGO behaves. Adopted setups therefore keep the
+shared `~/.muiogo/og-state`, which is what their GUI expects.
 
 Multiple clones are otherwise unproblematic: git keeps no machine-level record
 of them, so a repo may be cloned any number of times, on different branches.
