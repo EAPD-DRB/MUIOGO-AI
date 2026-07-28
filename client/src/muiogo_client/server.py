@@ -63,7 +63,13 @@ class MuiogoServer:
     def start(self, wait_seconds=30):
         """Spawn the server headless and wait until it answers."""
         if self.is_running():
-            return self
+            # Something already answers here, and HTTP gives us no way to ask it
+            # which checkout it is serving. Treating it as ours is how a run
+            # aimed at the installed world silently lands in the live one, so
+            # say so instead of assuming.
+            raise ServerError(
+                f"something is already answering on {self.url}; refusing to assume "
+                f"it is serving {self.root}. Stop it, or choose another port.")
         app = self.root / "API" / "app.py"
         if not app.exists():
             raise ServerError(f"Not a MUIOGO checkout: {app} missing.")
@@ -178,6 +184,16 @@ class MuiogoServer:
                 os.kill(pid, signal.SIGKILL)      # it ignored the polite request
             except (ProcessLookupError, OSError):
                 pass
+            for _ in range(10):
+                if not self.is_running():
+                    break
+                time.sleep(0.5)
+        if self.is_running():
+            # Deleting the pidfile now would throw away the only record of what
+            # is holding the port, leaving a server nothing can stop by name.
+            raise ServerError(
+                f"pid {pid} is still answering on {self.url} after SIGTERM and "
+                f"SIGKILL. Its pid is kept in {path} — investigate before retrying.")
         path.unlink(missing_ok=True)
         return pid
 

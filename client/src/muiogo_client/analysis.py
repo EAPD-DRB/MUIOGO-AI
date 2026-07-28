@@ -130,18 +130,30 @@ def compare(data_storage, case, runs, var, filters=None, by=None):
     return out, warnings
 
 
-def summarise(df):
-    """Totals and change-versus-first-column, as a DataFrame for printing."""
+def summarise(df, columns_are_runs=True):
+    """Totals per column, as a DataFrame for printing.
+
+    The percentage column means two different things depending on what the
+    columns are, so it is named for whichever applies. When the columns are
+    runs, the useful number is each run's change against the first run — that
+    is the scenario effect. When the columns are members of a dimension within
+    a single run (``--by``), differences between them are not a change caused
+    by anything, so reporting them as one would be false; the share of the
+    total is what a reader actually wants there.
+    """
     totals = df.sum()
-    first = totals.iloc[0] if len(totals) else 0
-    return pd.DataFrame({
-        "first_year": df.iloc[0],
-        "last_year": df.iloc[-1],
-        "total": totals,
-        "vs_first_series_%": [
-            float("nan") if first == 0 else (t / first - 1) * 100 for t in totals
-        ],
-    })
+    out = {"first_year": df.iloc[0], "last_year": df.iloc[-1], "total": totals}
+    if columns_are_runs:
+        first = totals.iloc[0] if len(totals) else 0
+        out["vs_first_run_%"] = [
+            float("nan") if first == 0 else (v / first - 1) * 100 for v in totals
+        ]
+    else:
+        grand = totals.sum()
+        out["share_of_total_%"] = [
+            float("nan") if grand == 0 else v / grand * 100 for v in totals
+        ]
+    return pd.DataFrame(out)
 
 
 def chart(df, path, title="", ylabel="", kind="line"):

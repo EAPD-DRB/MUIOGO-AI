@@ -162,6 +162,23 @@ def publish(manifest_path, name=None, make_active=True):
         return None
 
 
+# OG country models are named OG-<ISO3> and hold a package og<iso3>; the library
+# they all build on is OG-Core / ogcore. Anything that does not resolve to a
+# three-letter country code is not a country model.
+_NOT_A_COUNTRY = {"CORE", "USA-CORE"}
+
+
+def country_code(path, package=None):
+    """The ISO3 country code of an OG country model, or None if it isn't one."""
+    for candidate in (package[2:] if package and len(package) > 2 else None,
+                      Path(path).name.rsplit("-", 1)[-1]):
+        if candidate and len(candidate) == 3 and candidate.isalpha():
+            code = candidate.upper()
+            if code not in _NOT_A_COUNTRY:
+                return code
+    return None
+
+
 def looks_like_muiogo(path):
     p = Path(path)
     return (p / "API" / "app.py").is_file() and (p / "WebAPP" / "DataStorage").is_dir()
@@ -249,8 +266,15 @@ def build_manifest(muiogo_path, og_models=(), link_path=None, port=LIVE_PORT,
         pkg = next((d.name for d in path.iterdir()
                     if d.is_dir() and d.name.startswith("og")
                     and (d / "__init__.py").is_file()), None)
+        # OG-Core is the shared library every country model depends on, not a
+        # country model. Splitting its name on "-" yields "core", which would
+        # otherwise be recorded as a country with the code CORE and offered for
+        # registration as if a country called Core existed.
+        if not country_code(path, pkg):
+            continue
         models.append({
-            "key": f"og-{path.name.rsplit('-', 1)[-1].lower()}",
+            "key": f"og-{country_code(path, pkg).lower()}",
+            "country_id": country_code(path, pkg),
             "repo": path.name, "package": pkg, "path": str(path),
             "ref": _git_ref(path), "python": str(venv_python(path) or ""),
         })

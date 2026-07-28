@@ -203,9 +203,17 @@ def cmd_status(args):
                   f"{entry.get('local_path') or entry.get('country_name','')}"
                   f"   [{entry.get('install_state','?')}]")
     elif info["og_models"]:
+        # An empty registry is not proof a model is unregistered: this world's
+        # server reads the registry its own environment points at, so a model
+        # registered in the other world legitimately shows as absent here.
+        # Claiming "not registered with MUIOGO" would be a false statement
+        # about the user's other installation.
+        state = ("not in this world's registry" if cases is not None
+                 else "unverified — no server running")
         for model in info["og_models"]:
-            state = "not registered with MUIOGO" if cases is not None else "unverified"
             print(f"  OG model    {model.get('key'):<8} {model.get('path')}   [{state}]")
+        if cases is not None:
+            print(f"              registry: {info['muiogo'].get('og_state_dir', '?')}")
     if info["link_path"]:
         print(f"  link        {info['link_path']}")
     solvers = info["solvers"]
@@ -550,6 +558,10 @@ def cmd_compare(args):
         return 1
     for w in warnings:
         print(f"warning: {w}", file=sys.stderr)
+    # Comparing runs of different vintages gives a confidently wrong answer: a
+    # case ships with pre-computed results, so a freshly solved run compared
+    # against a shipped one measures the gap between two MUIOGO versions as if
+    # it were the scenario's effect.
     from muiogo_client import provenance
     for w in provenance.consistency(_data_storage(args), args.case, runs):
         print(f"warning: {w}", file=sys.stderr)
@@ -562,7 +574,7 @@ def cmd_compare(args):
     label = args.var + (
         "  [" + ", ".join(f"{k}={v}" for k, v in filters.items()) + "]" if filters else "")
     print(label)
-    print(analysis.summarise(df).to_string(
+    print(analysis.summarise(df, columns_are_runs=not args.by).to_string(
         float_format=lambda v: f"{v:,.2f}" if abs(v) < 1000 else f"{v:,.0f}"))
 
     if args.table:

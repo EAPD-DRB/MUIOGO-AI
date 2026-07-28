@@ -254,6 +254,20 @@ wait_api() { # wait_api SECONDS — until /getCases answers
     return 1
 }
 
+# shasum is on macOS, sha256sum on most Linux; python3 is already required, so
+# it is the one thing guaranteed present on both.
+sha256_of() {
+    [[ -f "$1" ]] || { echo "absent"; return 0; }
+    python3 - "$1" <<'PYHASH'
+import hashlib, sys
+h = hashlib.sha256()
+with open(sys.argv[1], "rb") as fh:
+    for chunk in iter(lambda: fh.read(1 << 20), b""):
+        h.update(chunk)
+print(h.hexdigest())
+PYHASH
+}
+
 # ── preflight ─────────────────────────────────────────────────────────────────
 CURRENT_STEP="preflight"
 section "Preflight"
@@ -262,6 +276,22 @@ for tool in git curl python3; do
 done
 [[ -n "${VIRTUAL_ENV:-}${CONDA_DEFAULT_ENV:-}" ]] && warn "active venv/conda detected — component installers run with a cleaned environment"
 port_busy && die "port $PORT is already in use — stop that server or pass --port"
+
+# A full install writes roughly 4 GB. Finding that out after 20 minutes of
+# cloning wastes the user's time and leaves a half-tree to clean up.
+FREE_MB="$(df -Pm "$(dirname "$DEST")" 2>/dev/null | awk 'NR==2 {print $4}')"
+if [[ -n "$FREE_MB" ]]; then
+    if   (( FREE_MB < 5000 )); then die "only $((FREE_MB/1024)) GB free on $(dirname "$DEST") — a full install needs about 4 GB, plus room to work."
+    elif (( FREE_MB < 8000 )); then warn "$((FREE_MB/1024)) GB free — enough to install, but tight for model runs."
+    fi
+fi
+
+# Fingerprint the registry World 1 uses. The whole point of this installation is
+# that it keeps its own; if that fingerprint changes, isolation has failed and
+# the user's manual setup has been altered behind their back.
+SHARED_REGISTRY="${HOME}/.muiogo/og-state/og_calibrations_installed.json"
+SHARED_REGISTRY_BEFORE=""
+[[ -f "$SHARED_REGISTRY" ]] && SHARED_REGISTRY_BEFORE="$(sha256_of "$SHARED_REGISTRY")"
 mkdir -p "$DEST"
 DEST="$(cd "$DEST" && pwd)"
 mkdir -p "$OG_HOME/og-models" "$OG_HOME/og-state"
@@ -483,17 +513,37 @@ for r in data["repos"]:
         [[ -z "$ENTRY" ]] && die "OG key '$key' not in the upstream catalog"
         read -r REPO PKG DESC <<< "$ENTRY"
         MODEL_DIR="$OG_HOME/og-models/$REPO"
-        if [[ -x "$MODEL_DIR/.venv/bin/python" ]]; then
+        IMPORT_NAME="${PKG//-/_}"
+        MODEL_PY="$MODEL_DIR/.venv/bin/python"
+        [[ -x "$MODEL_PY" ]] || MODEL_PY="$MODEL_DIR/.venv/Scripts/python.exe"
+
+        # "A venv exists" is not "the model is installed". If a previous attempt
+        # created the venv and then died mid-sync, skipping on the venv alone
+        # meant every later run skipped the install and then failed the import
+        # check below — wedged forever, fixable only by deleting the directory.
+        # So the test is whether the package actually imports.
+        if [[ -x "$MODEL_PY" ]] && "$MODEL_PY" -c "import $IMPORT_NAME" 2>/dev/null; then
             skip "$key ($MODEL_DIR)"
         else
+            if [[ -d "$MODEL_DIR" ]]; then
+                warn "$key is present but '$IMPORT_NAME' does not import — finishing the install"
+                echo "        (a previous attempt stopped part-way; uv sync resumes where it left off)"
+            fi
             echo "  installing $key -> $MODEL_DIR (uv sync of a full model env — several minutes)"
             clean_env bash "$OG_INST" --repo "$key" --dest "$OG_HOME/og-models" --yes --no-log \
                 > "$DEST/og-install-$key.log" 2>&1 \
                 || die "OG installer failed for $key — see $DEST/og-install-$key.log"
+            MODEL_PY="$MODEL_DIR/.venv/bin/python"
+            [[ -x "$MODEL_PY" ]] || MODEL_PY="$MODEL_DIR/.venv/Scripts/python.exe"
         fi
-        IMPORT_NAME="${PKG//-/_}"
-        "$MODEL_DIR/.venv/bin/python" -c "import $IMPORT_NAME" 2>/dev/null \
-            || die "$key installed but 'import $IMPORT_NAME' fails in $MODEL_DIR/.venv"
+        if ! "$MODEL_PY" -c "import $IMPORT_NAME" 2>/dev/null; then
+            warn "$key still cannot import '$IMPORT_NAME' after a full install attempt."
+            echo "        Log: $DEST/og-install-$key.log"
+            echo "        The environment at $MODEL_DIR looks broken. If you have"
+            echo "        nothing of your own in there, remove it and re-run:"
+            echo_cmd "rm -rf '$MODEL_DIR'"
+            die "$key is not usable"
+        fi
         ok "$key imports from its own venv"
         OG_INSTALLED_KEYS+=("$key"); OG_INSTALLED_REPOS+=("$REPO")
         OG_INSTALLED_PKGS+=("$PKG"); OG_INSTALLED_NAMES+=("${DESC//_/ }")
@@ -661,7 +711,30 @@ if [[ $NO_VERIFY -eq 0 ]]; then
         ( cd "$LINK_DIR" && clean_env ./scripts/setup.sh --check ) >/dev/null 2>&1 \
             && ok "link --check passes" || die "ogclews-link --check failed"
     fi
-    VERIFIED="demo solve"
+    # Isolation is the reason this installation exists, and it is the one
+    # property nothing else here would notice failing: a server reading the
+    # shared registry serves and solves perfectly well.
+    if [[ "$OG_HOME" != "${HOME}/.muiogo" ]]; then
+        ACTIVE_STATE="$(grep -E '^MUIOGO_OG_DATA_DIR=' "$DEST/MUIOGO/.env" 2>/dev/null | cut -d= -f2-)"
+        [[ "$ACTIVE_STATE" == "$OG_HOME/og-state" ]] \
+            && ok "world isolation: configured registry is $OG_HOME/og-state" \
+            || die "world isolation FAILED: this MUIOGO's registry is '${ACTIVE_STATE:-unset}', expected $OG_HOME/og-state"
+        # Configuration can be right while the running server ignores it, so
+        # check where registration actually landed rather than trusting .env.
+        if [[ ${#OG_INSTALLED_KEYS[@]} -gt 0 ]]; then
+            [[ -f "$OG_HOME/og-state/og_calibrations_installed.json" ]] \
+                && ok "registrations landed in this world's registry" \
+                || die "registered ${#OG_INSTALLED_KEYS[@]} model(s) but $OG_HOME/og-state/og_calibrations_installed.json does not exist — the server wrote its registry somewhere else"
+        fi
+        if [[ -n "$SHARED_REGISTRY_BEFORE" ]]; then
+            [[ "$(sha256_of "$SHARED_REGISTRY")" == "$SHARED_REGISTRY_BEFORE" ]] \
+                && ok "your existing registry is untouched" \
+                || die "this install MODIFIED $SHARED_REGISTRY — that is your manual setup's registry. Stopping so you can check it."
+        elif [[ -f "$SHARED_REGISTRY" ]]; then
+            die "this install CREATED $SHARED_REGISTRY — it should only ever write $OG_HOME/og-state"
+        fi
+    fi
+    VERIFIED="demo solve + world isolation"
     [[ ${#OG_INSTALLED_KEYS[@]} -gt 0 ]] && VERIFIED="$VERIFIED + OG imports"
     [[ -n "$LINK_DIR" ]] && VERIFIED="$VERIFIED + link check"
     record verify OK "$VERIFIED"

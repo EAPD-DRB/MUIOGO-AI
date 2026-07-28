@@ -186,14 +186,24 @@ def consistency(data_storage, case, runs):
     Runs of the same case that were solved from different input data are not
     comparable, and nothing on disk makes that visible without this check.
     """
-    seen, unrecorded = {}, []
+    seen, unrecorded, drifted = {}, [], []
     for run in runs:
         rec = read(data_storage, case, run)
         if rec is None:
             unrecorded.append(run)
             continue
+        # A record that no longer matches disk means the results changed after
+        # they were recorded — the run was re-solved, or the case was edited.
+        ok, _ = compare_to_current(data_storage, case, run)
+        if ok is False:
+            drifted.append(run)
         seen.setdefault(rec.get("muiogo_ref"), []).append(run)
     warnings = []
+    if drifted:
+        warnings.append(
+            "results changed since they were recorded for "
+            + ", ".join(drifted) + " — re-solve, or `muiogo verify` to see what moved"
+        )
     if unrecorded:
         warnings.append(
             "no provenance for " + ", ".join(unrecorded)
