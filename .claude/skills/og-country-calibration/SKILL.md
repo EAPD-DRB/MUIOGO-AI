@@ -636,6 +636,27 @@ multisector JSON as a worked example without checking `input_output.py` has the 
 
 ### Preparing the calibration PR — what maintainers actually ask for [PHL #63 review, jdebacker]
 
+- **Register: the PR reports what was done; the docs carry the discussion.** State each change and
+  its anchor in a line or two ("unmodeled recurring revenue is carried by the nearest-equivalent
+  instruments: property-type taxes on the wealth tax, state-asset income on the CIT adjustment, fees
+  on `tau_c`") and point to the calibration chapter for the derivation, the alternatives, and the
+  caveats. Design-justification paragraphs ("worth review", "the honest carrier", why-not-X) belong
+  in the PR **only when explicitly asking the maintainers to decide something** — otherwise they
+  read as asking for a debate nobody requested. **[PHL #85 feedback]**
+- **Always include the goodness-of-fit table** — the standard close for any calibration PR: every
+  calibrated moment, `Model | Target | Source`, one row per anchor, revenue lines first, then the
+  external/fiscal anchors. Read the model column from the solved SS pickle, never from memory:
+
+  | Moment | Model | Target | Source |
+  |---|---|---|---|
+  | PIT/Y … each revenue instrument … | | | collections source (e.g. OECD RevStats) |
+  | total revenue/Y | | | |
+  | RM/Y, K_f/K, D/Y, D_f/D, r_gov | | | BSP/BTr-class anchors |
+
+  Follow it with the tested block (suite count, SS RC error, TPI RC error vs tolerance, debt-path
+  behavior vs target) and the reform percent-change table (Y/C/K/L/r/w by year + SS), the same
+  format across the family (see PHL #68/#85).
+
 - **Show the before/after of every calibrated object the PR changes — upfront, don't make them ask.**
   On PHL #63 the maintainer's first request was a *new-vs-old side-by-side of the `io_matrix`*. For each
   changed array/matrix (`io_matrix`, `gamma`, `Z`, tax params), put an old→new table in the PR (or a
