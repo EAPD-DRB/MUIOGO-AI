@@ -89,9 +89,13 @@ Channels carry a direction — `clews->og` for a signal entering the economy,
 cd <link path>
 .venv/bin/ogclews-link run coupled \
     --country phl \
-    --clews-base <base run> --clews-reform <reform run> \
+    --clews-base   <MUIOGO>/WebAPP/DataStorage/<case>/res/<base run>/csv \
+    --clews-reform <MUIOGO>/WebAPP/DataStorage/<case>/res/<reform run>/csv \
     --out ./ogclews_runs
 ```
+
+Note what those two flags take: **the path to a solved run's `csv` directory**,
+not a run name. Take the `<MUIOGO>` part from `muiogo status`.
 
 Other options: `--countries` for your own country definitions (see
 `ogclews_countries.example.json`), `--workers` for the OG solve's worker
