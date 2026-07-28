@@ -67,7 +67,15 @@ def state_root():
 
 
 def worlds_dir():
-    return state_root() / "worlds"
+    """Where world RECORDS live — machine-wide, deliberately not per-world.
+
+    The catalogue must be shared even though every world's contents are
+    isolated. A world that can only see its own record cannot tell that a path
+    belongs to another world, so the cross-world guard silently passes and the
+    crossing it exists to stop goes through. Isolation belongs to state
+    (pidfiles, the OG registry, models) — not to the list of what exists.
+    """
+    return CANONICAL_DIR / "worlds"
 
 
 def servers_dir():
@@ -104,7 +112,15 @@ class World:
 
     @property
     def name(self):
-        return self.data.get("name") or self.path.stem
+        recorded = self.data.get("name")
+        if recorded:
+            return recorded
+        stem = self.path.stem
+        # A manifest inside an install directory is named for the install, not
+        # for the file: "manifest" tells a reader nothing about which world.
+        if stem in ("manifest", "world"):
+            return self.path.parent.name
+        return stem
 
     @property
     def kind(self):
@@ -280,6 +296,62 @@ def _quote(value):
     """Shell-quote an absolute path so a space in it cannot split the command."""
     import shlex
     return shlex.quote(str(value))
+
+
+def owning_world(path):
+    """Which registered world's MUIOGO tree contains `path`, if any.
+
+    Path containment is the only reliable test for "does this belong to another
+    world". Ports do not distinguish worlds (two may share one) and names are
+    labels. This is what lets a command notice it is about to touch someone
+    else's installation before it does it.
+    """
+    try:
+        target = Path(path).expanduser().resolve()
+    except OSError:
+        return None
+    for name, record in known_worlds().items():
+        try:
+            world = World(_read_manifest(record), record)
+        except WorkspaceError:
+            continue
+        root = world.muiogo_path
+        if not root:
+            continue
+        try:
+            root = root.resolve()
+        except OSError:
+            continue
+        if target == root or root in target.parents:
+            return world
+    return None
+
+
+def assert_same_world(path, world, what="that path"):
+    """Refuse to touch a path that belongs to a DIFFERENT registered world.
+
+    This is the backstop for the many ways a world can be crossed without the
+    CLI's own resolution being involved at all — a skill addressing a case as a
+    relative path, a --data-storage copied from another session, an absolute
+    path pasted from notes. Crossing silently is the failure that matters,
+    because the numbers still look right.
+    """
+    owner = owning_world(path)
+    if owner is None or world is None:
+        return
+    if owner.path.resolve() == Path(world.path).resolve():
+        return
+    raise WorldCrossing(
+        f"{what} is inside the {owner.describe()} world, but this command is "
+        f"acting on {world.describe()}.\n"
+        f"  path   {Path(path).expanduser()}\n"
+        f"  owner  {owner.muiogo_path}\n"
+        f"Refusing: work done here would be recorded against the wrong "
+        f"installation. Use that world's own launcher instead.")
+
+
+class WorldCrossing(RuntimeError):
+    """A command was about to act on a different world's files."""
 
 
 def world_for_root(root):

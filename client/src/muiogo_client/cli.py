@@ -57,6 +57,26 @@ def _answers(url):
         return False
 
 
+def _announce(args):
+    """Say which world this command is acting on, every time.
+
+    An assistant reads its own command output; if the world is not in that
+    output it has no way to tell the user which installation it touched, and no
+    way to notice it touched the wrong one. This goes to stderr so it never
+    contaminates --json or a piped table.
+    """
+    if getattr(args, "_announced", False) or getattr(args, "json", False):
+        return
+    args._announced = True
+    try:
+        world = _world(args)
+    except workspace.WorkspaceError:
+        return
+    pinned = " [pinned by launcher]" if workspace.pinned_world_file() else ""
+    print(f"world: {world.name} ({world.kind}) · {world.url} · "
+          f"{world.muiogo_path}{pinned}", file=sys.stderr)
+
+
 def _world(args):
     """The one world this invocation acts on. Resolved once, cached on args.
 
@@ -123,9 +143,13 @@ def _data_storage(args):
     another. We cannot prove over HTTP which checkout a server is serving, so
     the honest move is to refuse rather than to mix.
     """
-    if getattr(args, "data_storage", None):
-        return Path(args.data_storage)
     world = _world(args)
+    if getattr(args, "data_storage", None):
+        # An explicit path is still not a licence to cross: --data-storage
+        # pointing into another world's checkout would silently record this
+        # world's work against that installation.
+        workspace.assert_same_world(args.data_storage, world, "--data-storage")
+        return Path(args.data_storage)
     url = getattr(args, "url", None)
     if url and url.rstrip("/") != world.url.rstrip("/"):
         raise SystemExit(
@@ -292,6 +316,27 @@ def cmd_launcher(args):
     if str(out.parent) not in os.environ.get("PATH", ""):
         print(f"note: {out.parent} is not on your PATH; add it, or call the "
               f"launcher by full path.", file=sys.stderr)
+    return 0
+
+
+def cmd_case_path(args):
+    """Absolute path of a case inside THIS world.
+
+    Skills that edit case files directly used to address them as
+    WebAPP/DataStorage/<case> relative to the working directory, which resolves
+    to whichever checkout happened to be there. This gives them a path that is
+    correct by construction, and refuses if the case does not exist here.
+    """
+    world = _world(args)
+    path = world.data_storage / args.case
+    if not path.is_dir():
+        available = sorted(p.name for p in world.data_storage.iterdir()
+                           if (p / "genData.json").is_file()) \
+            if world.data_storage.is_dir() else []
+        print(f"error: no case {args.case!r} in {world.describe()}.\n"
+              f"       cases here: {', '.join(available) or '(none)'}", file=sys.stderr)
+        return 1
+    print(path)
     return 0
 
 
@@ -821,6 +866,10 @@ def main(argv=None):
     p.add_argument("name")
     p.set_defaults(func=cmd_use)
 
+    p = sub.add_parser("case-path", help="absolute path of a case in this world")
+    p.add_argument("--case", required=True)
+    p.set_defaults(func=cmd_case_path)
+
     p = sub.add_parser("launcher", help="write a command that pins one world")
     p.add_argument("name", help="world name (see `muiogo worlds`)")
     p.add_argument("--out", help="where to write it (default ~/.local/bin/muiogo-<name>)")
@@ -946,8 +995,14 @@ def main(argv=None):
     p.set_defaults(func=cmd_stop)
 
     args = parser.parse_args(argv)
+    _announce(args)
     try:
         return args.func(args)
+    except workspace.WorldCrossing as exc:
+        # Its own exit code, so a caller can tell "wrong world" apart from
+        # "command failed" — the two need very different responses.
+        print(f"error: {exc}", file=sys.stderr)
+        return 3
     except (MuiogoError, ServerError, workspace.WorkspaceError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
