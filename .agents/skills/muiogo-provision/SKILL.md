@@ -1,6 +1,6 @@
 ---
 name: muiogo-provision
-description: Add models and data to a MUIOGO installation and get them out again — install an OG country model, import a MUIO case archive or an Excel workbook, export a case as a shareable zip, check what is installed, and validate a case's inputs before a long solve. Use when asked to install, add, or set up a country or model; to import, upload, load, or bring in a case, archive, workbook, or dataset; to export, back up, download, or share a model; to list what is installed; or to check or validate input data.
+description: Add models and data to a MUIOGO installation and get them out again — install an OG country model, import a MUIO case archive or an Excel workbook, export a case as a shareable zip, check what is installed, and validate a case's inputs before a long solve. Use when asked to install, add, or set up a country or model; to import, upload, load, or bring in a case, archive, workbook, or dataset; to export, back up, download, or share a whole case or model; or to list what is installed. Also use to run MUIOGO's mechanical input-consistency checks before a long solve — for structural quality use clews-model-review, and for whether a model is calibrated well enough use assess-clews-calibration. For the EAPD Fiji/Philippines laptop-to-laptop flow specifically, prefer pull-handoff and push-handoff.
 ---
 
 # Add models and data to MUIOGO, and get them out

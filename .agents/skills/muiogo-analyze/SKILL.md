@@ -1,6 +1,6 @@
 ---
 name: muiogo-analyze
-description: Interpret and present MUIOGO CLEWs results — compare runs or scenarios, check whether a solve is trustworthy, chart trajectories, break results down by technology or fuel, and write short analytical notes for a policy audience. Use when asked what a run shows, how two runs or scenarios differ, what drives a difference, whether results look right, or for a chart, table, summary, briefing note, or policy write-up from model results.
+description: Interpret and present results from a CLEWs/OSeMOSYS model run in MUIOGO — compare runs or scenarios, check whether a solve is trustworthy, chart trajectories, break results down by technology or fuel, and write short analytical notes. Use when asked what a CLEWs run shows, how two runs or scenarios differ, what drives a difference, whether results look right, or for a chart, table, summary, or policy write-up from CLEWs results. This is the CLEWs/MUIOGO side only: for OG-Core baseline-vs-reform output use og-scenario-report, and for bespoke OG exploration use og-analysis-studio.
 ---
 
 # Interpret and present CLEWs results

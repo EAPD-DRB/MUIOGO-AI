@@ -1,6 +1,6 @@
 ---
 name: muiogo-scenarios
-description: Create and run policy scenarios in a MUIOGO CLEWs case — build a new scenario such as a carbon tax, renewable target, or demand change; combine existing scenarios into runs; and sweep a scenario matrix. Use when asked to add, design, build, or modify a scenario; to test a policy, tax, target, subsidy, or constraint; to compare "what if" cases; to combine two scenarios; to run a sweep, matrix, or sensitivity over several scenario settings; or to change a model parameter and see the effect.
+description: Create and run policy scenarios in a MUIOGO CLEWs case — build a new scenario such as a carbon tax, renewable target, or demand change; combine existing scenarios into runs; and sweep a scenario matrix. Use when asked to add, design, build, or modify a scenario; to test a policy, tax, target, subsidy, or constraint; to set up a "what if" case; to combine two scenarios; to run a sweep, matrix, or sensitivity over several scenario settings; or to change a model parameter and see the effect. This skill BUILDS and runs scenarios; to compare or chart the results afterwards use muiogo-analyze.
 ---
 
 # Create and run scenarios in a MUIOGO CLEWs case

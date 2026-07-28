@@ -5,8 +5,8 @@ description: Run an OG-Core country macroeconomic model — launch a baseline an
 
 # Run an OG-Core country model
 
-An OG solve is a different animal from a CLEWs solve: hours rather than seconds,
-parallel worker processes, and a two-stage structure (steady state, then
+An OG solve is a different animal from a CLEWs solve: 35 minutes to 2 hours
+rather than seconds, parallel worker processes, and a two-stage structure (steady state, then
 transition path). Treat launching one as a decision the user makes.
 
 Orient first with `muiogo status` (see `muiogo-workspace`) to find the installed
@@ -52,15 +52,32 @@ updates. Run one with the model's own environment:
 uv run python examples/run_og_phl.py
 ```
 
-What it does, from the script itself: starts a pool of worker processes (up to
-seven, one thread each), solves the **baseline** into `OUTPUT_BASELINE/`, applies
-the reform's parameter changes, solves the **reform** into `OUTPUT_REFORM/`, and
-closes the pool. Both stages run the full transition path.
+What it does: starts a pool of worker processes (up to seven, one thread each),
+solves the **baseline** into `OUTPUT_BASELINE/`, applies the reform's parameter
+changes, solves the **reform** into `OUTPUT_REFORM/`, and closes the pool. Each
+stage writes `SS/SS_vars.pkl`, `TPI/TPI_vars.pkl` and `model_params.pkl` under
+its output directory.
 
-**This is a long computation.** Propose it with its expected duration and let the
-user launch it. If they want it in the background, have them run it under `nohup`
-or a terminal multiplexer and tee the output to a log, so progress survives a
-disconnect:
+**This takes roughly 35 minutes to 2 hours** (the repo's own AGENTS.md says so).
+Propose it with that duration and let the user launch it. There is no cheap smoke
+version: the repo's `test_run_example.py` only checks the process is still alive
+after five minutes and produces no usable output.
+
+Two things that bite in a headless session:
+
+- **An interactive prompt can block the run.** Building demographics asks for a
+  UN API token on standard input if `un_api_token.txt` is not in the working
+  directory. It degrades gracefully when there is no terminal, and falls back to
+  the EAPD-DRB Population-Data mirror if the API refuses — but if a run appears
+  to hang early with no output, this is the first thing to check. Put the token
+  file in the working directory beforehand, or accept the fallback knowingly.
+- **The reform finds its baseline by a relative path.** `baseline_dir` defaults
+  to the string `OUTPUT_BASELINE`, resolved against the working directory — so a
+  reform launched from a different directory than its baseline will not find it.
+  Keep both stages in one working directory, or set the paths explicitly.
+
+For a background run, have the user launch it under `nohup` or a terminal
+multiplexer, teeing output to a log so progress survives a disconnect:
 
 ```bash
 nohup uv run python examples/run_og_phl.py > og-phl-run.log 2>&1 &
@@ -72,10 +89,13 @@ Then monitor rather than re-launching:
 tail -f og-phl-run.log
 ```
 
-To change what is solved, edit the reform's parameter dictionary in a copy of the
-example script rather than the original, and say which parameters you changed.
-`og-country-calibration` covers which parameters are defensible to change and the
-traps in each block.
+To change what is solved, do not edit the shipped example in place. Copy it, or
+better, write a small driver script of your own that imports the model, sets
+`output_base` to wherever you want results, and applies your reform as a
+parameter dictionary — verified to work from any working directory with absolute
+paths, which keeps the model's checkout clean. Either way, say which parameters
+you changed. `og-country-calibration` covers which parameters are defensible to
+change and the traps in each block.
 
 ## Building a multi-industry calibration
 

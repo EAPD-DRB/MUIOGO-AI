@@ -1,6 +1,6 @@
 ---
 name: muiogo-run
-description: Run CLEWs/OSeMOSYS models in MUIOGO headless and collect their results — start and stop the server, solve one run or a batch, detect and diagnose failed solves, and save result CSVs reproducibly. Use when asked to run, solve, execute, or re-run a CLEWs case or scenario; to run several runs at once; to check whether a run succeeded or why it failed; to fetch or export the results of a run; or when another skill needs a case solved before it can proceed.
+description: Run CLEWs/OSeMOSYS models in MUIOGO headless and collect their results — start and stop the server, solve one run or a batch, detect and diagnose failed solves, and save result CSVs reproducibly. Use when asked to run, solve, execute, or re-run a CLEWs case or scenario; to run several runs at once; to check whether a run succeeded or why it failed; or to collect the result files of a run. Also use when another skill needs a case solved first. For installing, importing or exporting a whole case or model, use muiogo-provision.
 ---
 
 # Run CLEWs models in MUIOGO and collect results
