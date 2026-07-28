@@ -115,11 +115,8 @@ Ten capabilities from the vision, mapped to nine skills in four groups.
 
 ### Group B — OG integration (Phase 2)
 
-4. **`og-calibrate`** — install OG-Core and country calibrations through the
-   existing `/ogc/*` endpoints (catalog, install, register-local), then set and
-   sanity-check country parameters. Methodology (what values are defensible,
-   which pitfalls to avoid) comes from the existing `og-country-calibration`
-   method skill; this skill is the MUIOGO-specific execution layer.
+4. ~~**`og-calibrate`**~~ — covered by `og-country-calibration`, installed in
+   `.claude/skills/`.
 5. **`og-clews-linked-run`** — run CLEWs and OG-Core coupled: hand OSeMOSYS
    results (energy investment, prices, emissions) to OG-Core inputs and
    vice versa, execute both, and reconcile. **Dependency:** the linkage engine
