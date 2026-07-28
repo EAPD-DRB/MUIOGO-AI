@@ -132,11 +132,11 @@ Method → pitfall → exemplar.
 |---|---|---|---|
 | Debt | `initial_debt_ratio` is *measured* (national/IMF/QPSD series); `debt_ratio_ss` is a *policy anchor* (program target/stance), a separate parameter that shapes the whole SS | Leaving `debt_ratio_ss` inherited/undocumented; not checking whether a debt-ratio jump is a **valuation effect** (FX float revaluing external debt) vs. real deterioration | IDN, ETH |
 | `zeta_D` | Default: set = `initial_foreign_debt_ratio` (assume foreign share of *new* issuance = foreign share of *stock*) | Using the realized flow when it's a crisis-period **outlier** (donor surge, debt standstill) — use the DSA's projected medium-term flow instead | USA measures the flow directly; ETH uses the DSA projection |
-| `zeta_K` | Anchor to the **normalized Chinn-Ito** openness index, then cross-check against an independent target (FDI stock/GDP or IIP foreign-capital share) — it's a marginal fill-share, so validate the level | The **`zeta_K = 0.9` placeholder** ("implies high openness") — drives domestic capital `K_d = B − D_d` negative, binds `K_d ≥ 0`, and breaks the transition | Method: IDN, ETH. The 0.9 pitfall: IDN hit it and fixed it; **OG-PHL `main` still ships 0.9** (a live example) |
+| `zeta_K` | It's a **marginal fill-share no dataset measures — calibrate it by the level it produces**: tune until the solved SS `K_f/K` matches the IIP foreign-capital share (2-3 SS solves bracket it; PHL sensitivity ≈ 0.4pp of `K_f/K` per 0.01 of `zeta_K`). The normalized Chinn-Ito index is the *prior* locating the plausible range, not the target. **Re-validate after ANY tax-side change** — tax recalibration moves domestic saving, which moves `K_f/K` at fixed `zeta_K` (PHL: honest taxes pushed 0.26→0.14; `zeta_K` 0.4→0.47 restored the 0.20 IIP anchor) | The **`zeta_K = 0.9` placeholder** ("implies high openness") — drives domestic capital `K_d = B − D_d` negative, binds `K_d ≥ 0`, and breaks the transition. Also: treating Chinn-Ito as the target and never solving for the level | Method: IDN, ETH; level-tuning executed on PHL. The 0.9 pitfall: IDN hit it and fixed it, PHL fixed it in #68 |
 | `world_int_rate_annual` | **OPEN, investment-grade:** risk-free (~4%) + country sovereign spread. **NEAR-CLOSED/DISTRESSED:** leave at the ~4% benchmark and route country risk through low `zeta_K` + the debt-elastic premium instead | Adding a spread for a defaulted/restructuring sovereign (wrong model); or leaving it undocumented | IDN (open); ETH (distressed) |
 | `g_y_annual` | Choose the growth window as **named constants** with a rationale (start after a structural break, end before the latest shock, reject unrepeatable booms). Critically, the SS is a **long-run** state, so `g_y` must be **consistent with the growth the `debt_ratio_ss` anchor assumes** (`GDP growth ≈ g_y + g_n_ss`): if the debt target is a country's stabilization *plan* built on a medium-term recovery, use that recovery's productivity growth (`= medium-term GDP growth − g_n_ss`), not the stagnant realized window | Naive "all history"/inline date arg; **or realized-stagnation `g_y` paired with a stabilization `debt_ratio_ss`** — internally inconsistent (that's the *pessimistic, debt-drifts-up* scenario), so the model's debt won't actually hold at the target | IDN, ETH, PHL. ZAF: realized 0.6% was inconsistent with the 0.765 anchor's ~1.8% growth → raised `g_y` to ~1.4% (= 1.8% − g_n 0.42%) |
-| `r_gov` base wedge (`r_gov_scale`, `r_gov_shift`) | `r_gov = scale·r − shift + premium`, and it multiplies the **whole debt stock** in `debt_service = r_gov·D` — so it is an **average/effective** real rate. Keep the LMWW **slope** (`scale`, the estimated sovereign-vs-corporate pass-through), but **re-anchor the `shift`** so the SS `r_gov` equals the country's actual real *effective* rate on debt = nominal debt-service/gross-debt (from the budget) minus expected inflation | The LMWW **intercept** is a cross-country EM average that maps a *nominal USD bond-yield* level onto the model's *real* MPK — it can over-predict a country's real borrowing cost (~0.5–0.6pp for ZAF), inflating the debt-stabilizing primary surplus and forcing spending too low. Don't use the 10-yr/ILB *marginal* yield either — that's new-issue cost, not the stock average | ZAF re-anchored to SA's ~3.7% effective real rate; PHL/IDN/ETH still ship the raw LMWW intercept |
-| Remittances `alpha_RM_1`/`alpha_RM_T`, aid `alpha_FA` | Hand-set JSON values, **never fetched**; set `alpha_RM_1 = alpha_RM_T` for no transition path, and set the companion `eta_RM` household-distribution matrix. Turning them on lets a low-income economy reproduce a real trade deficit and a fiscally sustainable government | Leaving them off for an aid/remittance-dependent economy (produces a spurious trade surplus and an implausible fiscal squeeze) | ETH (both), PHL (RM) |
+| `r_gov` base wedge (`r_gov_scale`, `r_gov_shift`) | `r_gov = scale·r − shift + premium`, and it multiplies the **whole debt stock** in `debt_service = r_gov·D` — so it is an **average/effective** real rate. Keep the LMWW **slope** (`scale`, the estimated sovereign-vs-corporate pass-through), but **re-anchor the `shift`** so the SS `r_gov` equals the country's actual real *effective* rate on debt = interest payments/gross debt (take BOTH from the treasury's own cash-operations/budget report — news stories mislabel fiscal years; PHL's widely-quoted "FY2024" interest figure was actually FY2025) minus expected inflation. **Expect `r_gov < g` for many EMs** — then the debt-stabilizing primary balance `pb*` is a *deficit*, matching how such countries actually stabilize debt ratios while running primary deficits; and state the **consolidation gap** (actual primary balance vs `pb*`) explicitly in the docs, since the stable-debt SS embeds it | The LMWW **intercept** is a cross-country EM average that maps a *nominal USD bond-yield* level onto the model's *real* MPK — it over-predicted ZAF by ~0.5–0.6pp and **PHL by ~3pp** (5.1% vs the ~2.0% the Treasury pays), inflating the debt-stabilizing primary surplus and forcing spending too low. Don't use the 10-yr/ILB *marginal* yield either — that's new-issue cost, not the stock average | ZAF (~3.7%), PHL (~2.0%, `calib/remittances`); IDN/ETH still ship the raw LMWW intercept |
+| Remittances `alpha_RM_1`/`alpha_RM_T`, aid `alpha_FA` | Hand-set JSON values, **never fetched**. **Level:** use the *personal* (BPM6) remittance measure — the model's `RM` is household income from abroad — central banks often headline a GDP ratio only for the narrower *cash* (formal-channel) series, ~1pp of GDP lower; derive personal/GDP on one consistent denominator. **Path:** `alpha_RM_1 = alpha_RM_T` pins only the endpoints — `get_RM` compounds `(1+g_RM)/(e^{g_y}(1+g_n))`, so a flat RM/Y **requires `g_RM[t] = e^{g_y}(1+g_n[t-1]) − 1`, a time-varying path** (no scalar works when `g_n` moves; regenerate it with the demographics). `g_RM` is in model growth units — never the nominal-USD growth rate from a press release. The SS never reads `g_RM` (`RM_ss = alpha_RM_T·Y`), so a wrong path corrupts *only* the transition. **Distribution:** ogcore's default `eta_RM` is population-proportional; survey evidence (FIES-type) shows remittance value concentrated at the top. Build group shares as quintile mean income × remittance-share-of-income (equal-count quintiles ⇒ value share follows directly), map to the J groups by interpolating the cumulative distribution, spread per-capita over ages; note the current-vs-lifetime-income ranking caveat (overstates concentration) vs uniform-within-top-quintile (understates it). **Schema: `eta_RM` in the parameters JSON is (S,J)** — the (T+S,S,J) on a live Specifications object is internal tiling | A nominal growth rate in the `g_RM` slot: PHL shipped `g_RM = 0.03` (Dec-on-Dec USD growth) against a ~5.7% model-consistent denominator — RM/Y silently fell 35% below its calibrated share by t≈24, recovering only after t≈100, with nothing in the docs intending it. And the cash-measure trap: PHL's 0.072 came from a BSP headline that was the cash series (personal was 8.1%) | PHL (all three, fixed on `calib/remittances`); ETH (aid) |
 | Debt-elastic premium `r_gov_DY`/`r_gov_DY2` | The base wedge is a **country-agnostic** OLS inversion of Li-Magud-Werner (same numbers everywhere). Add the convex Schmitt-Grohé/Uribe term in **centered** form around `debt_ratio_ss`, expand, fold the constant into `r_gov_shift` → premium is **exactly zero at the SS target**, so it only prices transition overshoot: `r_gov_DY = -2·r_gov_DY2·D̄`, `r_gov_shift = base − r_gov_DY2·D̄²` | A live-refresh path that returns the *raw* LMW shift silently **de-centers** the premium and moves the SS — freeze it | IDN, ETH |
 | `initial_Kg_ratio` | Solve the model's own SS law of motion `K̄g/Ȳ = (1−φg)·αI / (e^{gy}(1+gn) − (1−δg))`; if the *measured* stock is far above sustainable (SOE-built boom), **start at the measured value and let it depreciate** | Inheriting the sibling-shipped `0.2` undocumented when `gamma_g > 0` (OG-Core's own default is `0.0`; PHL/ZAF/IDN/BRA all ship `0.2`, but only PHL has `gamma_g>0`, so elsewhere it's inert) | ETH only — replicate wherever `gamma_g > 0` |
 
@@ -205,8 +205,21 @@ Method → pitfall → exemplar.
 
 - **The universal method:** every effective rate = collections ÷ base. Apply it to PIT, `tau_c` (VAT),
   CIT (via `adjustment_factor_for_cit_receipts` × `c_corp_share_of_assets`), and `tau_payroll`
-  (statutory rate × covered share of the *wage bill*, not headcount). **Apply consistently** — OG-BRA
+  (statutory rate × covered share of the *wage bill*, not headcount — or directly: SSC collections ÷
+  the model's labor share of income). **Apply consistently** — OG-BRA
   is a cautionary tale: it discounts PIT for informality but leaves payroll at the full statutory rate.
+- **`tau_payroll` is ADDITIVE on top of the ETR function** (`income_payroll_tax_liab = T_I + T_P` in
+  ogcore `tax.py`), and with `frac_tax_payroll = 0` the combined take reports on the *iit* line while
+  the payroll line shows zero — so a statutory payroll rate silently collects on the whole wage bill
+  *in addition to* the income-tax function, invisibly. PHL: `tau_payroll = 0.14` was collecting a
+  hidden 5.8% of GDP on top of a flat 20% ETR. Audit the **combined** household take, decompose it
+  yourself (`true payroll = tau_payroll × wL/Y`), and set `frac_tax_payroll = SSC/(SSC+PIT)` so the
+  reported split matches the data split. **[PHL]**
+- **Standing check — statutory-for-effective on the bequest tax, now a THIRD family instance** (ZAF
+  `tau_bq = 0.2` collecting 3.9% of GDP; PHL `tau_bq = 0.06` collecting 1.19% vs actual estate+donor
+  collections of ~0.07%). Deductions, exemptions, and non-filing put effective estate taxation one to
+  two orders of magnitude below statutory nearly everywhere: always compute `tau_bq` from
+  collections ÷ model bequest flows, and grep every new port for this parameter. Check IDN/ETH/BRA.
 - **PIT functional form — three paths, in increasing fidelity:**
   1. *Flat `linear`* ("given limited data"): a single ETR + MTR number. Cheapest, no progressivity.
      PHL/IDN/BRA pick the number; only ETH *derives* it (revenue identity). Fine as a first pass.
@@ -231,7 +244,15 @@ Method → pitfall → exemplar.
     **`φ0` = the statutory top marginal rate** (an anchor, not a fit), fit **`φ1`** (curvature) to the
     schedule's shape, and tune **`φ2`** (scale) in-model to the PIT/GDP collections target — the
     effective-rate/informality wedge enters here, pulling the level down to actual collections.
-    (ZAF: `[0.464, 1.39288, 1.43e-8]` → PIT 10.1% of GDP, top MTR 45%.)
+    (ZAF: `[0.464, 1.39288, 1.43e-8]` → PIT 10.1% of GDP, top MTR 45%. PHL: `[0.35, 1.196, 1.9e-8]`
+    → PIT 3.12% of GDP.) Tuning mechanics **[PHL]**: the revenue response to `φ2` is **concave** —
+    top incomes sit in the saturated region where ETR ≈ φ0 regardless of φ2, so halving φ2 cuts
+    revenue by less than half; expect 2–3 in-model iterations, not one proportional step. Lowering
+    φ2 for informality acts like shifting the schedule toward higher incomes — the right shape for
+    "most earners effectively untaxed". And GS's smoothing means the sub-threshold ETR is *near*
+    zero, not zero (PHL: ~1.2% at 80% of the exempt threshold) — accept it; it is the price of never
+    going negative like HSV, and pin it in a test as a bound, not an equality. Incomes are evaluated
+    in currency units via `factor` (`mean_income_data`), so φ2 carries units `income^(−φ1)`.
   - **HSV** (`tax_func_type = "HSV"`, `λ = coef0`, `τ = coef1`): `ETR = 1 − λ·y^(−τ)`,
     `MTR = 1 − λ(1−τ)·y^(−τ)`. τ (progressivity) is scale-invariant — fit it to the schedule's shape;
     λ absorbs the income scale — tune it to collections. (ZAF's HSV fit: τ≈0.14 tracked SARS — before
@@ -266,6 +287,29 @@ Method → pitfall → exemplar.
     accounting, so any **time-varying** compliance reform yields inconsistent transition revenue
     (behavior responds, revenue doesn't). Steady states are fine; a formalization *reform* needs the
     upstream fix. Symptom: reform revenue tracks the baseline exactly while labor supply moves.
+- **Capturing non-tax and residual-tax revenue (the "unmodeled ~4% of GDP") [PHL — net-new,
+  replicate everywhere]:** OG-Core has no "other revenue" parameter, but leaving recurring non-tax
+  revenue and residual taxes out understates government resources and — through the budget identity —
+  forces model spending correspondingly too low. Map each stream to the instrument that prices the
+  same economic margin, then tune in-model to collections:
+  - *Property-type taxes* (recurrent property tax, transaction/stamp duties, local levies — the
+    OECD "other taxes" residual) → the **wealth tax**: `h_wealth = 1`, `m_wealth` small-but-positive
+    (`m = 0` divides 0/0 at `b = 0`; `0.001` works) makes `ETR_wealth ≈ p_wealth` flat, zero at zero
+    wealth, MTR → `p_wealth`. A recurrent property tax IS a flat tax on a form of wealth, so the
+    distortion lands on the correct margin (saving). PHL: `p_wealth = 0.0035` ⇒ 1.32% of GDP.
+  - *Government capital income* (SOE/central-bank dividends, state gaming shares, guarantee fees,
+    treasury interest income) + *unallocable income taxes* (final withholding on deposits etc.) →
+    the **CIT adjustment factor** — both are government takes from capital income.
+  - *Fees and charges* (user payments for services) → **`tau_c`**.
+  Discipline: use only *recurring* flows — treasuries book one-offs (fund-balance transfers,
+  privatization, concession fees) in non-tax revenue and often flag them themselves; exclude them.
+  Two OECD-accounting traps: estate/donor taxes sit *inside* the "other taxes" residual (net them
+  out or they double-count against `tau_bq`), and the income-tax *total* usually exceeds PIT + CIT —
+  the difference is the unallocable withholding, real revenue that belongs on the capital side.
+- **Statutory-for-effective errors bias REFORMS, not just levels [PHL]:** a CIT cut's simulated
+  effect **doubled** once the adjustment factor carried true collections — the statutory rate change
+  maps to a larger effective-rate change on a properly-scaled base. A calibration that over- or
+  under-states an instrument's effective rate mis-sizes every reform running through it.
 - **Watch for doc/code drift:** e.g. OG-IDN's `taxes.md` rates are stale vs. its shipped JSON.
 
 ## Fiscal consistency — using fiscal data to dial in the calibration
@@ -276,10 +320,18 @@ raises, and `debt_ratio_ss` are three independently-set knobs that MUST satisfy 
 model's transition blows up. **[net-new: ZAF, proven by TPI sims]**
 
 - **The identity.** For debt to hold at `debt_ratio_ss` in the steady state, the government must run a
-  primary balance `pb* = (r_gov − g)/(1 + g) · debt_ratio_ss`, where `g = g_y + g_n` (both in the
-  model's real, detrended units) and `r_gov` is the SS real sovereign rate. So **primary spending
-  must equal revenue − pb\***: `alpha_G + alpha_T ≈ Σ(tax revenue)/Y − pb*`. Set the spending side to
-  this, don't inherit it.
+  primary balance `pb* = (r_gov − g)/(1 + g) · debt_ratio_ss`, where `g = e^{g_y}(1 + g_n_ss) − 1`
+  (the model's real, detrended growth) and `r_gov` is the SS real sovereign rate. So **primary
+  spending must equal revenue − pb\*** — and primary spending includes public investment:
+  `alpha_G + alpha_T + alpha_I ≈ Σ(revenue)/Y − pb*` (forgetting `alpha_I ≈ 0.05` mis-sets `alpha_G`
+  by 5pp of GDP). Set the spending side to this, don't inherit it. With `r_gov < g` (common for EMs
+  after an honest `r_gov` re-anchor), `pb*` is *negative* — the country stabilizes debt while running
+  primary deficits, which usually matches its actual fiscal history. **Frame the residual honestly:**
+  after capturing all recurring revenue, the remaining gap between model `G/Y` and observed
+  government consumption should be ≈ (actual primary balance − pb*) — the country's genuine
+  consolidation distance — plus measurement differences; name it in the docs as what the stable-debt
+  SS deliberately embeds. (PHL: actual pb −2.8% vs pb* −0.7% ⇒ ~2pp embedded consolidation.) **[ZAF;
+  identity-with-`alpha_I` and the consolidation-gap framing: PHL]**
 - **Why it bites the transition, not the SS.** OG-Core's SS closure silently forces spending to the
   consistent level to hit the debt target, so the **steady state always solves and looks fine**. But
   the *transition* holds `alpha_G + alpha_T` at their input values for the first `tG1` periods before
@@ -504,7 +556,12 @@ multisector JSON as a worked example without checking `input_output.py` has the 
      social-security agencies you didn't know existed. Their publications outrank everything else.
   2. **Official international compilations of national data** — IMF (Article IV statistical
      appendix, GFS, WEO), World Bank, UN, ILO, PWT — often the same national numbers, re-published
-     with a lag and on standardized definitions (useful for cross-checks, weaker on vintage).
+     with a lag and on standardized definitions (useful for cross-checks, weaker on vintage). For
+     the whole revenue side, the **OECD Revenue Statistics country note** (Asia-Pacific / LAC /
+     Africa editions, free 4-page PDFs) is the single best table in the family's experience **[PHL]**:
+     every instrument as % of GDP on one accrual basis and one GDP vintage — PIT, CIT, SSC, VAT,
+     excises, customs, and an "other taxes" residual. Pair it with the treasury's cash-operations
+     report for non-tax revenue, interest payments, and the actual primary balance.
   3. **Regional development banks and bodies** — AfDB/ADB/IADB/EBRD country diagnostics, regional
      statistical commissions — frequently carry country detail (sector data, informality, fiscal
      risk) that neither the national site nor the IMF publishes cleanly.
@@ -543,6 +600,23 @@ multisector JSON as a worked example without checking `input_output.py` has the 
 - **Prevent doc/JSON drift with `{glue:text}` [emerging: ETH — adopt it].** A hidden code-cell in the
   docs loads the packaged JSON and `glue()`s the numbers, so prose can never drift from the shipped
   values.
+- **The in-model tuning loop is cheap — use real solves, not algebra [PHL].** A warm-guess SS solve
+  is ~15s (single worker, no dask), so the workflow *solve → read revenue dashboard → adjust dials →
+  re-solve* converges in 3–5 iterations for half a dozen simultaneous dials (GS φ2, `tau_c`, CIT
+  adjustment, `p_wealth`, `r_gov_shift`, `zeta_K`). Keep a driver script that loads the packaged
+  JSON + an overrides dict, solves SS-only, and prints model-vs-target by instrument. Always finish
+  with a **standalone solve of the packaged JSON itself** (no overrides) — it catches schema errors
+  and guess problems the overrides path hides.
+- **Initial-guess fragility: nearness ≠ solvability [PHL].** Guesses retuned to the *exact* solved
+  values (factor to 5 digits) sent the solver through a `K_d < 0` region and failed the SS, while
+  older, farther guesses converged cleanly. Choose packaged guesses by solve-path robustness — keep
+  the set that works, don't chase proximity. Relatedly, transient `"K_d has negative elements"`
+  warnings during iteration are benign **iff** the identities hold in the saved pickle
+  (`K = K_d + K_f`, `K_d = B − D_d`) — check the pickle, not the console.
+- **Derived parameters regenerate together [PHL].** Anything computed *from* demographics —
+  the model-consistent `g_RM` path (from `g_n`), the `eta_RM` matrix (from `omega_SS`) — belongs in
+  the demographics-regeneration tool so a demographics rebuild can't leave it stale, with a test
+  asserting packaged value == constructor(packaged inputs).
 
 ## House rules (lift verbatim into any port)
 
@@ -601,15 +675,21 @@ reform + output tables); the earnings tilt is solved inside `income.py`'s
    population growth is sane.
 4. Earnings: set the country's earnings-concept Gini (WID, matching the US reference concept); solve
    the tilt scalar.
-5. Macro block: debt (initial measured, SS anchored), `zeta_K` (Chinn-Ito + cross-check), world rate
-   (open vs distressed fork), `g_y` window (named constants), remittances/aid if material, the centered
-   debt-elastic premium, `initial_Kg_ratio` if `gamma_g > 0`.
+5. Macro block: debt (initial measured, SS anchored), `zeta_K` (Chinn-Ito prior, tuned to the IIP
+   foreign-capital level — re-validate after step 7), world rate (open vs distressed fork), `g_y`
+   window (named constants), remittances if material (personal measure; model-consistent `g_RM`
+   path; `eta_RM` from survey concentration) / aid, `r_gov` re-anchored to the treasury's effective
+   real rate, the centered debt-elastic premium, `initial_Kg_ratio` if `gamma_g > 0`.
 6. Capital share: `1 − labor_share`, Gollin-adjusted if agrarian/informal; **remove gamma from the
    live-API path** so it can't be clobbered.
-7. Taxes: for PIT, prefer a **progressive form fit to the statutory schedule** over a flat rate
-   whenever a schedule exists — **GS by default** (φ0 = statutory top rate, φ1 to the shape, φ2 to
-   collections; floors ETR at 0); take VAT/CIT/payroll as effective rates from collections; pick the
-   informality rung the data supports.
+7. Taxes — anchor to the OECD Revenue Statistics country note by instrument: for PIT, prefer a
+   **progressive form fit to the statutory schedule** over a flat rate whenever a schedule exists —
+   **GS by default** (φ0 = statutory top rate, φ1 to the shape, φ2 to collections; floors ETR at 0);
+   take VAT/CIT/payroll/bequest as effective rates from collections (payroll is *additive* to the
+   ETR function — audit the combined take; bequest effective is typically 1–2 orders below
+   statutory); capture recurring non-tax and property-type revenue on the nearest-margin instruments
+   (wealth tax / CIT adjustment / `tau_c`); close the budget identity
+   (`alpha_G = revenue − pb* − alpha_T − alpha_I`); pick the informality rung the data supports.
 8. `chi_n`: leave at the US values but **document it as uncalibrated**, or re-tilt to an hours target.
 9. Validate: build the steady-state dashboard; check revenue by instrument; add the value-pinning test.
 10. (Optional) Multi-industry: source the SAM (national SUTs → UNU-WIDER/IFPRI → modeled databases;
