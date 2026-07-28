@@ -33,10 +33,13 @@ Results and analysis:
   muiogo compare --case NAME --runs A,B --var V      compare runs; --chart out.png
   muiogo verify --case NAME --run RUN [--resolve]     prove a result still reproduces
 
-All commands take --url (default http://127.0.0.1:5002). Paths and ports come
+All commands act on ONE world, resolved once. Paths and ports come
 from the installed workspace manifest when not given.
 """
 import argparse
+from pathlib import Path
+import json
+import os
 import sys
 
 from muiogo_client import workspace
@@ -54,20 +57,35 @@ def _answers(url):
         return False
 
 
-def _resolve_url(args):
-    """Explicit --url wins; otherwise this workspace's own URL. Never guess.
+def _world(args):
+    """The one world this invocation acts on. Resolved once, cached on args.
 
-    Falling back to "whatever port answers" was actively dangerous: with two
-    worlds on one machine — live checkouts and an installed runtime — a command
-    meant for one could silently drive the other's server. So we use the
-    workspace's recorded URL and say so if nothing is listening there.
+    Everything a command touches — the server URL, the DataStorage directory,
+    the OG registry — must come from this single object. They used to be
+    resolved independently, so `--url` pointed the HTTP calls at one world while
+    the filesystem reads still came from another: a `log` or `compare` would
+    read one world's results and report them as the other's. Half-switching a
+    world is worse than not switching it, because the output looks right.
+    """
+    cached = getattr(args, "_world_obj", None)
+    if cached is not None:
+        return cached
+    world = workspace.resolve()
+    args._world_obj = world
+    return world
+
+
+def _resolve_url(args):
+    """Explicit --url wins; otherwise this world's own URL. Never guess.
+
+    There is no default. Falling back to a port meant that a missing or
+    unreadable world record silently drove http://127.0.0.1:5002 — which is the
+    user's own live MUIOGO, the one thing that must never be touched by
+    accident.
     """
     if getattr(args, "url", None):
         return args.url
-    try:
-        return workspace.summary()["muiogo_url"] or DEFAULT_URL
-    except workspace.WorkspaceError:
-        return DEFAULT_URL
+    return _world(args).url
 
 
 def _warn_other_world(args):
@@ -99,13 +117,24 @@ def _client(args):
 
 
 def _data_storage(args):
-    """DataStorage path: explicit flag, else from the workspace manifest."""
+    """This world's case directory, from the same world that gave us the URL.
+
+    If someone passes --url for one world, the files must not come from
+    another. We cannot prove over HTTP which checkout a server is serving, so
+    the honest move is to refuse rather than to mix.
+    """
     if getattr(args, "data_storage", None):
-        return args.data_storage
-    info = workspace.summary()
-    if not info["data_storage"]:
-        raise MuiogoError("manifest has no MUIOGO path; pass --data-storage")
-    return info["data_storage"]
+        return Path(args.data_storage)
+    world = _world(args)
+    url = getattr(args, "url", None)
+    if url and url.rstrip("/") != world.url.rstrip("/"):
+        raise SystemExit(
+            f"error: --url {url} is not this world's server ({world.url}).\n"
+            f"       Files would be read from {world.data_storage},\n"
+            f"       which belongs to {world.describe()} — the results would be\n"
+            f"       one world's numbers labelled as another's.\n"
+            f"       Use that world's launcher, or pass --data-storage explicitly.")
+    return world.data_storage
 
 
 def _checkout_state(path):
@@ -237,6 +266,32 @@ def cmd_use(args):
     print(f"active world: {args.name} ({info['kind']})")
     print(f"  MUIOGO  {info['muiogo_path']}")
     print(f"  server  {info['muiogo_url']}")
+    return 0
+
+
+def cmd_launcher(args):
+    """Write a launcher that pins one world, so nothing has to be switched."""
+    name = args.name
+    worlds = workspace.known_worlds()
+    if name not in worlds:
+        print(f"error: no world named {name!r}. Known: "
+              f"{', '.join(sorted(worlds)) or '(none)'}", file=sys.stderr)
+        return 2
+    record = worlds[name]
+    world = workspace.World(json.loads(Path(record).read_text()), record)
+    state_home = args.state_home or (
+        world.og_state_dir.parent if world.og_state_dir else workspace.state_root())
+    out = Path(args.out).expanduser() if args.out else (
+        Path.home() / ".local" / "bin" / (f"muiogo-{name}" if name != "runtime" else "muiogo-ai"))
+    written = workspace.write_launcher(out, record, state_home)
+    print(f"launcher: {written}")
+    print(f"  world      {world.describe()}")
+    print(f"  MUIOGO     {world.muiogo_path}")
+    print(f"  state      {state_home}")
+    print(f"\nRun {written.name} instead of muiogo to act on this world only.")
+    if str(out.parent) not in os.environ.get("PATH", ""):
+        print(f"note: {out.parent} is not on your PATH; add it, or call the "
+              f"launcher by full path.", file=sys.stderr)
     return 0
 
 
@@ -689,7 +744,12 @@ def cmd_stop(args):
     root = args.root
     if not root:
         root = workspace.summary()["muiogo_path"]
-    port = args.port or workspace.summary().get("muiogo_port") or 5002
+    # No silent 5002: that is the live world's port, so a world record without a
+    # port used to make `stop` reach for the user's own server.
+    port = args.port or _world(args).port
+    if not port:
+        print("error: this world records no port; pass --port explicitly.", file=sys.stderr)
+        return 2
     server = MuiogoServer(root, port=port)
     pid = server.stop_detached()
     if pid:
@@ -713,9 +773,12 @@ def cmd_serve(args):
     port = args.port
     if port is None:
         try:
-            port = workspace.summary()["muiogo_port"] or 5002
+            port = _world(args).port
         except workspace.WorkspaceError:
-            port = 5002
+            print("error: no world record found, so there is no port to serve on.\n"
+                  "       Pass --port, or run the installer / `muiogo adopt` first.",
+                  file=sys.stderr)
+            return 2
     server = MuiogoServer(root, port=port)
     if args.detach:
         pid = server.start_detached(log_path=args.log)
@@ -750,12 +813,19 @@ def main(argv=None):
     p.add_argument("--muiogo", help="path to an existing MUIOGO checkout")
     p.add_argument("--og-model", action="append", help="path to an OG country model (repeatable)")
     p.add_argument("--link", help="path to an ogclews-link checkout")
-    p.add_argument("--port", type=int, default=5002)
+    p.add_argument("--port", type=int, default=workspace.LIVE_PORT,
+                   help=f"port this world serves on (default {workspace.LIVE_PORT}, MUIOGO's own)")
     p.set_defaults(func=cmd_adopt)
 
     p = sub.add_parser("use", help="switch which world the tooling acts on")
     p.add_argument("name")
     p.set_defaults(func=cmd_use)
+
+    p = sub.add_parser("launcher", help="write a command that pins one world")
+    p.add_argument("name", help="world name (see `muiogo worlds`)")
+    p.add_argument("--out", help="where to write it (default ~/.local/bin/muiogo-<name>)")
+    p.add_argument("--state-home", help="this world's state dir (default: beside its OG registry)")
+    p.set_defaults(func=cmd_launcher)
 
     p = sub.add_parser("worlds", help="list workspaces on this machine, mark the active one")
     p.add_argument("--json", action="store_true", help="machine-readable output")
@@ -864,7 +934,7 @@ def main(argv=None):
 
     p = sub.add_parser("serve", help="run a headless MUIOGO server in the foreground")
     p.add_argument("--root", help="MUIOGO checkout (default: from manifest)")
-    p.add_argument("--port", type=int, default=None, help="default: the workspace's port, else 5002")
+    p.add_argument("--port", type=int, default=None, help="default: this world's recorded port")
     p.add_argument("--detach", action="store_true",
                    help="run in the background and record the pid (headless default choice)")
     p.add_argument("--log", help="where a detached server writes its output")

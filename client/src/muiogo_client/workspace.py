@@ -21,6 +21,23 @@ from pathlib import Path
 
 MANIFEST_NAME = "manifest.json"
 
+# ── How a command knows which world it is acting on ──────────────────────────
+#
+# Not from a stored pointer. A pointer is shared mutable state: anything can
+# change it, it persists across shells and days, and a command that reads it
+# cannot tell whether the value was meant for this invocation. The world is
+# instead a property of the launcher you executed. The installer generates
+# <install>/bin/muiogo-ai carrying this variable as an absolute literal, so the
+# world travels to every child process — including a skill's python script,
+# which is where the writes that matter actually happen.
+WORLD_FILE_ENV = "MUIOGO_WORLD_FILE"
+
+# Each world also keeps its own run-state. These used to be one shared
+# directory under ~/.muiogo, which made pidfiles, the OG registry and the model
+# directory common property between the user's manual setup and the automated
+# runtime — the exact collision the two-world split exists to prevent.
+STATE_HOME_ENV = "MUIOGO_HOME"
+
 # Two worlds are expected to coexist on one machine and must not contend:
 #   - an ADOPTED world: checkouts someone uses for live work, on its own branches
 #   - an INSTALLED world: a self-contained runtime the installer built
@@ -38,9 +55,101 @@ LEGACY_WORKSPACE = Path.home() / "muiogo-ai-workspace"
 # re-adopting to recover clobbered the runtime's record in the other direction,
 # with no way out but hand-editing JSON. Each world now owns a file, and a
 # separate pointer says which is active.
-WORLDS_DIR = CANONICAL_DIR / "worlds"
-ACTIVE_FILE = CANONICAL_DIR / "active"
+WORLDS_DIR = CANONICAL_DIR / "worlds"          # default only; see worlds_dir()
+_ACTIVE_NAME = "active"
 LEGACY_MANIFEST = CANONICAL_DIR / MANIFEST_NAME
+
+
+def state_root():
+    """This world's own state directory. Never assume the shared default."""
+    override = os.environ.get(STATE_HOME_ENV)
+    return Path(override).expanduser() if override else CANONICAL_DIR
+
+
+def worlds_dir():
+    return state_root() / "worlds"
+
+
+def servers_dir():
+    return state_root() / "servers"
+
+
+def pinned_world_file():
+    """The manifest a launcher baked in, if we were launched by one."""
+    raw = os.environ.get(WORLD_FILE_ENV)
+    if not raw:
+        return None
+    path = Path(raw).expanduser()
+    if not path.is_file():
+        raise WorkspaceError(
+            f"{WORLD_FILE_ENV} points at {path}, which does not exist. This is "
+            f"set by a generated launcher; if you moved or removed the "
+            f"installation, re-run the installer or unset {WORLD_FILE_ENV}.")
+    return path
+
+
+class World:
+    """One world, resolved once. Every path a command needs comes from here.
+
+    The point of the class is that url, port, DataStorage and the OG registry
+    are read off a SINGLE manifest. They used to be resolved independently,
+    which let one command act on two worlds at once: --url pointed the HTTP
+    calls at one server while the filesystem reads still came from whichever
+    world a pointer happened to name.
+    """
+
+    def __init__(self, data, path):
+        self.data = data
+        self.path = Path(path)
+
+    @property
+    def name(self):
+        return self.data.get("name") or self.path.stem
+
+    @property
+    def kind(self):
+        return describe_kind(self.data)[0]
+
+    @property
+    def muiogo_path(self):
+        p = (self.data.get("muiogo") or {}).get("path")
+        return Path(p) if p else None
+
+    @property
+    def port(self):
+        return (self.data.get("muiogo") or {}).get("port")
+
+    @property
+    def url(self):
+        u = (self.data.get("muiogo") or {}).get("url")
+        if u:
+            return u
+        if self.port:
+            return f"http://127.0.0.1:{self.port}"
+        raise WorkspaceError(
+            f"world {self.name!r} ({self.path}) records no port or url, so there "
+            f"is nothing safe to talk to. Re-run the installer, or `muiogo adopt`.")
+
+    @property
+    def data_storage(self):
+        if not self.muiogo_path:
+            raise WorkspaceError(
+                f"world {self.name!r} records no MUIOGO path, so its cases "
+                f"cannot be located.")
+        return self.muiogo_path / "WebAPP" / "DataStorage"
+
+    @property
+    def og_state_dir(self):
+        d = (self.data.get("muiogo") or {}).get("og_state_dir")
+        return Path(d) if d else state_root() / "og-state"
+
+    @property
+    def og_models_dir(self):
+        d = (self.data.get("muiogo") or {}).get("og_models_dir")
+        return Path(d) if d else state_root() / "og-models"
+
+    def describe(self):
+        return f"{self.name} ({self.kind}, port {self.port})"
 
 
 class WorkspaceError(RuntimeError):
@@ -57,14 +166,18 @@ def _looks_like_manifest(path):
     return isinstance(data, dict) and "muiogo" in data
 
 
+def active_file():
+    return state_root() / _ACTIVE_NAME
+
+
 def world_file(name):
-    return WORLDS_DIR / f"{name}.json"
+    return worlds_dir() / f"{name}.json"
 
 
 def active_world():
     """Name of the world the tooling is currently pointed at, or None."""
     try:
-        name = ACTIVE_FILE.read_text(encoding="utf-8").strip()
+        name = active_file().read_text(encoding="utf-8").strip()
     except OSError:
         return None
     return name if name and world_file(name).is_file() else None
@@ -72,14 +185,14 @@ def active_world():
 
 def known_worlds():
     """Every registered world: {name: path}, newest naming wins."""
-    if not WORLDS_DIR.is_dir():
+    if not worlds_dir().is_dir():
         return {}
-    return {p.stem: p for p in sorted(WORLDS_DIR.glob("*.json"))}
+    return {p.stem: p for p in sorted(worlds_dir().glob("*.json"))}
 
 
 def register_world(name, manifest, make_active=True):
     """Record a world under its own name. Never disturbs another world's record."""
-    WORLDS_DIR.mkdir(parents=True, exist_ok=True)
+    worlds_dir().mkdir(parents=True, exist_ok=True)
     path = world_file(name)
     path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     if make_active:
@@ -92,7 +205,7 @@ def set_active(name):
     if not world_file(name).is_file():
         raise WorkspaceError(f"no world named {name!r} (have: {', '.join(known_worlds()) or 'none'})")
     CANONICAL_DIR.mkdir(parents=True, exist_ok=True)
-    ACTIVE_FILE.write_text(f"{name}\n", encoding="utf-8")
+    active_file().write_text(f"{name}\n", encoding="utf-8")
     # Kept in step for anything still reading the old single-slot location.
     try:
         LEGACY_MANIFEST.write_text(world_file(name).read_text(encoding="utf-8"),
@@ -100,6 +213,102 @@ def set_active(name):
     except OSError:
         pass
     return name
+
+
+def resolve(start=None):
+    """The one place a world is chosen. Returns a World.
+
+    Order: the launcher's baked-in manifest, then $MUIOGO_WORKSPACE, then the
+    active pointer and the search path. There is deliberately no "whatever
+    single world exists" fallback and no default port: losing a world record
+    used to mean silently switching to the live world, which is the user's own
+    manual setup.
+    """
+    pinned = pinned_world_file()
+    if pinned is not None:
+        return World(_read_manifest(pinned), pinned)
+    data, path = load(start)
+    return World(data, path)
+
+
+POSIX_LAUNCHER = """#!/bin/sh
+# Generated by MUIOGO-AI. Do not edit — re-run the installer to regenerate.
+#
+# This file IS the world. The two paths below are absolute literals, so every
+# command run through this launcher — and every child process it starts,
+# including a skill's python script — acts on this installation and no other.
+# Nothing outside this file can retarget it: there is no pointer to change.
+MUIOGO_WORLD_FILE={world_file}
+MUIOGO_HOME={state_home}
+export MUIOGO_WORLD_FILE MUIOGO_HOME
+exec {muiogo} "$@"
+"""
+
+WINDOWS_LAUNCHER = """@echo off
+rem Generated by MUIOGO-AI. Do not edit — re-run the installer to regenerate.
+rem This file IS the world: the paths below are absolute literals.
+set "MUIOGO_WORLD_FILE={world_file}"
+set "MUIOGO_HOME={state_home}"
+"{muiogo}" %*
+"""
+
+
+def write_launcher(path, world_file, state_home, muiogo_exe=None):
+    """Write a launcher that pins one world, and return the path written.
+
+    A launcher beats every other way of selecting a world because the choice is
+    made by WHICH FILE YOU RAN, before any code executes. An environment
+    variable can be stale, a working directory can be wrong, and a stored
+    pointer is shared mutable state — but the literal inside this file cannot be
+    anything other than what the installer wrote.
+    """
+    import shutil
+    import sys as _sys
+    path = Path(path)
+    exe = muiogo_exe or shutil.which("muiogo") or (Path(_sys.prefix) / "bin" / "muiogo")
+    body = (WINDOWS_LAUNCHER if os.name == "nt" else POSIX_LAUNCHER).format(
+        world_file=_quote(world_file), state_home=_quote(state_home),
+        muiogo=_quote(exe) if os.name != "nt" else exe)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(body)
+    if os.name != "nt":
+        path.chmod(0o755)
+    return path
+
+
+def _quote(value):
+    """Shell-quote an absolute path so a space in it cannot split the command."""
+    import shlex
+    return shlex.quote(str(value))
+
+
+def world_for_root(root):
+    """The registered world whose MUIOGO checkout is `root`, or None.
+
+    Identity comes from the path on disk, which is the only thing that actually
+    distinguishes two worlds. A port does not: both may use the same one.
+    """
+    root = Path(root).resolve()
+    pinned = pinned_world_file()
+    if pinned is not None:
+        world = World(_read_manifest(pinned), pinned)
+        if world.muiogo_path and world.muiogo_path.resolve() == root:
+            return world
+    for name, path in known_worlds().items():
+        try:
+            world = World(_read_manifest(path), path)
+        except WorkspaceError:
+            continue
+        if world.muiogo_path and world.muiogo_path.resolve() == root:
+            return world
+    return None
+
+
+def _read_manifest(path):
+    try:
+        return json.loads(Path(path).read_text())
+    except (OSError, ValueError) as exc:
+        raise WorkspaceError(f"cannot read the world record {path}: {exc}") from exc
 
 
 def candidate_paths(start=None):
@@ -241,6 +450,24 @@ def discover(roots=None):
     return found
 
 
+def _env_dir(muiogo_path, key, default):
+    """What THIS checkout's .env says its OG registry is.
+
+    MUIOGO reads these from its own .env via load_dotenv, so the checkout's file
+    is the truth. Recording a guess here and then injecting it into the server
+    is how an installed world ended up writing into the shared registry.
+    """
+    env = Path(muiogo_path) / ".env"
+    if env.is_file():
+        for line in env.read_text().splitlines():
+            line = line.strip()
+            if line.startswith(f"{key}=") and not line.startswith("#"):
+                value = line.split("=", 1)[1].strip().strip('"').strip("'")
+                if value:
+                    return Path(value).expanduser()
+    return Path(default)
+
+
 def _git_ref(path):
     import subprocess
     try:
@@ -290,8 +517,10 @@ def build_manifest(muiogo_path, og_models=(), link_path=None, port=LIVE_PORT,
             "path": str(muiogo_path), "ref": _git_ref(muiogo_path),
             "python": str(venv_python(muiogo_path) or ""),
             "url": f"http://127.0.0.1:{port}", "port": int(port),
-            "og_models_dir": str(CANONICAL_DIR / "og-models"),
-            "og_state_dir": str(CANONICAL_DIR / "og-state"),
+            "og_models_dir": str(_env_dir(muiogo_path, "MUIOGO_OG_MODELS_DIR",
+                                          state_root() / "og-models")),
+            "og_state_dir": str(_env_dir(muiogo_path, "MUIOGO_OG_DATA_DIR",
+                                         state_root() / "og-state")),
         },
         "muiogo_ai": {"path": None, "ref": None, "client_python": None},
         "ogclews_link": ({"path": str(link_path), "ref": _git_ref(link_path),
@@ -360,8 +589,15 @@ def list_workspaces(start=None):
 
 
 def summary(start=None):
-    """A flat, printable picture of the installation for orientation."""
-    data, path = load(start)
+    """A flat, printable picture of THIS world, for orientation.
+
+    Must go through resolve() so a launcher's baked-in world wins. Reading the
+    search path directly meant `status` described one world while the same
+    command's URL and DataStorage came from another — the most misleading
+    failure available, because the output looks authoritative.
+    """
+    world = resolve(start)
+    data, path = world.data, world.path
     muiogo = data.get("muiogo") or {}
     link = data.get("ogclews_link") or {}
     kind, kind_note = describe_kind(data)

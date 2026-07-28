@@ -108,6 +108,8 @@ hr()       { printf '%s\n' "─────────────────�
 hr_thick() { printf '%s\n' "══════════════════════════════════════════════════════════════"; }
 
 print_pass() { printf "  ${GREEN}[PASS]${RESET} %s%s\n" "$1" "${2:+  ${DIM}($2)${RESET}}"; }
+STAMP="$(date +%Y%m%d-%H%M%S)"
+print_note() { printf '  \033[33m~\033[0m %-34s %s\n' "$1" "$2"; }
 print_fail() { printf "  ${RED}[FAIL]${RESET} %s%s\n" "$1" "${2:+  ${DIM}($2)${RESET}}"; }
 print_warn() { printf "  ${YELLOW}[WARN]${RESET} %s%s\n" "$1" "${2:+  ${DIM}($2)${RESET}}"; }
 print_skip() { printf "  ${YELLOW}[SKIP]${RESET} %s%s\n" "$1" "${2:+  ${DIM}($2)${RESET}}"; }
@@ -178,7 +180,13 @@ fi
 
 if [[ $DO_RELINK -eq 1 ]]; then
     section "Refreshing .claude/skills from .agents/skills"
-    rm -rf "$CLAUDE_LINK_DIR"
+    # Never delete a tree to rebuild it. The old copy is moved aside so a
+    # mistake is always reversible, and its location is printed.
+    if [[ -d "$CLAUDE_LINK_DIR" ]]; then
+        ASIDE="$CLAUDE_LINK_DIR.previous-$STAMP"
+        mv "$CLAUDE_LINK_DIR" "$ASIDE" || err "cannot move $CLAUDE_LINK_DIR aside"
+        printf '  previous copy kept at %s\n' "$ASIDE"
+    fi
     mkdir -p "$CLAUDE_LINK_DIR" || err "cannot create $CLAUDE_LINK_DIR"
     for s in "${AVAILABLE[@]}"; do
         cp -R "$SKILLS_DIR/$s" "$CLAUDE_LINK_DIR/$s"
@@ -318,6 +326,7 @@ fi
 # ── Install ───────────────────────────────────────────────────────────────────
 START_TIME="$(date +%s)"
 INSTALLED=0
+BACKED_UP=0
 FAILED=0
 
 IFS=',' read -ra DESTS <<< "$TARGET_DIRS"
@@ -333,8 +342,27 @@ for dest in "${DESTS[@]}"; do
         continue
     fi
     for s in "${SELECTED[@]}"; do
-        # Replace any older copy so re-running updates cleanly.
-        rm -rf "$dest/$s"
+        # An existing skill of the same name may be the user's own work — edited
+        # in place, or written by hand. Deleting it outright to "update cleanly"
+        # destroys that with no way back, so anything that differs from what we
+        # are about to write is moved aside first and its location reported.
+        if [[ -e "$dest/$s" ]]; then
+            if diff -rq "$SKILLS_DIR/$s" "$dest/$s" >/dev/null 2>&1; then
+                print_pass "$s"                   # already identical: leave it alone
+                INSTALLED=$((INSTALLED + 1))
+                continue
+            else
+                BACKUP="$dest/$s.replaced-$STAMP"
+                if mv "$dest/$s" "$BACKUP" 2>/dev/null; then
+                    print_note "$s" "your version differs — kept at $(basename "$BACKUP")"
+                    BACKED_UP=$((BACKED_UP + 1))
+                else
+                    print_fail "$s" "could not move your existing copy aside; left untouched"
+                    FAILED=$((FAILED + 1))
+                    continue
+                fi
+            fi
+        fi
         if cp -R "$SKILLS_DIR/$s" "$dest/$s" 2>/dev/null; then
             print_pass "$s"
             INSTALLED=$((INSTALLED + 1))

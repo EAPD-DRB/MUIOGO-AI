@@ -22,3 +22,7 @@ Thumbs.db
 # Local MUIOGO installs and run artifacts
 muiogo-install/
 *.log
+
+# Copies moved aside instead of deleted, so nothing is ever destroyed.
+*.previous-*
+*.replaced-*

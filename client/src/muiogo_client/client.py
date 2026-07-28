@@ -15,7 +15,10 @@ from pathlib import Path
 
 import requests
 
-DEFAULT_URL = "http://127.0.0.1:5002"
+# MUIOGO's own default port. Named, not used as a fallback: a client that
+# quietly defaults here talks to whatever the user runs manually.
+LIVE_PORT_URL = "http://127.0.0.1:5002"
+DEFAULT_URL = LIVE_PORT_URL
 
 
 class MuiogoError(RuntimeError):

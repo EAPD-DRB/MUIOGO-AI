@@ -8,7 +8,7 @@ be wrong. This does that mechanically, then you set the few values that define
 the policy.
 
     python3 new_scenario.py --case "My Case" --name High_CO2_tax \
-        --copy-from CO2_tax --data-storage <path> [--url http://127.0.0.1:5002]
+        --copy-from CO2_tax --data-storage <path> [--url http://127.0.0.1:5102]
 
 It registers the scenario, copies a complete parameter slice from --copy-from
 (default: the base scenario), and prints what to edit next. Use --set to apply a
@@ -31,25 +31,42 @@ BASE_SCENARIO = "SC_0"
 
 
 def default_url():
-    """The active workspace's URL, so this never writes to the wrong world.
+    """This world's URL, from the launcher that started us. Never a guess.
 
-    A machine can carry an adopted world (someone's live checkouts, port 5002)
-    and an installed runtime (port 5102). Hardcoding 5002 would silently edit the
-    wrong one, so read the port the tooling recorded.
+    This script WRITES: it registers a scenario in genData.json and pushes a
+    parameter slice for every R*.json. So resolving the wrong world here edits
+    someone's real models. The previous version ended in a hardcoded
+    127.0.0.1:5002 fallback — the live world's port — directly contradicting its
+    own docstring.
+
+    A launcher (muiogo-ai, muiogo-live) exports MUIOGO_WORLD_FILE, and child
+    processes inherit it, so a script run from a skill gets the same world as the
+    command that invoked it. With nothing set, we refuse: an unknown target is
+    not a reason to pick the user's manual installation.
     """
-    for candidate in (os.environ.get("MUIOGO_WORKSPACE", "").strip(),
-                      os.path.expanduser("~/.muiogo")):
-        if not candidate:
-            continue
-        path = os.path.join(candidate, "manifest.json")
+    pinned = os.environ.get("MUIOGO_WORLD_FILE", "").strip()
+    if pinned:
         try:
-            with open(path, encoding="utf-8") as f:
-                port = (json.load(f).get("muiogo") or {}).get("port")
-            if port:
-                return f"http://127.0.0.1:{int(port)}"
-        except (OSError, ValueError, TypeError):
-            continue
-    return "http://127.0.0.1:5002"
+            with open(pinned, encoding="utf-8") as f:
+                record = json.load(f)
+        except (OSError, ValueError) as exc:
+            sys.exit(f"MUIOGO_WORLD_FILE={pinned} is unreadable: {exc}")
+        muiogo = record.get("muiogo") or {}
+        url = muiogo.get("url")
+        if url:
+            return url
+        if muiogo.get("port"):
+            return f"http://127.0.0.1:{int(muiogo['port'])}"
+        sys.exit(f"the world record {pinned} has no url or port.")
+
+    sys.exit(
+        "I cannot tell which MUIOGO this should write to, and this script edits\n"
+        "case data, so I will not guess.\n\n"
+        "Run it through a world launcher, which sets the target for you:\n"
+        "    muiogo-ai run-scenario-script ...      (the installed runtime)\n"
+        "or pass the server explicitly:\n"
+        "    --url http://127.0.0.1:5102\n\n"
+        "`muiogo worlds` lists the worlds on this machine.")
 
 
 def post(url, payload, timeout=120, cookie=None):
@@ -85,7 +102,7 @@ def main():
                     help="scenario name to seed the parameter slice from (default: base)")
     ap.add_argument("--data-storage", required=True)
     ap.add_argument("--url", default=None,
-                    help="MUIOGO URL (default: the installed workspace's, else 5002)")
+                    help="MUIOGO URL (default: the world your launcher pinned; no fallback)")
     ap.add_argument("--set", action="append", default=[],
                     metavar="FILE:PARAM:ROWID:xFACTOR",
                     help="multiply a row's yearly values, e.g. RYE.json:EP:EMI_6ku9o:x4")

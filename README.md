@@ -72,7 +72,7 @@ See [SKILLS.md](SKILLS.md) for the full list and what each one does.
 ## Start MUIOGO
 
 ```bash
-muiogo use runtime && muiogo serve --detach
+muiogo-ai serve --detach
 ```
 
 Leave that window open. For the web interface, open

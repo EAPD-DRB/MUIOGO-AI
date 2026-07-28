@@ -40,25 +40,24 @@ class MuiogoServer:
         return py
 
     def _og_env(self):
-        """OG model/state locations from the installed manifest.
+        """OG registry variables for the checkout at self.root.
 
-        MUIOGO resolves its OG calibration registry from MUIOGO_OG_MODELS_DIR and
-        MUIOGO_OG_DATA_DIR, defaulting to ~/.muiogo. A workspace installed
-        elsewhere would otherwise have its registered country models invisible to
-        the server we start.
+        These MUST come from the world that owns this root. Reading them from
+        the active world instead meant that starting the installed runtime's
+        server while the pointer said "live" injected the live world's registry
+        into it — and because MUIOGO's Config.py reads os.environ before its own
+        .env, the injected value won. The runtime then wrote its OG
+        registrations straight into the user's manual registry, which is the one
+        failure the installer treats as fatal.
         """
-        try:
-            from muiogo_client import workspace
-            data, _ = workspace.load()
-        except Exception:
+        from muiogo_client.workspace import world_for_root
+        world = world_for_root(self.root)
+        if world is None:
+            # No record for this checkout: say nothing rather than inject a
+            # guess. MUIOGO then reads its own .env, which is the right answer.
             return {}
-        env = {}
-        muiogo = data.get("muiogo") or {}
-        if muiogo.get("og_models_dir"):
-            env["MUIOGO_OG_MODELS_DIR"] = muiogo["og_models_dir"]
-        if muiogo.get("og_state_dir"):
-            env["MUIOGO_OG_DATA_DIR"] = muiogo["og_state_dir"]
-        return env
+        return {"MUIOGO_OG_MODELS_DIR": str(world.og_models_dir),
+                "MUIOGO_OG_DATA_DIR": str(world.og_state_dir)}
 
     def start(self, wait_seconds=30):
         """Spawn the server headless and wait until it answers."""
@@ -106,9 +105,21 @@ class MuiogoServer:
         An adopted world points at repos someone uses for live work, so writing a
         pidfile or log there would leave untracked files in their repository.
         """
-        d = Path.home() / ".muiogo" / "servers"
+        from muiogo_client.workspace import servers_dir
+        d = servers_dir()
         d.mkdir(parents=True, exist_ok=True)
         return d
+
+    def _tag(self):
+        """A filename-safe identity for this checkout.
+
+        Keying run-state on the port alone meant two worlds on the same port
+        shared one pidfile: `stop` in one killed the other's server, and
+        starting the second overwrote the first's recorded pid.
+        """
+        import hashlib
+        real = str(Path(self.root).resolve())
+        return hashlib.sha256(real.encode()).hexdigest()[:10]
 
     def pidfile(self):
         """Where a detached server records its process id.
@@ -117,7 +128,7 @@ class MuiogoServer:
         `kill $(lsof -ti :5002)` — can match an unrelated process that happens to
         hold the port, which is a real hazard in a headless setting.
         """
-        return self._state_dir() / f"port-{self.port}.pid"
+        return self._state_dir() / f"{self._tag()}-{self.port}.pid"
 
     def start_detached(self, wait_seconds=60, log_path=None):
         """Start headless in the background and record the pid. Returns the pid."""
@@ -126,7 +137,7 @@ class MuiogoServer:
         app = self.root / "API" / "app.py"
         if not app.exists():
             raise ServerError(f"Not a MUIOGO checkout: {app} missing.")
-        log = Path(log_path) if log_path else (self._state_dir() / f"port-{self.port}.log")
+        log = Path(log_path) if log_path else (self._state_dir() / f"{self._tag()}-{self.port}.log")
         log.parent.mkdir(parents=True, exist_ok=True)
         env = dict(os.environ, PORT=str(self.port), **self._og_env())
         # Detach so the server outlives this process. setsid is POSIX; Windows

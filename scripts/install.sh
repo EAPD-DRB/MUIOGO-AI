@@ -234,12 +234,20 @@ stop_server() {
 
 # Nothing we create should outlive a failure: not the verification server, not the
 # scratch directories. die() exits without unwinding, so this has to be a trap.
+# Scratch dirs are removed with rmdir, never recursively. rmdir refuses to touch
+# a non-empty directory, so a wrong path here cannot destroy anything: the worst
+# case is a leftover directory, which is reported rather than forced.
 CLEANUP_PATHS=()
+CLEANUP_FILES=()
 cleanup() {
     stop_server
-    local p
+    local f p
+    for f in ${CLEANUP_FILES[@]+"${CLEANUP_FILES[@]}"}; do
+        [[ -n "$f" && -f "$f" ]] && rm -f "$f"
+    done
     for p in ${CLEANUP_PATHS[@]+"${CLEANUP_PATHS[@]}"}; do
-        [[ -n "$p" && "$p" == /*/* ]] && rm -rf "$p"
+        [[ -n "$p" && -d "$p" ]] || continue
+        rmdir "$p" 2>/dev/null || printf '  note: left %s in place (not empty)\n' "$p" >&2
     done
     return 0
 }
@@ -485,6 +493,7 @@ declare -a OG_INSTALLED_KEYS=() OG_INSTALLED_REPOS=() OG_INSTALLED_PKGS=() OG_IN
 if [[ -n "$OG_KEYS" ]]; then
     step_banner "3" "OG model(s): $OG_KEYS (upstream OG-Core installer)"
     OG_INST="$(mktemp -d)/og-install.sh"
+    CLEANUP_FILES+=("$OG_INST")
     CLEANUP_PATHS+=("$(dirname "$OG_INST")")
     curl -fsSL "$OG_INSTALLER_URL" -o "$OG_INST" || die "could not fetch the OG-Core installer"
     CATALOG_JSON="$(curl -fsSL "$OG_CATALOG_URL")" || die "could not fetch the OG catalog (repos.json)"
@@ -539,9 +548,9 @@ for r in data["repos"]:
         if ! "$MODEL_PY" -c "import $IMPORT_NAME" 2>/dev/null; then
             warn "$key still cannot import '$IMPORT_NAME' after a full install attempt."
             echo "        Log: $DEST/og-install-$key.log"
-            echo "        The environment at $MODEL_DIR looks broken. If you have"
-            echo "        nothing of your own in there, remove it and re-run:"
-            echo_cmd "rm -rf '$MODEL_DIR'"
+            echo "        The environment at $MODEL_DIR looks broken. Move it"
+            echo "        aside — not delete it — and re-run this installer:"
+            echo_cmd "mv '$MODEL_DIR' '$MODEL_DIR.broken'"
             die "$key is not usable"
         fi
         ok "$key imports from its own venv"
@@ -842,6 +851,27 @@ else
 fi
 record manifest OK "$DEST/manifest.json"
 
+# ── the launcher: how you get this world without switching to it ──────────────
+# `muiogo-ai` carries this installation's manifest path as an absolute literal,
+# so it cannot be retargeted by an environment variable, a working directory, or
+# a stored pointer — there is nothing to change. Child processes inherit it,
+# which is what makes a skill's own python script act on this world too.
+CURRENT_STEP="launcher"
+LAUNCHER_DIR="${HOME}/.local/bin"
+LAUNCHER="$LAUNCHER_DIR/muiogo-ai"
+if clean_env "$AI_DIR/client/.venv/bin/muiogo" launcher runtime \
+        --out "$LAUNCHER" --state-home "$OG_HOME" >/dev/null 2>&1; then
+    ok "muiogo-ai command written ($LAUNCHER)"
+    command -v muiogo-ai >/dev/null \
+        || warn "$LAUNCHER_DIR is not on your PATH — add it, or call $LAUNCHER directly"
+    record launcher OK "$LAUNCHER"
+else
+    warn "could not write the muiogo-ai launcher"
+    echo "        Until that is fixed, target this world explicitly:"
+    echo_cmd "muiogo --url http://127.0.0.1:$PORT"
+    record launcher FAIL "see above"
+fi
+
 report
 FAILED_STEPS=0
 for _s in ${STEP_STATES[@]+"${STEP_STATES[@]}"}; do
@@ -895,5 +925,5 @@ printf "  ${GREEN}${BOLD}MUIOGO-AI stack installed and verified.${RESET}\n"
 echo    "  Workspace : $DEST"
 echo    "  Manifest  : $DEST/manifest.json"
 echo    "  World     : runtime (port $PORT) — \`muiogo worlds\` shows all of them"
-echo    "  Start it:   muiogo use runtime && muiogo serve --detach"
+echo    "  Start it:   muiogo-ai serve --detach"
 exit 0
