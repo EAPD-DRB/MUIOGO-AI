@@ -255,7 +255,7 @@ choose_assistant_interactive() {
             echo
             printf "  Nothing installed. You can always install them yourself, any time:\n"
             echo_cmd "./scripts/install-skills.sh"
-            printf "  Or copy any folder from skills/ into your assistant's skills folder.\n"
+            printf "  Or copy any folder from .agents/skills/ into your assistant's skills folder.\n"
             exit 0
         fi
         if [ "$choice" -eq "$other_choice" ]; then
