@@ -280,16 +280,38 @@ def cmd_status(args):
 
 
 def cmd_use(args):
-    """Point the tooling at a registered world, explicitly."""
+    """Set the fallback world for bare `muiogo`. Prefer a launcher.
+
+    This writes machine-wide, sticky state: it persists across shells and days,
+    so a later command in another terminal silently inherits it. That is the
+    hazard the launchers exist to remove, which is why this warns and why an
+    assistant should never call it.
+    """
+    if workspace.pinned_world_file():
+        print(f"error: this command was launched with a world already pinned "
+              f"({_world(args).describe()}).\n"
+              f"       Setting the fallback pointer would change nothing here but "
+              f"would\n"
+              f"       silently retarget bare `muiogo` elsewhere on this machine. "
+              f"Refusing.\n"
+              f"       To act on another world, use its launcher.", file=sys.stderr)
+        return 3
     try:
         workspace.set_active(args.name)
-    except workspace.WorkspaceError as exc:
+        record = workspace.known_worlds()[args.name]
+        world = workspace.World(json.loads(Path(record).read_text()), record)
+    except (workspace.WorkspaceError, KeyError, OSError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
-    info = workspace.summary()
-    print(f"active world: {args.name} ({info['kind']})")
-    print(f"  MUIOGO  {info['muiogo_path']}")
-    print(f"  server  {info['muiogo_url']}")
+    # Report the world we actually set, read from its own record — not through
+    # resolution, which could answer with something else entirely.
+    print(f"fallback world for bare `muiogo`: {world.describe()}")
+    print(f"  MUIOGO  {world.muiogo_path}")
+    print(f"  server  {world.url}")
+    print("\nThis is machine-wide and sticky: another terminal, and any command "
+          "you run\ntomorrow, will use it too. For work that must stay in one "
+          "world, use a launcher:")
+    print(f"  muiogo launcher {args.name}")
     return 0
 
 
