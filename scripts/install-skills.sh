@@ -228,58 +228,53 @@ choose_assistant_interactive() {
     hr_thick
     printf "  ${BOLD}MUIOGO-AI Skills Installer${RESET}\n"
     hr_thick
-    printf "  %d skills are ready to install.\n" "${#SELECTED[@]}"
-    printf "  ${DIM}Which AI assistant should they go to?${RESET}\n"
+    printf "  %d skills are ready.\n" "${#SELECTED[@]}"
     echo
-    local i=1 entry k name dir
+    printf "  These skills ALREADY WORK inside this repository — open it in Claude Code\n"
+    printf "  or Codex and they load automatically. Installing a copy is only needed to\n"
+    printf "  use them in your other projects.\n"
+    echo
+    printf "    1) Keep them in this repository only ${DIM}(default)${RESET}\n"
+    printf "       ${DIM}available whenever you work in this repo; nothing is copied${RESET}\n"
+    local i=2 entry k name dir
+    local -a choice_dirs=()
     for entry in "${ASSISTANTS[@]}"; do
         IFS='|' read -r k name dir <<< "$entry"
-        printf "    %d) %-14s -- %s\n" "$i" "$name" "$dir"
+        printf "    %d) Also install for %-12s ${DIM}%s${RESET}\n" "$i" "$name" "$dir"
+        printf "       ${DIM}available in every project you open${RESET}\n"
+        choice_dirs+=("$dir")
         i=$((i + 1))
     done
-    printf "    %d) Both of the above\n" "$i"; local both_choice=$i; i=$((i + 1))
-    printf "    %d) Other (type a folder)\n" "$i"; local other_choice=$i; i=$((i + 1))
-    printf "    %d) Skip for now\n" "$i"; local skip_choice=$i
+    local both_choice=$i
+    printf "    %d) Also install for both assistants\n" "$both_choice"
     echo
     while true; do
-        printf "  Choice [1-%d]: " "$skip_choice" > /dev/tty
+        printf "  Choice [1-%d], or Enter to keep them here: " "$both_choice" > /dev/tty
         local choice=""
-        IFS= read -r choice < /dev/tty || choice="$skip_choice"
+        IFS= read -r choice < /dev/tty || choice="1"
+        [ -z "$choice" ] && choice=1
         if ! printf '%s' "$choice" | grep -Eq '^[0-9]+$'; then
             printf "  Please enter a number.\n"; continue
         fi
-        if [ "$choice" -lt 1 ] || [ "$choice" -gt "$skip_choice" ]; then
+        if [ "$choice" -lt 1 ] || [ "$choice" -gt "$both_choice" ]; then
             printf "  Out of range.\n"; continue
         fi
-        if [ "$choice" -eq "$skip_choice" ]; then
+        if [ "$choice" -eq 1 ]; then
             echo
-            printf "  Nothing installed. You can always install them yourself, any time:\n"
+            printf "  ${GREEN}Kept in this repository.${RESET} The skills load whenever you open it\n"
+            printf "  in Claude Code or Codex — nothing was copied elsewhere.\n"
+            echo
+            printf "  To make them available in your other projects later:\n"
             echo_cmd "./scripts/install-skills.sh"
-            printf "  Or copy any folder from .agents/skills/ into your assistant's skills folder.\n"
             exit 0
-        fi
-        if [ "$choice" -eq "$other_choice" ]; then
-            printf "  Folder : " > /dev/tty
-            local dirin=""
-            IFS= read -r dirin < /dev/tty || true
-            if [ -z "$dirin" ]; then printf "  No folder given.\n"; continue; fi
-            TARGET_DIRS="$dirin"; return 0
         fi
         if [ "$choice" -eq "$both_choice" ]; then
             local all=""
-            for entry in "${ASSISTANTS[@]}"; do
-                IFS='|' read -r k name dir <<< "$entry"
-                all="${all:+$all,}$dir"
-            done
+            for dir in "${choice_dirs[@]}"; do all="${all:+$all,}$dir"; done
             TARGET_DIRS="$all"; return 0
         fi
-        # A numbered assistant
-        local n=1
-        for entry in "${ASSISTANTS[@]}"; do
-            IFS='|' read -r k name dir <<< "$entry"
-            if [ "$n" -eq "$choice" ]; then TARGET_DIRS="$dir"; return 0; fi
-            n=$((n + 1))
-        done
+        TARGET_DIRS="${choice_dirs[$((choice - 2))]}"
+        return 0
     done
 }
 

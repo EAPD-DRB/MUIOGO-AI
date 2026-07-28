@@ -630,8 +630,11 @@ if [[ $NO_SKILLS -eq 0 && "$SKILL_COUNT" -gt 0 ]]; then
     echo ""
     printf "  ${BOLD}Modelling skills${RESET}\n"
     echo "  $SKILL_COUNT skills teach an AI assistant how to build, calibrate, run, and"
-    echo "  review these models. They are already active inside this repository."
-    echo "  Installing them makes them available in your other projects too."
+    echo "  review these models."
+    echo ""
+    echo "  They are ALREADY ACTIVE in this repository — open it in Claude Code or"
+    echo "  Codex and they load automatically. Answering yes below only adds a copy"
+    echo "  for your OTHER projects; answering no changes nothing here."
     SKILL_ARGS=()
     [[ -n "$SKILLS_TOOL" ]] && SKILL_ARGS+=("--tool" "$SKILLS_TOOL")
     [[ $ASSUME_YES -eq 1 ]] && SKILL_ARGS+=("--yes")
@@ -639,7 +642,7 @@ if [[ $NO_SKILLS -eq 0 && "$SKILL_COUNT" -gt 0 ]]; then
     if [[ $ASSUME_YES -eq 1 && -z "$SKILLS_TOOL" ]]; then
         print_skip "skills" "no --skills-tool given"
         SKILLS_DECISION=1
-    elif prompt_yn "Install them into your AI assistant now?" n; then
+    elif prompt_yn "Also install a copy for your other projects?" n; then
         bash "$AI_DIR/scripts/install-skills.sh" ${SKILL_ARGS[@]+"${SKILL_ARGS[@]}"} \
             || warn "the skills installer did not finish -- run it again when convenient"
         SKILLS_DECISION=0
@@ -647,9 +650,9 @@ if [[ $NO_SKILLS -eq 0 && "$SKILL_COUNT" -gt 0 ]]; then
         SKILLS_DECISION=1
     fi
     if [[ $SKILLS_DECISION -eq 1 ]]; then
-        printf "  Skipped. You can always install them yourself, any time:\n"
+        printf "  Kept in the repository only — they work whenever you open it.\n"
+        printf "  ${DIM}To add them to your other projects later:${RESET}\n"
         echo_cmd "$AI_DIR/scripts/install-skills.sh"
-        printf "  ${DIM}or copy any folder from $AI_DIR/.agents/skills/ into your assistant's skills folder.${RESET}\n"
     fi
 fi
 
