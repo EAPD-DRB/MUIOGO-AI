@@ -22,6 +22,10 @@ was never solved or the solve failed — stop and say so. Then sanity-check:
 
 - **Status.** The first line of `res/<run>/results.txt` carries the solver's
   verdict. "Optimal" is what you want; anything else invalidates the analysis.
+- **Provenance.** `muiogo compare` warns when a run has no `RUN.json`, which
+  means nobody can say what produced it. Pass that warning on to the user, or
+  settle it with `muiogo verify --case "<case>" --run <run> --resolve`, which
+  re-solves and proves whether the stored numbers still hold.
 - **Plausibility.** Demand met, no wild capacity spikes, costs and emissions in a
   believable range for the country's size.
 - **Direction.** A policy run must move in the direction the policy implies. A

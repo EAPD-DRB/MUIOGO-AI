@@ -97,6 +97,9 @@ Once you know the layout, hand off to the skill that owns the job:
 | check a CLEWs model's structure and data consistency | `clews-model-review` |
 | build a new CLEWs country model from scratch | `build-clews-model` |
 | add a fisheries sector / environmental accounting | `add-fisheries-sector`, `add-environmental-accounting` |
+| understand a model, its calibration, the theory, the intuition | `muiogo-explain` |
+| run a coupled OG-CLEWS analysis (energy policy → the economy) | `og-clews-linked-run` |
+| run an OG country model (baseline, reform, multi-industry) | `og-run` |
 | calibrate an OG country model | `og-country-calibration` |
 | report on a finished OG baseline-vs-reform run | `og-scenario-report` |
 | free-form OG scenario design and bespoke analysis | `og-analysis-studio` |

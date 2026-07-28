@@ -20,6 +20,7 @@ Results and analysis:
   muiogo results --case NAME --run RUN [--out DIR]   list result CSVs, or download all
   muiogo variables --case NAME --run RUN             what result variables exist
   muiogo compare --case NAME --runs A,B --var V      compare runs; --chart out.png
+  muiogo verify --case NAME --run RUN [--resolve]     prove a result still reproduces
 
 All commands take --url (default http://127.0.0.1:5002). Paths and ports come
 from the installed workspace manifest when not given.
@@ -168,13 +169,77 @@ def cmd_delete(args):
     return 0
 
 
+def _record_provenance(args, run, solver):
+    """Write RUN.json beside a freshly solved run. Never fails the run itself."""
+    from muiogo_client import provenance
+    try:
+        ds = _data_storage(args)
+        muiogo_path = None
+        try:
+            muiogo_path = workspace.summary()["muiogo_path"]
+        except workspace.WorkspaceError:
+            pass
+        path, record = provenance.write(ds, args.case, run,
+                                        solver=solver, muiogo_path=muiogo_path)
+        return record
+    except Exception as exc:                                     # noqa: BLE001
+        print(f"warning: could not record provenance: {exc}", file=sys.stderr)
+        return None
+
+
 def cmd_run(args):
     body = _client(args).run(args.case, args.run, solver=args.solver)
     print(f"status: {body.get('status_code')}")
     timer = (body.get("timer") or "").strip()
     if timer:
         print(timer)
+    if not args.no_provenance:
+        record = _record_provenance(args, args.run, args.solver)
+        if record:
+            print(f"provenance: objective={record['objective']} "
+                  f"input={(record['input_sha256'] or '?')[:12]} "
+                  f"results={(record['results_sha256'] or '?')[:12]}")
     return 0
+
+
+def cmd_verify(args):
+    """Re-check a recorded run against what is on disk, and optionally re-solve."""
+    from muiogo_client import provenance
+    ds = _data_storage(args)
+    stored = provenance.read(ds, args.case, args.run)
+    if stored is None:
+        print(f"No provenance record for {args.case!r}/{args.run!r}. "
+              f"Solve it once with `muiogo run` to create one.", file=sys.stderr)
+        return 1
+
+    print(f"recorded {stored['recorded']}  objective={stored['objective']}  "
+          f"scenarios={stored.get('scenarios_active')}")
+
+    if args.resolve:
+        print("re-solving to confirm reproducibility…")
+        _client(args).run(args.case, args.run, solver=stored.get("solver", "cbc"))
+        fresh = provenance.build(ds, args.case, args.run, solver=stored.get("solver", "cbc"))
+        same_obj = fresh["objective"] == stored["objective"]
+        same_res = fresh["results_sha256"] == stored["results_sha256"]
+        print(f"  objective: {stored['objective']} -> {fresh['objective']}  "
+              f"{'MATCH' if same_obj else 'DIFFERENT'}")
+        print(f"  results hash: {'MATCH' if same_res else 'DIFFERENT'}")
+        if same_obj and same_res:
+            print("\nReproduced exactly.")
+            return 0
+        print("\nDid NOT reproduce — the case's input data has changed since this "
+              "run was recorded.", file=sys.stderr)
+        return 1
+
+    ok, diffs = provenance.compare_to_current(ds, args.case, args.run)
+    if ok:
+        print("On-disk results still match the record.")
+        return 0
+    for d in diffs:
+        print(f"  MISMATCH {d}")
+    print("\nThe stored results no longer match the record. Re-solve, or use "
+          "--resolve to check reproducibility.", file=sys.stderr)
+    return 1
 
 
 def cmd_batch(args):
@@ -195,7 +260,9 @@ def cmd_batch(args):
     for run in runs:
         n = len(analysis.available_variables(ds, args.case, run))
         if n:
-            print(f"  {run}: {n} result variables")
+            rec = None if args.no_provenance else _record_provenance(args, run, "cbc")
+            obj = f"  objective={rec['objective']}" if rec else ""
+            print(f"  {run}: {n} result variables{obj}")
         else:
             print(f"  {run}: NO RESULTS — did not solve")
             failed.append(run)
@@ -262,6 +329,9 @@ def cmd_compare(args):
         print(f"error: {exc}", file=sys.stderr)
         return 1
     for w in warnings:
+        print(f"warning: {w}", file=sys.stderr)
+    from muiogo_client import provenance
+    for w in provenance.consistency(_data_storage(args), args.case, runs):
         print(f"warning: {w}", file=sys.stderr)
 
     if args.by and len(df.columns) > args.top:
@@ -349,11 +419,21 @@ def main(argv=None):
     p.add_argument("--run", required=True, dest="run")
     p.add_argument("--solver", default="cbc", choices=["cbc", "glpk"],
                    help="cbc is the working default; glpk is broken upstream")
+    p.add_argument("--no-provenance", action="store_true",
+                   help="skip writing RUN.json beside the results")
     p.set_defaults(func=cmd_run)
+
+    p = sub.add_parser("verify", help="check a run against its provenance record")
+    p.add_argument("--case", required=True)
+    p.add_argument("--run", required=True, dest="run")
+    p.add_argument("--resolve", action="store_true",
+                   help="re-solve and confirm the objective and results reproduce")
+    p.set_defaults(func=cmd_verify)
 
     p = sub.add_parser("batch", help="generate and solve several runs (CBC)")
     p.add_argument("--case", required=True)
     p.add_argument("--runs", required=True, help="run names, comma-separated")
+    p.add_argument("--no-provenance", action="store_true")
     p.set_defaults(func=cmd_batch)
 
     p = sub.add_parser("log", help="a run's solver output (or --server for the app log)")

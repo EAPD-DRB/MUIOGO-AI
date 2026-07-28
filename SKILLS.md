@@ -64,10 +64,23 @@ any folder from `.agents/skills/` into your assistant's skills directory
 | `add-fisheries-sector` | Adds a complete, source-traceable fisheries sector to a solved model without distorting existing results. |
 | `add-environmental-accounting` | Adds water and land environmental accounting to a CLEWS model and quantifies what changed. |
 
+## Understanding the models
+
+| Skill | What it does |
+|---|---|
+| `muiogo-explain` | Explains what a model contains, how it is calibrated, the theory behind it, and the intuition for its results — grounded in the model's own files, not from memory. |
+
+## Coupled OG-CLEWS
+
+| Skill | What it does |
+|---|---|
+| `og-clews-linked-run` | Runs coupled analyses through ogclews-link: an energy or climate policy's effect on the economy, through a named transmission channel. |
+
 ## OG — macroeconomic country models
 
 | Skill | What it does |
 |---|---|
+| `og-run` | Launches a baseline and reform solve from the model's own environment, builds a multi-industry calibration, and collects the OUTPUT directories. |
 | `og-country-calibration` | The calibration playbook: which parameters to set, defensible values, and the traps that produce wrong answers. |
 | `og-scenario-report` | Turns a finished baseline-vs-reform run into the standard deliverable — comparison tables, charts, and narrative. |
 | `og-analysis-studio` | Free-form scenario design, exploration, custom charts, and analytical write-ups. |
@@ -114,11 +127,9 @@ preflight is a precondition, never an authorization), acting across a
 repository fleet, or deleting anything. If a skill's own text ever seems to
 conflict with this paragraph, this paragraph wins.
 
-Still to build: `og-clews-linked-run` for coupled OG-CLEWS runs — the link is
-installed and has its own command line, but no skill teaches the coupled
-workflow yet — and the onboarding tutors. See [docs/SCOPE.md](docs/SCOPE.md).
 The planned `muiogo-interpret`, `muiogo-visualize`, and `muiogo-brief` ship
-together as `muiogo-analyze`.
+together as `muiogo-analyze`; the planned tutors ship as `muiogo-explain`.
+See [docs/SCOPE.md](docs/SCOPE.md).
 
 Skills here talk to MUIOGO over its HTTP API only — through the `muiogo`
 command line — never by importing its backend code. Each model family runs from

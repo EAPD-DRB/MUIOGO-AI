@@ -108,6 +108,33 @@ For infeasible or otherwise suspicious models, hand off to
 `clews-model-review` (structure and data consistency) rather than guessing at
 the data yourself.
 
+## Provenance: making a number defensible
+
+Every solve writes a `RUN.json` beside its results recording the objective, a
+SHA-256 of the generated model input, a SHA-256 over all result CSVs, which
+scenarios were active, the solver, and the MUIOGO version. You do not have to do
+anything to get it; `muiogo run` prints a one-line summary.
+
+This matters because the pipeline is bit-deterministic but not self-auditing.
+Solving the same run twice gives the same objective and byte-identical results —
+but stored results can silently disagree with the case they live in. MUIOGO's own
+demo ships a CO2TAX result of 600,590 tonnes that the shipped input data
+reproduces as 513,337.
+
+So, before you rely on a number you did not just produce:
+
+```bash
+muiogo verify --case "<case>" --run <run>              # does the record still match disk?
+muiogo verify --case "<case>" --run <run> --resolve    # re-solve and prove it reproduces
+```
+
+`--resolve` re-solves and compares the objective and the results hash; it prints
+"Reproduced exactly" or tells you the input data has changed. `muiogo compare`
+also warns on its own when a run in the comparison has no provenance record.
+
+Rule of thumb: **if a comparison matters, every run in it should have been solved
+by you, from the same input state.** Re-solve the ones that were not.
+
 ## Saving results reproducibly
 
 ```bash
@@ -128,8 +155,9 @@ produced it.
 ```
 <somewhere>/<case>-<run>-<date>/
   csv/                     the downloaded result files
-  RUN.md                   case, run, scenarios activated, solver, solve status,
-                           MUIOGO ref from `muiogo status`, and the exact commands
+  RUN.json                 written automatically: objective, input and results
+                           hashes, active scenarios, solver, MUIOGO ref
+  NOTES.md                 why you ran it and what you concluded
 ```
 
 Never edit a file under `res/` by hand. Re-running a run deletes its previous
