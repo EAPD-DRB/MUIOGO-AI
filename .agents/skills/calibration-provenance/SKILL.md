@@ -91,5 +91,5 @@ the state og-country-calibration exists to fix.
 
 Scope of action: drafting the provenance record and committing it locally is this skill's job;
 pushing it or opening a PR against a country repo is the user's call, asked separately
-(the OG family README → Approval gates). Never re-run a calibration or launch a solve to
+(the approval gates in SKILLS.md). Never re-run a calibration or launch a solve to
 "re-verify" a chain — propose it.

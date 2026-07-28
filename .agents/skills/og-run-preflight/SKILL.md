@@ -92,7 +92,7 @@ loud before launching: "running with N uncommitted changes in <repo>."
 - **A GO is a precondition, not an authorization.** This skill never launches the run itself.
   SS solves are minutes; TPI runs and batteries are much longer and invisible while running.
   After a GO, propose the exact launch command with its expected duration and wait for the
-  user's explicit call (house approval gate — see the OG family README).
+  user's explicit call (house approval gate — see the approval gates in SKILLS.md).
 - **Contamination heuristic (post-run, standing):** if a fresh run reproduces a number from a
   known-buggy earlier run, assume the wrong code ran. Stop, re-run the preflight, and never
   commit or bless those outputs.

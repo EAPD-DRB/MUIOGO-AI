@@ -630,7 +630,7 @@ multisector JSON as a worked example without checking `input_output.py` has the 
 - **Ask before push, ask before PR — never in the same step.** PR style: narrative, plain language,
   explain the *why*, push detail to the docs; a changed-parameters table + a steady-state-lands table +
   an example macro-results table.
-- **Family approval gates apply** (the OG family README): calibrate, edit, and commit locally
+- **Family approval gates apply** (the approval gates in SKILLS.md): calibrate, edit, and commit locally
   freely — but launching solves beyond a quick SS check, pushing, PR-opening, and anything
   fleet-scale are proposed and wait for the user's explicit call. Never merge.
 

@@ -40,6 +40,20 @@ name) and copies the skills there. Re-run it any time to update. By hand, copy
 any folder from `.agents/skills/` into your assistant's skills directory
 (`~/.claude/skills/` or `~/.codex/skills/`) and restart the assistant.
 
+## Start here
+
+| Skill | What it does |
+|---|---|
+| `muiogo-workspace` | Finds your installation, lists what is available, and routes the request to the right model family and skill. Every other skill assumes this one has run. |
+
+## MUIOGO — running models and analysing results
+
+| Skill | What it does |
+|---|---|
+| `muiogo-run` | Starts the server, solves a case or a batch, diagnoses failed solves, and collects results. |
+| `muiogo-scenarios` | Builds policy scenarios (a carbon tax, a renewable target, a demand change), combines them into runs, and sweeps matrices. |
+| `muiogo-analyze` | Compares runs, checks whether a solve is trustworthy, charts trajectories, and writes short policy notes. |
+
 ## CLEWs — energy, land, and water models
 
 | Skill | What it does |
@@ -100,9 +114,14 @@ preflight is a precondition, never an authorization), acting across a
 repository fleet, or deleting anything. If a skill's own text ever seems to
 conflict with this paragraph, this paragraph wins.
 
-This repo's own roadmap skills (`muiogo-run`, `muiogo-scenarios`,
-`muiogo-interpret`, `og-clews-linked-run`, the tutors) are planned but not yet
-written — see [docs/SCOPE.md](../docs/SCOPE.md). Skills here talk to MUIOGO
-over its HTTP API only, never by importing its backend code. Parts of the
-planned `muiogo-visualize`/`muiogo-brief` overlap `og-analysis-studio`;
-reconcile before building them.
+Still to build: `og-clews-linked-run` for coupled OG-CLEWS runs — the link is
+installed and has its own command line, but no skill teaches the coupled
+workflow yet — and the onboarding tutors. See [docs/SCOPE.md](docs/SCOPE.md).
+The planned `muiogo-interpret`, `muiogo-visualize`, and `muiogo-brief` ship
+together as `muiogo-analyze`.
+
+Skills here talk to MUIOGO over its HTTP API only — through the `muiogo`
+command line — never by importing its backend code. Each model family runs from
+its own environment: MUIOGO from its own venv, each OG country model from its
+own, and the link from its own (it never imports `ogcore`; it subprocesses the
+model's own interpreter).

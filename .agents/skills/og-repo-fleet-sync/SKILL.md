@@ -85,7 +85,7 @@ nothing has left the machine. Then the gates, in order and each with its own exp
 3. **Never merge anything**, ever — merges are the user's alone.
 
 Opening N PRs across a fleet is exactly the "expensive and expansive" action the family's
-approval gates exist for (the OG family README): the skill's deliverable is the prepared
+approval gates exist for (the approval gates in SKILLS.md): the skill's deliverable is the prepared
 branches, drafted PR texts, and the tracking table — not the outbound actions. If PRs are
 approved: per-repo PR text follows the playbook (what/why/tested), with Phase-2 items filed as
 follow-up issues, not folded in.

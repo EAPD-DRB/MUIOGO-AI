@@ -139,4 +139,4 @@ expected runtime); a full SS, any TPI run, a control/treatment pair, or a multi-
 expensive — present the probe plan (which runs, why, expected total time) and get the user's
 explicit approval before launching. Never queue a battery of diagnostic runs on your own, and
 never re-launch a failed run "to see if it happens again" without asking. Skills propose; the
-user launches (see the OG family README → Approval gates).
+user launches (see the approval gates in SKILLS.md).

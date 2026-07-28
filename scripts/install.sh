@@ -240,8 +240,21 @@ else
 fi
 command -v uv >/dev/null || { curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1; export PATH="$HOME/.local/bin:$PATH"; }
 ( cd "$AI_DIR/client" && clean_env uv sync -q ) || die "uv sync failed in $AI_DIR/client"
-record muiogo-ai OK "$AI_DIR"
 ok "client env ready"
+
+# Put `muiogo` on PATH. Without this the command only exists inside the repo's
+# private venv, so an assistant working in any other directory cannot run it —
+# which is the whole point of the installation.
+if clean_env uv tool install --force "$AI_DIR/client" >/dev/null 2>&1; then
+    if command -v muiogo >/dev/null; then
+        ok "muiogo command installed ($(command -v muiogo))"
+    else
+        warn "muiogo installed but not on PATH — add ~/.local/bin to your PATH"
+    fi
+else
+    warn "could not install the muiogo command globally; use $AI_DIR/client/.venv/bin/muiogo"
+fi
+record muiogo-ai OK "$AI_DIR"
 
 # --country ISO3: resolve both sides by the join key. OG side becomes og-<iso3>
 # (validated against the upstream catalog in step 3); CLEWs side requires a
@@ -534,7 +547,7 @@ arr.append({"key": sys.argv[2], "case": sys.argv[3]})
 print(json.dumps(arr))' "$CLEWS_JSON" "${CLEWS_INSTALLED_KEYS[$i]}" "${CLEWS_INSTALLED_CASES[$i]}")"
 done
 python3 - "$DEST" "$MUIOGO_DIR" "$AI_DIR" "${LINK_DIR:-}" "$OG_JSON" "$PORT" "$OG_HOME" "$CLEWS_JSON" <<'PY'
-import json, subprocess, sys, datetime, shutil
+import json, subprocess, sys, datetime, shutil, os, glob
 dest, muiogo, ai, link, og_json, port, og_home, clews_json = sys.argv[1:9]
 def ref(path):
     if not path: return None
@@ -559,11 +572,52 @@ manifest = {
     "clews_cases": json.loads(clews_json),
     "solvers": {"glpsol": ver("glpsol", "--version"), "cbc": shutil.which("cbc")},
 }
+
+# Record what is ACTUALLY installed, not just what this run installed. A later
+# run with different flags must not erase components that are still on disk.
+seen = {m["key"] for m in manifest["og_models"]}
+for path in sorted(glob.glob(os.path.join(og_home, "og-models", "*"))):
+    name = os.path.basename(path)
+    key = f"og-{name.rsplit('-', 1)[-1].lower()}"
+    if key in seen or not os.path.isdir(os.path.join(path, ".venv")):
+        continue
+    manifest["og_models"].append({
+        "key": key, "repo": name, "package": None, "path": path,
+        "ref": ref(path), "python": f"{path}/.venv/bin/python",
+    })
+ds = manifest["muiogo"]["data_storage"] if "data_storage" in manifest["muiogo"] else None
+ds = ds or os.path.join(muiogo, "WebAPP", "DataStorage")
+known = {c["case"] for c in manifest["clews_cases"]}
+for path in sorted(glob.glob(os.path.join(ds, "*"))):
+    case = os.path.basename(path)
+    if case in known or not os.path.isfile(os.path.join(path, "genData.json")):
+        continue
+    manifest["clews_cases"].append({"key": None, "case": case})
+
 out = f"{dest}/manifest.json"
 with open(out, "w") as f:
     json.dump(manifest, f, indent=2)
 print(f"  ok manifest: {out}")
+
 PY
+
+# Publish to the canonical well-known path so an assistant running in ANY
+# directory finds this installation. Uses the client's own interpreter: the
+# package needs its dependencies, which the system python does not have.
+CLIENT_PY="$AI_DIR/client/.venv/bin/python"
+if [[ -x "$CLIENT_PY" ]]; then
+    PUBLISHED="$("$CLIENT_PY" -c "
+from muiogo_client import workspace
+print(workspace.publish('$DEST/manifest.json') or '')
+" 2>/dev/null)"
+    if [[ -n "$PUBLISHED" ]]; then
+        ok "discoverable from anywhere: $PUBLISHED"
+    else
+        warn "could not publish the manifest to ~/.muiogo — 'muiogo status' will need MUIOGO_WORKSPACE"
+    fi
+else
+    warn "no client interpreter; skipped publishing the manifest"
+fi
 record manifest OK "$DEST/manifest.json"
 
 report

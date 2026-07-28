@@ -25,7 +25,7 @@ audience-shaped prose — with two absolutes:
 2. **Analysis never launches computation.** Designing, exploring, plotting, and writing are free.
    The moment a question needs a *new* solve (a redesigned reform, a missing baseline, a
    sensitivity sweep), stop: spec the run, estimate its duration, and ask — the family approval
-   gates (the OG family README) bind here. Same for pushing or PR-ing any product of this skill.
+   gates (the approval gates in SKILLS.md) bind here. Same for pushing or PR-ing any product of this skill.
 
 ## Mode 1 — Scenario design
 

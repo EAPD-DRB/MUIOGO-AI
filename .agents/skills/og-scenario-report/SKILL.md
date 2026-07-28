@@ -76,7 +76,7 @@ when relevant, and only then:
   sick, switch to the `og-solver-diagnosis` skill before reporting numbers.
 - This skill reads *finished* outputs. If an output dir is missing or stale, never quietly
   re-run the solve to fill the gap — a model run is a user-approved action (see
-  the OG family README → Approval gates); report what's missing and propose the run instead.
+  the approval gates in SKILLS.md); report what's missing and propose the run instead.
 - Multi-industry runs: aggregate consumption comparisons use `p_tilde·C`, never raw `C` (see
   `og-country-calibration` → comparison dashboard); the bundled script sums industry dimensions,
   which is correct for quantities in numeraire units but check before quoting sector detail.
