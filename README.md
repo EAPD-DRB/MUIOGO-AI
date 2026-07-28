@@ -43,6 +43,32 @@ cd MUIOGO-AI
 This installs MUIOGO, the Philippines example country, and the OG-CLEWS
 link, and checks that everything works before finishing.
 
+At the end it offers to install the modelling skills for use outside this
+repository. You can say no and do it later — see below.
+
+## The AI skills
+
+The skills teach an AI assistant how to build, calibrate, run, and review these
+models. **Inside this repository there is nothing to install** — open it in
+Claude Code or Codex (`cd MUIOGO-AI`, then `claude` or `codex`) and the skills
+are already active. Ask for what you want in plain language, for example
+*"assess the calibration of this CLEWs model"* or *"run the preflight checks
+before I start this solve"*.
+
+New to this? [docs/USING_THE_SKILLS.md](docs/USING_THE_SKILLS.md) walks through
+three worked examples with the exact prompts to type.
+
+To use them in your own model repositories too:
+
+```bash
+./scripts/install-skills.sh
+```
+
+It asks which assistant you use (Claude Code, Codex, both, or a folder you
+name) and copies the skills there; restart your assistant afterwards.
+
+See [SKILLS.md](SKILLS.md) for the full list and what each one does.
+
 ## Start MUIOGO
 
 ```bash
@@ -83,9 +109,10 @@ by hand instead:
 
 ## For contributors
 
-- Layout: `docs/` (scope and design), `.claude/skills/` (the agent skills),
-  `client/` (Python client + `muiogo` CLI), `clews/` (country catalog),
-  `experiments/` (studies).
+- Layout: `docs/` (scope and design), `.agents/skills/` (the skills;
+  `.claude/skills/` holds one symlink each), [SKILLS.md](SKILLS.md) (the
+  catalogue), `client/` (Python client + `muiogo` CLI), `clews/` (country
+  catalog), `experiments/` (studies).
 - Start with [docs/SCOPE.md](docs/SCOPE.md); install details are in
   [docs/INSTALL_DESIGN.md](docs/INSTALL_DESIGN.md).
 - One hard rule: talk to MUIOGO over HTTP only — never import its backend

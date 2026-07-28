@@ -31,6 +31,27 @@ class MuiogoServer:
             )
         return py
 
+    def _og_env(self):
+        """OG model/state locations from the installed manifest.
+
+        MUIOGO resolves its OG calibration registry from MUIOGO_OG_MODELS_DIR and
+        MUIOGO_OG_DATA_DIR, defaulting to ~/.muiogo. A workspace installed
+        elsewhere would otherwise have its registered country models invisible to
+        the server we start.
+        """
+        try:
+            from muiogo_client import workspace
+            data, _ = workspace.load()
+        except Exception:
+            return {}
+        env = {}
+        muiogo = data.get("muiogo") or {}
+        if muiogo.get("og_models_dir"):
+            env["MUIOGO_OG_MODELS_DIR"] = muiogo["og_models_dir"]
+        if muiogo.get("og_state_dir"):
+            env["MUIOGO_OG_DATA_DIR"] = muiogo["og_state_dir"]
+        return env
+
     def start(self, wait_seconds=30):
         """Spawn the server headless and wait until it answers."""
         if self.is_running():
@@ -38,7 +59,7 @@ class MuiogoServer:
         app = self.root / "API" / "app.py"
         if not app.exists():
             raise ServerError(f"Not a MUIOGO checkout: {app} missing.")
-        env = dict(os.environ, PORT=str(self.port))
+        env = dict(os.environ, PORT=str(self.port), **self._og_env())
         self.process = subprocess.Popen(
             [str(self._python()), str(app)],
             cwd=str(self.root),

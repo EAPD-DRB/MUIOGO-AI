@@ -34,6 +34,10 @@
 #   --no-link           Skip ogclews-link
 #   --no-demo-data      Pass through to the MUIOGO installer
 #   --no-verify         Skip the final verification battery (discouraged)
+#   --no-skills         Don't offer to install the skills at the end
+#   --skills-tool KEY   Which assistant gets the skills: claude, codex, or both
+#   -y, --yes           Auto-confirm every prompt (non-interactive). Skills are
+#                       installed only when --skills-tool is also given.
 #   --port N            Port for MUIOGO during install/verify (default 5002)
 #   -h, --help          This message
 # ──────────────────────────────────────────────────────────────────────────────
@@ -54,7 +58,45 @@ OG_HOME="${HOME}/.muiogo"
 WITH_LINK=1
 NO_DEMO_DATA=0
 NO_VERIFY=0
+NO_SKILLS=0
+SKILLS_TOOL=""
+ASSUME_YES=0
 PORT=5002
+
+usage() {
+    cat <<EOF
+MUIOGO-AI composed installer (macOS and Linux).
+
+Runs each component's own upstream installer in turn, then verifies the stack.
+
+Usage:
+  $0 [options]
+
+Options:
+  -h, --help              Show this message and exit.
+  -y, --yes               Auto-confirm every prompt (non-interactive).
+      --dest DIR          Workspace directory (default: ~/muiogo-ai-workspace).
+      --country ISO3s     Countries to set up, comma-separated (e.g. PHL).
+                          Resolves BOTH sides from the one key: the OG model
+                          (og-<iso3>) and the CLEWs case.
+      --og KEYS           OG models only (og-phl,og-eth,...); 'none' for none.
+      --clews KEYS        CLEWs countries only (clews-phl,...).
+      --case NAME         Use a specific CLEWs case instead of the recommended one.
+      --og-home DIR       Where OG models and state live (default: ~/.muiogo).
+      --no-link           Skip ogclews-link.
+      --no-demo-data      Don't install MUIOGO's demo data.
+      --no-verify         Skip the final verification battery (discouraged).
+      --no-skills         Don't offer to install the skills at the end.
+      --skills-tool KEY   Assistant for the skills: claude, codex, or both.
+      --port N            Port for MUIOGO during install and verify (default 5002).
+
+Examples:
+  $0                                          # MUIOGO + solvers + demo data
+  $0 --country PHL                            # add the Philippine OG + CLEWs pair
+  $0 --country PHL --yes --skills-tool claude # hands-free, skills installed
+  $0 --og og-zaf,og-idn --no-link             # two OG models, no link
+EOF
+}
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -67,27 +109,80 @@ while [[ $# -gt 0 ]]; do
         --no-link)      WITH_LINK=0;    shift ;;
         --no-demo-data) NO_DEMO_DATA=1; shift ;;
         --no-verify)    NO_VERIFY=1;    shift ;;
+        --no-skills)    NO_SKILLS=1;    shift ;;
+        --skills-tool)  SKILLS_TOOL="$2"; shift 2 ;;
+        -y|--yes)       ASSUME_YES=1;   shift ;;
         --port)         PORT="$2";      shift 2 ;;
-        -h|--help)      grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
-        *) echo "Unknown option: $1 (see --help)" >&2; exit 2 ;;
+        -h|--help)      usage; exit 0 ;;
+        *) echo "Unknown option: $1 (see --help)" >&2; exit 1 ;;
     esac
 done
 [[ "$OG_KEYS" == "none" ]] && OG_KEYS=""
 
-if [ -t 1 ]; then B=$'\033[1m'; G=$'\033[32m'; Y=$'\033[33m'; R=$'\033[31m'; N=$'\033[0m'; else B=""; G=""; Y=""; R=""; N=""; fi
-step() { printf "\n%s==> %s%s\n" "$B" "$*" "$N"; }
-ok()   { printf "%s  ok%s %s\n" "$G" "$N" "$*"; }
-skip() { printf "%s  --%s %s (already done)\n" "$Y" "$N" "$*"; }
-warn() { printf "%s  ! %s %s\n" "$Y" "$N" "$*"; }
-die()  { printf "%s  x %s %s\n" "$R" "$N" "$*" >&2; record "$CURRENT_STEP" FAIL "$*"; report; exit 1; }
+# ── Colors (detect before any stdout redirect) ────────────────────────────────
+if [[ -t 1 ]]; then
+    BOLD="\033[1m"; DIM="\033[2m"
+    RED="\033[91m"; GREEN="\033[92m"; YELLOW="\033[93m"; RESET="\033[0m"
+else
+    BOLD=""; DIM=""; RED=""; GREEN=""; YELLOW=""; RESET=""
+fi
 
-STEP_NAMES=(); STEP_STATES=(); STEP_NOTES=(); CURRENT_STEP="preflight"
-record() { STEP_NAMES+=("$1"); STEP_STATES+=("$2"); STEP_NOTES+=("${3:-}"); }
+# ── Helpers ───────────────────────────────────────────────────────────────────
+hr()       { printf '%s\n' "──────────────────────────────────────────────────────────────"; }
+hr_thick() { printf '%s\n' "══════════════════════════════════════════════════════════════"; }
+
+print_pass() { printf "  ${GREEN}[PASS]${RESET} %s%s\n" "$1" "${2:+  ${DIM}($2)${RESET}}"; }
+print_fail() { printf "  ${RED}[FAIL]${RESET} %s%s\n" "$1" "${2:+  ${DIM}($2)${RESET}}"; }
+print_warn() { printf "  ${YELLOW}[WARN]${RESET} %s%s\n" "$1" "${2:+  ${DIM}($2)${RESET}}"; }
+print_skip() { printf "  ${YELLOW}[SKIP]${RESET} %s%s\n" "$1" "${2:+  ${DIM}($2)${RESET}}"; }
+echo_cmd()   { printf "  ${DIM}$ %s${RESET}\n" "$*"; }
+
+TOTAL_STEPS=5
+step_banner() { echo; hr; printf "  ${BOLD}Step %s of %s: %s${RESET}\n" "$1" "$TOTAL_STEPS" "$2"; hr; }
+section()     { echo; hr; printf "  ${BOLD}%s${RESET}\n" "$1"; hr; }
+
+# Kept as short aliases so the step bodies stay readable.
+ok()   { print_pass "$*"; }
+skip() { print_skip "$*" "already done"; }
+warn() { print_warn "$*"; }
+die()  { printf "${RED}ERROR:${RESET} %s\n" "$*" >&2; record "$CURRENT_STEP" FAIL "$*"; report; exit 1; }
+
+STEP_NAMES=(); STEP_STATES=(); STEP_DETAILS=(); CURRENT_STEP="preflight"
+record() { STEP_NAMES+=("$1"); STEP_STATES+=("$2"); STEP_DETAILS+=("${3:-}"); }
 report() {
-    printf "\n%s── install report ──────────────────────────────%s\n" "$B" "$N"
+    echo; hr_thick; printf "  ${BOLD}Install report${RESET}\n"; hr_thick
     local i
     for i in "${!STEP_NAMES[@]}"; do
-        printf "  %-22s %-5s %s\n" "${STEP_NAMES[$i]}" "${STEP_STATES[$i]}" "${STEP_NOTES[$i]}"
+        case "${STEP_STATES[$i]}" in
+            OK)   print_pass "${STEP_NAMES[$i]}" "${STEP_DETAILS[$i]}" ;;
+            SKIP) print_skip "${STEP_NAMES[$i]}" "${STEP_DETAILS[$i]}" ;;
+            FAIL) print_fail "${STEP_NAMES[$i]}" "${STEP_DETAILS[$i]}" ;;
+            *)    print_warn "${STEP_NAMES[$i]}" "unknown state" ;;
+        esac
+    done
+}
+
+# Ask a yes/no question on the terminal. --yes auto-confirms; with no terminal
+# the caller's default stands (writing into someone's home is never implicit).
+prompt_yn() {
+    local prompt="$1" default="${2:-n}" opts ans
+    if [ "$default" = "y" ]; then opts="[Y/n]"; else opts="[y/N]"; fi
+    if [[ $ASSUME_YES -eq 1 ]]; then
+        printf "  %s %s ${DIM}(auto: yes)${RESET}\n" "$prompt" "$opts"
+        return 0
+    fi
+    if [ ! -r /dev/tty ]; then
+        return 1
+    fi
+    while true; do
+        printf "  %s %s " "$prompt" "$opts" > /dev/tty
+        IFS= read -r ans < /dev/tty || ans="$default"
+        [[ -z "$ans" ]] && ans="$default"
+        case "$(echo "$ans" | tr '[:upper:]' '[:lower:]')" in
+            y|yes) return 0 ;;
+            n|no)  return 1 ;;
+            *)     printf "  Please answer Y or N.\n" > /dev/tty ;;
+        esac
     done
 }
 
@@ -116,7 +211,7 @@ wait_api() { # wait_api SECONDS — until /getCases answers
 
 # ── preflight ─────────────────────────────────────────────────────────────────
 CURRENT_STEP="preflight"
-step "Preflight"
+section "Preflight"
 for tool in git curl python3 lsof; do
     command -v "$tool" >/dev/null || die "'$tool' is required — install it and re-run."
 done
@@ -131,7 +226,7 @@ record preflight OK "$DEST"
 
 # ── 1. MUIOGO-AI (this repo: client + skills) ────────────────────────────────
 CURRENT_STEP="muiogo-ai"
-step "1/5 MUIOGO-AI (client + skills)"
+step_banner "1" "MUIOGO-AI (client + skills)"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 if [[ -f "$SCRIPT_DIR/../client/pyproject.toml" ]]; then
     AI_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -145,8 +240,21 @@ else
 fi
 command -v uv >/dev/null || { curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1; export PATH="$HOME/.local/bin:$PATH"; }
 ( cd "$AI_DIR/client" && clean_env uv sync -q ) || die "uv sync failed in $AI_DIR/client"
-record muiogo-ai OK "$AI_DIR"
 ok "client env ready"
+
+# Put `muiogo` on PATH. Without this the command only exists inside the repo's
+# private venv, so an assistant working in any other directory cannot run it —
+# which is the whole point of the installation.
+if clean_env uv tool install --force "$AI_DIR/client" >/dev/null 2>&1; then
+    if command -v muiogo >/dev/null; then
+        ok "muiogo command installed ($(command -v muiogo))"
+    else
+        warn "muiogo installed but not on PATH — add ~/.local/bin to your PATH"
+    fi
+else
+    warn "could not install the muiogo command globally; use $AI_DIR/client/.venv/bin/muiogo"
+fi
+record muiogo-ai OK "$AI_DIR"
 
 # --country ISO3: resolve both sides by the join key. OG side becomes og-<iso3>
 # (validated against the upstream catalog in step 3); CLEWs side requires a
@@ -165,7 +273,7 @@ fi
 
 # ── 2. MUIOGO via its upstream installer ─────────────────────────────────────
 CURRENT_STEP="muiogo"
-step "2/5 MUIOGO (upstream installer: app + solvers + demo data)"
+step_banner "2" "MUIOGO (upstream installer: app + solvers + demo data)"
 MUIOGO_DIR="$DEST/MUIOGO"
 MUIOGO_PIN_FILE="$AI_DIR/scripts/MUIOGO_PIN"
 if [[ -x "$MUIOGO_DIR/.venv/bin/python" && -f "$MUIOGO_DIR/API/app.py" ]]; then
@@ -210,7 +318,7 @@ done
 CURRENT_STEP="og-models"
 declare -a OG_INSTALLED_KEYS=() OG_INSTALLED_REPOS=() OG_INSTALLED_PKGS=() OG_INSTALLED_NAMES=()
 if [[ -n "$OG_KEYS" ]]; then
-    step "3/5 OG model(s): $OG_KEYS (upstream OG-Core installer)"
+    step_banner "3" "OG model(s): $OG_KEYS (upstream OG-Core installer)"
     OG_INST="$(mktemp -d)/og-install.sh"
     curl -fsSL "$OG_INSTALLER_URL" -o "$OG_INST" || die "could not fetch the OG-Core installer"
     CATALOG_JSON="$(curl -fsSL "$OG_CATALOG_URL")" || die "could not fetch the OG catalog (repos.json)"
@@ -245,14 +353,14 @@ for r in data["repos"]:
     done
     record og-models OK "$OG_KEYS -> $OG_HOME/og-models"
 else
-    step "3/5 OG model(s): none requested (--og to add)"
+    step_banner "3" "OG model(s): none requested (--og to add)"
     record og-models SKIP "none requested"
 fi
 
 # ── 4. ogclews-link via its own setup.sh ─────────────────────────────────────
 CURRENT_STEP="ogclews-link"
 if [[ $WITH_LINK -eq 1 ]]; then
-    step "4/5 ogclews-link (its own setup.sh)"
+    step_banner "4" "ogclews-link (its own setup.sh)"
     LINK_DIR="$DEST/ogclews-link"
     if [[ -d "$LINK_DIR/.git" ]]; then skip "clone"; else
         git clone --quiet "$LINK_REPO_URL" "$LINK_DIR" || die "could not clone ogclews-link"
@@ -269,14 +377,14 @@ if [[ $WITH_LINK -eq 1 ]]; then
     done
     record ogclews-link OK "$LINK_DIR"
 else
-    step "4/5 ogclews-link: skipped (--no-link)"
+    step_banner "4" "ogclews-link: skipped (--no-link)"
     LINK_DIR=""
     record ogclews-link SKIP "--no-link"
 fi
 
 # ── 5. register OG models with MUIOGO + verify everything ────────────────────
 CURRENT_STEP="verify"
-step "5/5 Register with MUIOGO + verification battery"
+step_banner "5" "Register with MUIOGO + verification battery"
 start_muiogo() {
     MUIOGO_OG_MODELS_DIR="$OG_HOME/og-models" MUIOGO_OG_DATA_DIR="$OG_HOME/og-state" \
         PORT="$PORT" "$MUIOGO_DIR/.venv/bin/python" "$MUIOGO_DIR/API/app.py" \
@@ -406,7 +514,10 @@ if [[ $NO_VERIFY -eq 0 ]]; then
         ( cd "$LINK_DIR" && clean_env ./scripts/setup.sh --check ) >/dev/null 2>&1 \
             && ok "link --check passes" || die "ogclews-link --check failed"
     fi
-    record verify OK "demo solve + imports + link check"
+    VERIFIED="demo solve"
+    [[ ${#OG_INSTALLED_KEYS[@]} -gt 0 ]] && VERIFIED="$VERIFIED + OG imports"
+    [[ -n "$LINK_DIR" ]] && VERIFIED="$VERIFIED + link check"
+    record verify OK "$VERIFIED"
 else
     record verify SKIP "--no-verify"
 fi
@@ -436,7 +547,7 @@ arr.append({"key": sys.argv[2], "case": sys.argv[3]})
 print(json.dumps(arr))' "$CLEWS_JSON" "${CLEWS_INSTALLED_KEYS[$i]}" "${CLEWS_INSTALLED_CASES[$i]}")"
 done
 python3 - "$DEST" "$MUIOGO_DIR" "$AI_DIR" "${LINK_DIR:-}" "$OG_JSON" "$PORT" "$OG_HOME" "$CLEWS_JSON" <<'PY'
-import json, subprocess, sys, datetime, shutil
+import json, subprocess, sys, datetime, shutil, os, glob
 dest, muiogo, ai, link, og_json, port, og_home, clews_json = sys.argv[1:9]
 def ref(path):
     if not path: return None
@@ -461,16 +572,89 @@ manifest = {
     "clews_cases": json.loads(clews_json),
     "solvers": {"glpsol": ver("glpsol", "--version"), "cbc": shutil.which("cbc")},
 }
+
+# Record what is ACTUALLY installed, not just what this run installed. A later
+# run with different flags must not erase components that are still on disk.
+seen = {m["key"] for m in manifest["og_models"]}
+for path in sorted(glob.glob(os.path.join(og_home, "og-models", "*"))):
+    name = os.path.basename(path)
+    key = f"og-{name.rsplit('-', 1)[-1].lower()}"
+    if key in seen or not os.path.isdir(os.path.join(path, ".venv")):
+        continue
+    manifest["og_models"].append({
+        "key": key, "repo": name, "package": None, "path": path,
+        "ref": ref(path), "python": f"{path}/.venv/bin/python",
+    })
+ds = manifest["muiogo"]["data_storage"] if "data_storage" in manifest["muiogo"] else None
+ds = ds or os.path.join(muiogo, "WebAPP", "DataStorage")
+known = {c["case"] for c in manifest["clews_cases"]}
+for path in sorted(glob.glob(os.path.join(ds, "*"))):
+    case = os.path.basename(path)
+    if case in known or not os.path.isfile(os.path.join(path, "genData.json")):
+        continue
+    manifest["clews_cases"].append({"key": None, "case": case})
+
 out = f"{dest}/manifest.json"
 with open(out, "w") as f:
     json.dump(manifest, f, indent=2)
 print(f"  ok manifest: {out}")
+
 PY
+
+# Publish to the canonical well-known path so an assistant running in ANY
+# directory finds this installation. Uses the client's own interpreter: the
+# package needs its dependencies, which the system python does not have.
+CLIENT_PY="$AI_DIR/client/.venv/bin/python"
+if [[ -x "$CLIENT_PY" ]]; then
+    PUBLISHED="$("$CLIENT_PY" -c "
+from muiogo_client import workspace
+print(workspace.publish('$DEST/manifest.json') or '')
+" 2>/dev/null)"
+    if [[ -n "$PUBLISHED" ]]; then
+        ok "discoverable from anywhere: $PUBLISHED"
+    else
+        warn "could not publish the manifest to ~/.muiogo — 'muiogo status' will need MUIOGO_WORKSPACE"
+    fi
+else
+    warn "no client interpreter; skipped publishing the manifest"
+fi
 record manifest OK "$DEST/manifest.json"
 
 report
+
+# ── optional: skills into the user's AI assistant ────────────────────────────
+# Always optional, never silent: writing into someone's home directory is their
+# call, so a non-interactive run just prints how to do it later.
+SKILL_COUNT="$(ls -d "$AI_DIR"/.agents/skills/*/ 2>/dev/null | wc -l | tr -d ' ')"
+if [[ $NO_SKILLS -eq 0 && "$SKILL_COUNT" -gt 0 ]]; then
+    echo ""
+    printf "  ${BOLD}Modelling skills${RESET}\n"
+    echo "  $SKILL_COUNT skills teach an AI assistant how to build, calibrate, run, and"
+    echo "  review these models. They are already active inside this repository."
+    echo "  Installing them makes them available in your other projects too."
+    SKILL_ARGS=()
+    [[ -n "$SKILLS_TOOL" ]] && SKILL_ARGS+=("--tool" "$SKILLS_TOOL")
+    [[ $ASSUME_YES -eq 1 ]] && SKILL_ARGS+=("--yes")
+    # --yes with no --skills-tool cannot proceed: the assistant is unguessable.
+    if [[ $ASSUME_YES -eq 1 && -z "$SKILLS_TOOL" ]]; then
+        print_skip "skills" "no --skills-tool given"
+        SKILLS_DECISION=1
+    elif prompt_yn "Install them into your AI assistant now?" n; then
+        bash "$AI_DIR/scripts/install-skills.sh" ${SKILL_ARGS[@]+"${SKILL_ARGS[@]}"} \
+            || warn "the skills installer did not finish -- run it again when convenient"
+        SKILLS_DECISION=0
+    else
+        SKILLS_DECISION=1
+    fi
+    if [[ $SKILLS_DECISION -eq 1 ]]; then
+        printf "  Skipped. You can always install them yourself, any time:\n"
+        echo_cmd "$AI_DIR/scripts/install-skills.sh"
+        printf "  ${DIM}or copy any folder from $AI_DIR/.agents/skills/ into your assistant's skills folder.${RESET}\n"
+    fi
+fi
+
 echo ""
-echo -e "  ${G}${B}MUIOGO-AI stack installed and verified.${N}"
+printf "  ${GREEN}${BOLD}MUIOGO-AI stack installed and verified.${RESET}\n"
 echo    "  Workspace : $DEST"
 echo    "  Manifest  : $DEST/manifest.json"
 echo    "  Start MUIOGO headless:  $AI_DIR/client/.venv/bin/muiogo serve --root $MUIOGO_DIR"
