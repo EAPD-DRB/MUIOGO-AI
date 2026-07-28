@@ -5,8 +5,17 @@ description: Add models and data to a MUIOGO installation and get them out again
 
 # Add models and data to MUIOGO, and get them out
 
-Orient first with `muiogo status` (see `muiogo-workspace`) — it lists what is
+Orient first with `muiogo-ai status` (see `muiogo-workspace`) — it lists what is
 already installed, so you do not install something twice.
+
+## Which world
+
+Everything below acts on ONE world — the installed runtime, reached through the
+pinned launcher `muiogo-ai`. Never bare `muiogo`, and never fall back to it.
+Every command prints a `world:` line to stderr first: read it, and name that
+world when you tell the user what is installed, or what you imported, exported or
+validated. Exit code 3 means the command refused a world crossing — stop, do not
+sidestep it. Full rules: `../WORLD_DISCIPLINE.md`.
 
 ## Before installing anything: is it already here?
 
@@ -15,8 +24,8 @@ model is one to three gigabytes, and a second copy is worse than none — the
 tooling can end up pointing at whichever one you did not mean.
 
 ```bash
-muiogo adopt --scan      # list existing checkouts, change nothing
-muiogo adopt --auto      # record them as the workspace, installing nothing
+muiogo-ai adopt --scan      # list existing checkouts, change nothing
+muiogo-ai adopt --auto      # record them as the workspace, installing nothing
 ```
 
 Adopt first, install only what is genuinely missing.
@@ -24,12 +33,12 @@ Adopt first, install only what is genuinely missing.
 ## What is already here
 
 ```bash
-muiogo cases                # CLEWs cases installed
-muiogo og catalog           # OG country models available, marked when installed
-muiogo og installed         # OG country models on this machine
+muiogo-ai cases              # CLEWs cases installed
+muiogo-ai og catalog         # OG country models available, marked when installed
+muiogo-ai og installed       # OG country models on this machine
 ```
 
-`muiogo og catalog` reads the upstream register live, so it is current rather
+`muiogo-ai og catalog` reads the upstream register live, so it is current rather
 than a list someone maintained by hand:
 
 ```
@@ -44,7 +53,7 @@ than a list someone maintained by hand:
 ## Installing an OG country model
 
 ```bash
-muiogo og install --key og-zaf --wait
+muiogo-ai og install --key og-zaf --wait
 ```
 
 This goes through MUIOGO's own installer layer, which wraps the upstream OG-Core
@@ -53,8 +62,8 @@ where MUIOGO, the OG-CLEWs link and every skill expect it, gets its **own
 virtual environment**, and is recorded in MUIOGO's registry.
 
 It is a long install — a full model environment, minutes not seconds. `--wait`
-polls; without it, check progress with `muiogo og installed`. Propose it and let
-the user decide before starting.
+polls; without it, check progress with `muiogo-ai og installed`. Propose it and
+let the user decide before starting.
 
 Two things to say afterwards, because they bite later:
 
@@ -73,7 +82,7 @@ To bring in a MUIO case archive — your own country model, a colleague's, or on
 from a CLEWs country repository:
 
 ```bash
-muiogo import --zip Philippines_v12.zip
+muiogo-ai import --zip Philippines_v12.zip
 ```
 
 The archive must hold **one top-level case folder containing `genData.json`**.
@@ -85,14 +94,15 @@ the command returned.
 Then confirm and check it before trusting it:
 
 ```bash
-muiogo cases                                   # the new case is listed
-muiogo scenarios --case "<new case>"           # scenarios and runs came across
+muiogo-ai cases                                # the new case is listed
+muiogo-ai scenarios --case "<new case>"        # scenarios and runs came across
+muiogo-ai case-path --case "<new case>"        # where it landed, in this world
 ```
 
 For an Excel workbook into an existing case:
 
 ```bash
-muiogo import --xls demand-update.xlsx --case "My Case"
+muiogo-ai import --xls demand-update.xlsx --case "My Case"
 ```
 
 **Importing a case that already exists will not silently merge.** If a case of
@@ -105,11 +115,11 @@ that is the situation.
 ## Exporting and sharing
 
 ```bash
-muiogo export --case "My Case" --out ./share
+muiogo-ai export --case "My Case" --out ./share
 ```
 
-That writes a self-contained `.zip` a colleague can import with
-`muiogo import --zip`. It is also the right thing to do **before** any
+That writes a self-contained `.zip` a colleague can import on their own machine
+with `muiogo import --zip`. It is also the right thing to do **before** any
 destructive change — a scenario edit or a re-run cannot be undone.
 
 For publishing a case back to its country repository with a handoff note and an
@@ -119,7 +129,7 @@ provenance the way the team expects.
 ## Validating inputs before a long solve
 
 ```bash
-muiogo validate --case "My Case" --run REF
+muiogo-ai validate --case "My Case" --run REF
 ```
 
 MUIOGO ships ten input-consistency checks — year splits summing to one, capacity
@@ -137,12 +147,12 @@ well enough to answer a question, `assess-clews-calibration`.
 
 ## A sensible order for a new country
 
-1. `muiogo import --zip` the CLEWs case, or `pull-handoff` for the EAPD repos.
-2. `muiogo validate` it, then `clews-model-review` it.
-3. `muiogo og install --key og-<iso3>` for the macro side, if needed.
+1. `muiogo-ai import --zip` the CLEWs case, or `pull-handoff` for the EAPD repos.
+2. `muiogo-ai validate` it, then `clews-model-review` it.
+3. `muiogo-ai og install --key og-<iso3>` for the macro side, if needed.
 4. `og-country-calibration` to make that calibration defensible.
 5. `muiogo-scenarios` to build policy scenarios, `muiogo-run` to solve.
-6. `muiogo export` a copy before anyone edits anything further.
+6. `muiogo-ai export` a copy before anyone edits anything further.
 
 ## Handing off
 
@@ -159,4 +169,7 @@ well enough to answer a question, `assess-clews-calibration`.
 Propose, draft, and prepare; the user decides. Listing and validating are free.
 **Stop and ask before installing a country model** (a long download and build),
 **before importing over an existing case**, and before deleting anything. Say
-what you are about to change and where it will land.
+what you are about to change and where it will land — including which world.
+Never install or import into the live world unless the user asked for that; if a
+case is missing from the runtime world, report that rather than reaching into
+theirs.

@@ -2,15 +2,21 @@
 """Audit MUIO/OSeMOSYS CLEWs model folders for structure and data consistency.
 
 Companion to SKILL.md (clews-model-review). Runs the objective checks in the
-rubric against one or more model folders under WebAPP/DataStorage/. Each MUIO
-data file is named after its OSeMOSYS index set (R=Region, Y=Year, T=Technology,
-C=Commodity, E=Emission, S=Storage, Ts=TimeSlice, ...) and holds parameters
-split by scenario (SC_*).
+rubric against one or more model folders in a MUIOGO installation's DataStorage
+(laid out as WebAPP/DataStorage/<model>/). Each MUIO data file is named after its
+OSeMOSYS index set (R=Region, Y=Year, T=Technology, C=Commodity, E=Emission,
+S=Storage, Ts=TimeSlice, ...) and holds parameters split by scenario (SC_*).
 
-Usage:
-    python audit.py                      # audit every model folder
-    python audit.py NamibiaCLEWs [...]   # audit specific model(s) by name
-    python audit.py --datastorage <path> [models...]
+Pass --datastorage explicitly, as the DataStorage of the world you mean:
+
+    DS="$(dirname "$(muiogo-ai case-path --case 'NamibiaCLEWs')")"
+    python audit.py --datastorage "$DS" [models...]
+
+A machine can carry more than one MUIOGO installation, holding different cases
+under the same names. Without --datastorage this falls back to guessing a
+DataStorage from where the script file sits, which is only right when the script
+lives inside the checkout you meant — so it can audit the other world's models
+without saying so.
 
 Exit status is non-zero if any FAIL-level finding is present (gates CI).
 """
@@ -18,7 +24,9 @@ from __future__ import annotations
 import argparse, glob, json, os, re, sys
 from collections import Counter, defaultdict
 
-# Default: WebAPP/DataStorage relative to the repo root (…/.claude/skills/clews-model-review/audit.py)
+# Last-resort guess: WebAPP/DataStorage relative to the repo root, assuming this
+# script sits at …/.claude/skills/clews-model-review/audit.py inside a MUIOGO
+# checkout. Prefer --datastorage from `muiogo-ai case-path` — see the docstring.
 DEFAULT_DS = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "WebAPP", "DataStorage"))
 
 # Sector detection by tech/commodity CODE prefix (works even without descriptions).
@@ -217,12 +225,18 @@ def audit_model(model_dir):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("models", nargs="*", help="model folder names (default: all)")
-    ap.add_argument("--datastorage", default=DEFAULT_DS, help="path to WebAPP/DataStorage")
+    ap.add_argument("--datastorage", default=None,
+                    help="this world's DataStorage, e.g. \"$(dirname \"$(muiogo-ai case-path --case '<case>')\")\"")
     args = ap.parse_args(argv)
 
-    ds = os.path.abspath(args.datastorage)
+    ds = os.path.abspath(args.datastorage or DEFAULT_DS)
+    if args.datastorage is None:
+        print(f"note: no --datastorage given; guessing {ds} from this script's location. "
+              f"Pass the DataStorage of the world you mean: "
+              f"DS=\"$(dirname \"$(muiogo-ai case-path --case '<case>')\")\".", file=sys.stderr)
     if not os.path.isdir(ds):
-        ap.error(f"DataStorage not found: {ds} (pass --datastorage)")
+        ap.error(f"DataStorage not found: {ds} (pass --datastorage; get it from "
+                 f"`dirname \"$(muiogo-ai case-path --case '<case>')\"`)")
 
     if args.models:
         dirs = [os.path.join(ds, m) for m in args.models]

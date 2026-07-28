@@ -7,6 +7,16 @@ description: "Design, implement, regenerate, and validate environmental accounti
 
 Add a transparent accounting layer without changing the modeled economy or silently inventing environmental data. Treat each model as structurally different: reuse the method, never Namibia-specific identifiers or coefficients.
 
+## Which world
+
+This skill acts on ONE MUIOGO installation. Use the pinned launcher `muiogo-ai`
+(the installed runtime), or `muiogo-live` only when the user explicitly asked
+for their own checkouts; never bare `muiogo`. Every command prints a `world:`
+line to stderr — read it, and name that world whenever you report a case, a
+solve, or a number. Resolve cases with `muiogo-ai case-path`, never a relative
+`WebAPP/DataStorage/...` path. Exit code 3 is a refused world crossing: stop.
+Full rules: [../WORLD_DISCIPLINE.md](../WORLD_DISCIPLINE.md).
+
 ## Non-negotiable rules
 
 1. Work only on the model named by the user. Keep its source case untouched unless the user explicitly requests an in-place edit.
@@ -24,13 +34,14 @@ Add a transparent accounting layer without changing the modeled economy or silen
 
 ### 1. Discover the model and its execution path
 
-- Read repository instructions and locate the named case, normally under `WebAPP/DataStorage/<case>`.
+- Read repository instructions and resolve the named case with `CASE="$(muiogo-ai case-path --case '<case>')"`. Inside a world's checkout the layout is `WebAPP/DataStorage/<case>`, but that is a layout description, not a path to type: `case-path` returns the absolute path in this world and fails loudly when the case is not here.
 - Locate `genData.json`, parameter JSON files, saved results, `Parameters.json`, `Variables.json`, solver model, and the MUIO data-generation/run classes or scripts.
 - Confirm regions, scenarios, years, timeslices, modes, existing result cases, and solver. If the bundled audit finds multiple regions, use its summaries only for discovery and validate row-level results by region.
 - Run the read-only inventory:
 
 ```bash
-python scripts/audit_environmental_model.py --model WebAPP/DataStorage/<case>
+CASE="$(muiogo-ai case-path --case '<case>')"
+python scripts/audit_environmental_model.py --model "$CASE"
 ```
 
 Use the path inside this skill when it is installed elsewhere. Treat its name-based classifications as leads and verify them against ratios, constraints, units, and results. Read [references/accounting-patterns.md](references/accounting-patterns.md) for physical interpretation and [references/muio-json-workflow.md](references/muio-json-workflow.md) before editing.
@@ -190,6 +201,12 @@ When replacing an existing derived case, preserve its results, validation report
 
 Do not guess command names. Inspect the host repository and call its actual classes or scripts.
 
+Keep the world attached while you do it: drive generation and solving through
+`muiogo-ai` (for example `muiogo-ai batch --case '<derived-case>' --runs '<run>,<run>'`),
+or run the host classes from a shell a launcher started. A script you start
+yourself inherits no world and resolves relative paths against the current
+directory.
+
 ### 7. Validate physical closure and non-interference
 
 For every case, region, and year, verify:
@@ -213,8 +230,10 @@ Before solving, require an allowlisted structural diff: every original JSON valu
 Before regenerating, preserve the existing results as the baseline. Verify that their generated and processed solver inputs match the current source and preprocessing chain. If they do not, mark them stale and solve a fresh unchanged control, retaining the hashes and reason for rejecting the saved baseline. Compare the accepted baseline with:
 
 ```bash
+SRC="$(muiogo-ai case-path --case '<source-case>')"
+DERIVED="$(muiogo-ai case-path --case '<derived-case>')"
 python scripts/compare_muio_results.py \
-  <baseline-res> <candidate-res> \
+  "$SRC/<baseline-res>" "$DERIVED/<candidate-res>" \
   --exclude t=ENV_WATER --exclude t=ENV_LAND
 ```
 
@@ -239,7 +258,7 @@ Measure runtime separately from correctness. Compare generated matrix or LP size
   terminal result in the raw CSVs and backup, and state prominently that
   Pivot is a postprocessed reporting surface.
 - Explain constants, discontinuities, dummy activity, and any scenario invariance from source equations—not from chart appearance alone.
-- Deliver the generator, derived case location, validation results, accounting dictionary, limitations, and exact viewing instructions.
+- Deliver the generator, the derived case location as an absolute path together with the world it lives in, validation results, accounting dictionary, limitations, and exact viewing instructions.
 
 ## Acceptance gate
 

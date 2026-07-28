@@ -15,6 +15,16 @@ The standing problem: 22+ registered worktrees plus backup/copy dirs accumulate 
 `~/Projects`, and knowing which are merged, diverged, dirty, or dead requires re-deriving it by
 hand each time. This skill makes the inventory a one-command, read-only operation.
 
+## Which world
+
+This skill deliberately works across the user's **own** checkouts — the live world —
+because inventorying and reconciling them is the whole point. That makes it the one
+place where crossing is intended, so be explicit: name the checkouts you looked at
+and the world they belong to, and never touch the runtime installation's copies
+under a world's `og-models` directory unless the user asked. Never present a live
+checkout's state as if it were the runtime world's. Full rules:
+`../WORLD_DISCIPLINE.md`.
+
 ## Run the inventory
 
 ```bash

@@ -27,6 +27,17 @@ audience-shaped prose — with two absolutes:
    sensitivity sweep), stop: spec the run, estimate its duration, and ask — the family approval
    gates (the approval gates in SKILLS.md) bind here. Same for pushing or PR-ing any product of this skill.
 
+## Which world
+
+This skill acts on **one** world: the runtime installation reached by `muiogo-ai`,
+unless the user explicitly asked for their own live one (`muiogo-live`). Never use
+bare `muiogo`, and never fall back to it. Every command prints a `world:` line to
+stderr — read it, and name that world when you report a result or a number. Worlds
+hold different OG checkouts and different model registries, so the same country
+model can exist in both at different commits. Locate the checkout you mean with
+`muiogo-ai status` rather than assuming a path. Full rules:
+`../WORLD_DISCIPLINE.md`.
+
 ## Mode 1 — Scenario design
 
 Translate a policy question into a runnable reform spec *before* anyone runs anything:

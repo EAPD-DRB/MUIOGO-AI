@@ -23,6 +23,17 @@ The authoritative deliverables are the complete solved upstream country model,
 its complete MUIO representation, and their linked provenance and frozen raw
 baseline. Keep them reusable for later, separately scoped modelling work.
 
+## Which world
+
+This skill acts on ONE MUIOGO installation, and the case you import lands in
+that one only. Use the pinned launcher `muiogo-ai` (the installed runtime), or
+`muiogo-live` only when the user explicitly asked for their own checkouts; never
+bare `muiogo`. Every command prints a `world:` line to stderr — read it, and name
+that world whenever you report a case, a solve, or a number. Resolve cases with
+`muiogo-ai case-path`, never a relative `WebAPP/DataStorage/...` path. Exit code
+3 is a refused world crossing: stop. Full rules:
+[../WORLD_DISCIPLINE.md](../WORLD_DISCIPLINE.md).
+
 ## Non-negotiable boundary
 
 Do not use historical observations to make model results match history.
@@ -260,6 +271,10 @@ Read:
       `ImportTemplate.py`.
     - Hash the importer before and after and fail if it changes.
     - Refuse to overwrite an existing case silently.
+    - Resolve the created case by absolute path with
+     `CASE="$(muiogo-ai case-path --case '<case>')"`, and confine every later
+     repair, check, and export to that path. A relative case path resolves
+     against whatever directory you are in and can land in the other world.
     - Store every import helper inside the country package so the workflow is
      portable to another laptop.
     - Add a short README to the active MUIO case pointing to the canonical

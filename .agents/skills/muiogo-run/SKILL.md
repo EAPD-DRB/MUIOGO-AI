@@ -10,20 +10,30 @@ HTTP API — the same path its web interface uses, so a headless solve and a
 clicked solve produce identical results.
 
 If you do not yet know where MUIOGO is installed, orient first with
-`muiogo status` (see the `muiogo-workspace` skill). Take all paths from there.
+`muiogo-ai status` (see the `muiogo-workspace` skill). Take all paths from there.
+
+## Which world
+
+Everything here acts on **one** world: the installed runtime, driven by
+`muiogo-ai`. Use `muiogo-live` only if the user explicitly asked for their own
+checkouts, and never bare `muiogo` — it can land anywhere. Every command prints a
+`world:` line to stderr first; read it, and name that world when you report a
+solve or a number, because the same run in the other world is a different number.
+Exit code 3 means a command refused a world crossing: stop and say so, do not
+sidestep it and do not switch worlds. Full rules: [../WORLD_DISCIPLINE.md](../WORLD_DISCIPLINE.md).
 
 ## The loop
 
 ```bash
-muiogo status                                   # is a server running? which cases exist?
-muiogo serve --detach                           # start one if not (backgrounded)
-muiogo cases                                    # exact case names — they contain spaces
-muiogo scenarios --case "CLEWs Demo"            # what runs already exist
-muiogo run --case "CLEWs Demo" --run REF        # generate input + solve
-muiogo results --case "CLEWs Demo" --run REF --out ./ref-results
+muiogo-ai status                                   # is a server running? which cases exist?
+muiogo-ai serve --detach                           # start one if not (backgrounded)
+muiogo-ai cases                                    # exact case names — they contain spaces
+muiogo-ai scenarios --case "CLEWs Demo"            # what runs already exist
+muiogo-ai run --case "CLEWs Demo" --run REF        # generate input + solve
+muiogo-ai results --case "CLEWs Demo" --run REF --out ./ref-results
 ```
 
-`muiogo run` regenerates the model input from the case's current parameter data
+`muiogo-ai run` regenerates the model input from the case's current parameter data
 and then solves, so it always reflects edits you have made. It prints:
 
 ```
@@ -37,17 +47,17 @@ Start it detached — this is the headless default and it manages the process fo
 you:
 
 ```bash
-muiogo serve --detach     # backgrounds it, prints the pid and the log path
-muiogo status             # confirm: server  running — N case(s)
+muiogo-ai serve --detach     # backgrounds it, prints the pid and the log path
+muiogo-ai status             # confirm: server  running — N case(s)
 ```
 
 Stop it the same way:
 
 ```bash
-muiogo stop
+muiogo-ai stop
 ```
 
-**Stop with `muiogo stop`, never by port.** It stops the exact process it
+**Stop with `muiogo-ai stop`, never by port.** It stops the exact process it
 started, from a pidfile in `~/.muiogo/servers/`. Killing whatever holds a port —
 `kill $(lsof -ti :5002)` — can match an unrelated process; that has actually
 happened. Run-state lives outside every checkout, so a detached server never
@@ -58,7 +68,7 @@ on purpose: an installed runtime defaults to 5102, checkouts you run manually
 keep MUIOGO's own 5002. `muiogo worlds` shows which workspaces exist, their
 ports, and which is active. And MUIOGO solves synchronously: one solve occupies
 the server, so do not fire runs in parallel against a single server; use
-`muiogo batch`.
+`muiogo-ai batch`.
 
 ## Solvers
 
@@ -75,7 +85,7 @@ it — that is an approval gate, not a formality.
 ## Running several
 
 ```bash
-muiogo batch --case "CLEWs Demo" --runs REF,CO2TAX,RETRG
+muiogo-ai batch --case "CLEWs Demo" --runs REF,CO2TAX,RETRG
 ```
 
 The batch endpoint generates input and solves each run server-side with CBC, and
@@ -84,22 +94,26 @@ afterwards — a batch reports overall status, so check each run individually:
 
 ```bash
 for r in REF CO2TAX RETRG; do
-  echo "$r: $(muiogo results --case "CLEWs Demo" --run $r | wc -l) result files"
+  echo "$r: $(muiogo-ai results --case "CLEWs Demo" --run $r | wc -l) result files"
 done
 ```
 
 ## When a solve fails
 
 A failed solve is not an exception you should swallow — it is the finding.
-`muiogo run` reports the failure and the solver's own message.
+`muiogo-ai run` reports the failure and the solver's own message.
 
 Check, in this order:
 
 1. **The command's output.** The status line and solver message say most of it.
-2. **The log**: `muiogo log --case "<case>" --run <run>`.
-3. **On disk**: no `res/<run>/csv/` directory means the run produced nothing.
-   `res/<run>/results.txt` carries the raw solver output; its first line is the
-   status.
+2. **The log**: `muiogo-ai log --case "<case>" --run <run>`.
+3. **On disk.** Ask the world for the case path — never type a relative one:
+
+   ```bash
+   CASE="$(muiogo-ai case-path --case '<case>')"
+   ls "$CASE/res/<run>/csv/"                # missing means the run produced nothing
+   head -1 "$CASE/res/<run>/results.txt"    # raw solver output; first line is the status
+   ```
 
 Common causes and what they mean:
 
@@ -108,7 +122,7 @@ Common causes and what they mean:
 | `no value for MODEperTECHNOLOGY[...]` | GLPK path — switch to CBC (see above) |
 | `Infeasible` / `problem is infeasible` | the model cannot meet demand under its constraints — a data problem, not a solver problem |
 | `Unbounded` | a missing cost or capacity limit lets something grow freely |
-| solver binary not found | GLPK/CBC not installed; `muiogo status` shows solver availability |
+| solver binary not found | GLPK/CBC not installed; `muiogo-ai status` shows solver availability |
 | no results and no message | check the server log; the server may have stopped |
 
 For infeasible or otherwise suspicious models, hand off to
@@ -120,7 +134,7 @@ the data yourself.
 Every solve writes a `RUN.json` beside its results recording the objective, a
 SHA-256 of the generated model input, a SHA-256 over all result CSVs, which
 scenarios were active, the solver, and the MUIOGO version. You do not have to do
-anything to get it; `muiogo run` prints a one-line summary.
+anything to get it; `muiogo-ai run` prints a one-line summary.
 
 This matters because the pipeline is bit-deterministic but not self-auditing.
 Solving the same run twice gives the same objective and byte-identical results —
@@ -131,12 +145,12 @@ reproduces as 513,337.
 So, before you rely on a number you did not just produce:
 
 ```bash
-muiogo verify --case "<case>" --run <run>              # does the record still match disk?
-muiogo verify --case "<case>" --run <run> --resolve    # re-solve and prove it reproduces
+muiogo-ai verify --case "<case>" --run <run>              # does the record still match disk?
+muiogo-ai verify --case "<case>" --run <run> --resolve    # re-solve and prove it reproduces
 ```
 
 `--resolve` re-solves and compares the objective and the results hash; it prints
-"Reproduced exactly" or tells you the input data has changed. `muiogo compare`
+"Reproduced exactly" or tells you the input data has changed. `muiogo-ai compare`
 also warns on its own when a run in the comparison has no provenance record.
 
 Rule of thumb: **if a comparison matters, every run in it should have been solved
@@ -145,8 +159,8 @@ by you, from the same input state.** Re-solve the ones that were not.
 ## Saving results reproducibly
 
 ```bash
-muiogo results --case "<case>" --run <run>              # list the result files
-muiogo results --case "<case>" --run <run> --out DIR    # download all of them
+muiogo-ai results --case "<case>" --run <run>              # list the result files
+muiogo-ai results --case "<case>" --run <run> --out DIR    # download all of them
 ```
 
 Results are one CSV per output variable in tidy long format — `NewCapacity.csv`
@@ -164,7 +178,8 @@ produced it.
   csv/                     the downloaded result files
   RUN.json                 written automatically: objective, input and results
                            hashes, active scenarios, solver, MUIOGO ref
-  NOTES.md                 why you ran it and what you concluded
+  NOTES.md                 which world you solved in, why you ran it, and what
+                           you concluded
 ```
 
 Never edit a file under `res/` by hand. Re-running a run deletes its previous

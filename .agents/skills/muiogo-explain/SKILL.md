@@ -11,14 +11,30 @@ be traceable either to a file in their installation or to the upstream
 documentation. **Read the model, then explain it.** Do not describe a model from
 memory of what such models usually contain.
 
-Orient first with `muiogo status` (see `muiogo-workspace`) — you need to know
+## Which world
+
+You are explaining a model in ONE world, and the same case name can exist in both.
+Use the pinned launcher — `muiogo-ai` for the installed runtime, `muiogo-live` only
+when the user explicitly asked for their own checkouts — never bare `muiogo`. Every
+command prints a `world:` line to stderr: read it, and name that world when you
+describe a model or quote anything from it. Full rules in
+`../WORLD_DISCIPLINE.md`.
+
+Orient first with `muiogo-ai status` (see `muiogo-workspace`) — you need to know
 which family the question is about and where that model lives.
 
 ## Explaining a CLEWs model
 
 ### What this model contains
 
-Read the case's `genData.json`. It is the model's own description:
+Read the case's `genData.json`. Get to it by asking for the case, never by typing a
+relative path:
+
+```bash
+CASE="$(muiogo-ai case-path --case '<case>')"   # absolute, inside this world
+```
+
+`$CASE/genData.json` is the model's own description:
 
 | Key | What it tells you |
 |---|---|
@@ -31,7 +47,7 @@ Read the case's `genData.json`. It is the model's own description:
 | `osy-constraints` | user-defined constraints such as a renewable target |
 | `osy-currency` | the money units results are in |
 
-`muiogo scenarios --case "<case>"` gives the scenarios and runs in readable form.
+`muiogo-ai scenarios --case "<case>"` gives the scenarios and runs in readable form.
 For structure quality — orphaned ids, stranded commodities, missing sectors —
 `clews-model-review` runs a real checker; use it rather than eyeballing.
 
@@ -42,11 +58,12 @@ only some of those. Name the sectors present, and say which are absent.
 
 A CLEWs model in MUIOGO is an **OSeMOSYS** linear program: it chooses capacity
 and operation to meet demand at least total discounted cost. The model file
-shipped with the install is the authority — `WebAPP/SOLVERs/model.v.5.4.txt`,
-readable, about 66 named constraints. Its objective minimises, over regions,
-technologies and years, the sum of capital cost on new capacity, fixed cost on
-total capacity, and variable cost on activity, each discounted, net of salvage
-value.
+shipped with the install is the authority — `WebAPP/SOLVERs/model.v.5.4.txt`, a
+location inside the MUIOGO root that `muiogo-ai status` reports rather than a path
+to type from your working directory — readable, about 66 named constraints. Its
+objective minimises, over regions, technologies and years, the sum of capital cost
+on new capacity, fixed cost on total capacity, and variable cost on activity, each
+discounted, net of salvage value.
 
 The constraint families you can point to by name in that file:
 

@@ -8,12 +8,25 @@ description: Prepare and push laptop-to-laptop handoffs for the EAPD Fiji and Ph
 Package reproducible Fiji and Philippines work, preserve its audit trail, and
 push only reviewed changes.
 
+## Which world
+
+This skill packages cases from ONE world — the installed runtime, reached through
+the pinned launcher `muiogo-ai`. Never bare `muiogo`, and never fall back to it.
+Every command prints a `world:` line to stderr first: read it, and name that world
+when you report what you packaged, because a same-named case in the other world is
+different work. Locate every case with `muiogo-ai case-path`; an exporter script
+you run yourself inherits nothing, so the absolute path is what carries the world
+into it. Exit code 3 means a refused world crossing — stop, do not sidestep it.
+Full rules: [../WORLD_DISCIPLINE.md](../WORLD_DISCIPLINE.md).
+
 ## Scope
 
 Resolve these sibling repositories from their Git remotes rather than assuming
 a fixed home path:
 
-- `MUIOGO`: installed cases under `WebAPP/DataStorage/`
+- `MUIOGO`: this world's installed cases, each located with `muiogo-ai case-path`
+  (they sit under `WebAPP/DataStorage/` inside that checkout — a layout
+  description, not a path to type)
 - `CLEWs-FJI`: active case `Fiji_v2`
 - `CLEWs-PHL`: active analysis case
   `Philippines_v12_ENV_LAND_WATER_DIAGNOSTIC`
@@ -52,12 +65,14 @@ Read every applicable `AGENTS.md` before acting.
 7. Use a new versioned archive name. Use the repository-native exporter:
 
    ```bash
+   FJI_CASE="$(muiogo-ai case-path --case 'Fiji_v2')"
+   PHL_CASE="$(muiogo-ai case-path --case 'Philippines_v12_ENV_LAND_WATER_DIAGNOSTIC')"
+
    python CLEWs-FJI/Fiji_v2_CLEWs_calibration/scripts/export_muiogo_case.py \
-     MUIOGO/WebAPP/DataStorage/Fiji_v2 <fiji-output.zip> --exclude-results
+     "$FJI_CASE" <fiji-output.zip> --exclude-results
 
    python CLEWs-PHL/Philippines_v12_CLEWs_build/scripts/export_muiogo_case.py \
-     MUIOGO/WebAPP/DataStorage/Philippines_v12_ENV_LAND_WATER_DIAGNOSTIC \
-     <phl-output.zip>
+     "$PHL_CASE" <phl-output.zip>
    ```
 
 8. Run `unzip -t`, verify the archive has one expected top-level case folder,
@@ -69,8 +84,9 @@ Read every applicable `AGENTS.md` before acting.
 10. In `Model-tools`, commit and push changes under `skills/` when present.
     Stage only skill-related files and preserve unrelated work.
 
-Report each repository as unchanged, committed, pushed, or blocked; list every
-archive and hash; and state exactly which validation checks ran.
+Report the world the packaged cases came from, each repository as unchanged,
+committed, pushed, or blocked; list every archive and hash; and state exactly
+which validation checks ran.
 
 ## Related skills
 

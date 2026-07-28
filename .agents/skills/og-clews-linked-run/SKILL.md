@@ -10,7 +10,16 @@ ogcore-free: it never imports the macro model, it **subprocesses the OG model's
 own interpreter**. So three environments are in play and must stay separate —
 MUIOGO's, each OG country model's, and the link's.
 
-Orient first (`muiogo status`, see `muiogo-workspace`). It reports whether a link
+## Which world
+
+This skill acts on **one** world: the runtime installation reached by `muiogo-ai`,
+unless the user explicitly asked for their own live one (`muiogo-live`). Never use
+bare `muiogo`, and never fall back to it. Every command prints a `world:` line to
+stderr — read it, and name that world when you report results. The CLEWs runs you
+feed the link and the OG models registered with it belong to that one world; never
+mix paths from two. Full rules: `../WORLD_DISCIPLINE.md`.
+
+Orient first (`muiogo-ai status`, see `muiogo-workspace`). It reports whether a link
 and OG models are installed; without both, a coupled run is impossible and you
 should say so rather than improvise.
 
@@ -102,15 +111,19 @@ Channels carry a direction — `clews->og` for a signal entering the economy,
 
 ```bash
 cd <link path>
+CASE="$(muiogo-ai case-path --case '<case>')"
 .venv/bin/ogclews-link run coupled \
     --country phl \
-    --clews-base   <MUIOGO>/WebAPP/DataStorage/<case>/res/<base run>/csv \
-    --clews-reform <MUIOGO>/WebAPP/DataStorage/<case>/res/<reform run>/csv \
+    --clews-base   "$CASE/res/<base run>/csv" \
+    --clews-reform "$CASE/res/<reform run>/csv" \
     --out ./ogclews_runs
 ```
 
 Note what those two flags take: **the path to a solved run's `csv` directory**,
-not a run name. Take the `<MUIOGO>` part from `muiogo status`.
+not a run name. Get the case's location from `case-path`, never by typing a
+relative path — it returns the absolute path inside the current world and fails
+loudly if the case is not there, which is the answer you want rather than a
+same-named case in the other world.
 
 Other options: `--countries` for your own country definitions (see
 `ogclews_countries.example.json`), `--workers` for the OG solve's worker
@@ -121,7 +134,7 @@ The CLEWs side comes from a MUIOGO install. Point the link at it and name the
 runs:
 
 ```bash
-export OGCLEWS_MUIOGO_HOME=<MUIOGO path from muiogo status>
+export OGCLEWS_MUIOGO_HOME=<MUIOGO path from muiogo-ai status>
 export OGCLEWS_CLEWS_CASE=<case>
 ```
 

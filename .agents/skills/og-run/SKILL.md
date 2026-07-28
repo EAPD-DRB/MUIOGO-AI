@@ -9,7 +9,16 @@ An OG solve is a different animal from a CLEWs solve: 35 minutes to 2 hours
 rather than seconds, parallel worker processes, and a two-stage structure (steady state, then
 transition path). Treat launching one as a decision the user makes.
 
-Orient first with `muiogo status` (see `muiogo-workspace`) to find the installed
+## Which world
+
+This skill acts on **one** world: the runtime installation reached by `muiogo-ai`,
+unless the user explicitly asked for their own live one (`muiogo-live`). Never use
+bare `muiogo`, and never fall back to it. Every command prints a `world:` line to
+stderr — read it, and name that world when you report a run or a number. Worlds
+hold different OG model registries, so a model installed in one is invisible in
+the other. Full rules: `../WORLD_DISCIPLINE.md`.
+
+Orient first with `muiogo-ai status` (see `muiogo-workspace`) to find the installed
 country models. Each lives in its own checkout with its own `.venv`.
 
 ## The rule that matters most

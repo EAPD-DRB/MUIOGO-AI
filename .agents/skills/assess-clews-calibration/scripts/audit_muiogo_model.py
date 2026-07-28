@@ -3,6 +3,11 @@
 
 This is a screening tool. Its findings must be spot-checked before grading.
 It uses only the Python standard library.
+
+Give the model folder as an absolute case path, normally from
+`muiogo-ai case-path --case '<case>'`. A relative path such as
+WebAPP/DataStorage/<case> resolves against the working directory, so it can
+inventory a same-named case in a different MUIOGO installation.
 """
 
 from __future__ import annotations
@@ -299,7 +304,8 @@ def audit(model_dir: Path) -> dict[str, Any]:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("model_folder", type=Path)
+    parser.add_argument("model_folder", type=Path,
+                        help="absolute case folder, normally from `muiogo-ai case-path`")
     parser.add_argument("--output", type=Path, help="write JSON here instead of stdout")
     return parser.parse_args(argv)
 

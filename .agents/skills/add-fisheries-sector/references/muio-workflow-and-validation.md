@@ -41,7 +41,10 @@ Names vary by version. Confirm mappings from code and parameter definitions.
 
 Before editing:
 
-- identify the authoritative case and saved scenario runs;
+- identify the authoritative case and saved scenario runs, resolving the case
+  folder with `CASE="$(muiogo-ai case-path --case '<case>')"`; inside a world's
+  checkout the layout is `WebAPP/DataStorage/<case>`, but that is a layout
+  description, not a path to type;
 - record model and MUIO versions;
 - record solver executable/version;
 - generate and solve a fresh unchanged control when saved results may be stale;
@@ -89,8 +92,8 @@ parameter and assumption registers.
 Run:
 
 ```bash
-python scripts/audit_fisheries_freedom.py \
-  WebAPP/DataStorage/<case>
+CASE="$(muiogo-ai case-path --case '<case>')"
+python scripts/audit_fisheries_freedom.py "$CASE"
 ```
 
 Inspect reported findings manually. Require:

@@ -15,7 +15,9 @@ Use this reference while writing the model-specific generator. Inspect the host 
 
 ## 1. Source files
 
-Typical case files under `WebAPP/DataStorage/<case>` include:
+Resolve the case folder with `CASE="$(muiogo-ai case-path --case '<case>')"`.
+Inside a world's checkout the layout is `WebAPP/DataStorage/<case>`; that is a
+layout description, not a path to type. Typical case files include:
 
 | File | Environmental-accounting role |
 |---|---|
@@ -32,7 +34,7 @@ Typical case files under `WebAPP/DataStorage/<case>` include:
 | `RYTEM.json` | Emission Activity Ratios and activity-change emission ratios |
 | `view/resData.json` | Saved case/scenario combinations; copy definitions, refresh valid runtime metadata |
 
-Use `WebAPP/DataStorage/Parameters.json` to obtain defaults. Do not assume every fork has exactly these parameter identifiers.
+Use the `Parameters.json` beside the case folders — `"$(dirname "$CASE")/Parameters.json"` — to obtain defaults. Do not assume every fork has exactly these parameter identifiers.
 
 ## 2. Safe generator contract
 
@@ -252,6 +254,9 @@ Discover the host command with repository search, for example:
 rg -n "def (generateDatafile|batchRun|run)|class DataFile" API WebAPP
 ```
 
+Run that search inside this world's MUIOGO checkout — `muiogo-ai status` prints
+its path — not in whichever checkout the shell happens to be sitting in.
+
 A common Python API is conceptually:
 
 ```python
@@ -264,6 +269,12 @@ model.batchRun("cbc", case_names)
 ```
 
 Do not paste this blindly. Confirm import paths, solver names, case metadata, and return status in the host repository.
+
+`DataFile("<derived-case>")` addresses the case by name inside whatever
+installation the interpreter belongs to. Drive it through `muiogo-ai` (for
+example `muiogo-ai batch --case '<derived-case>' --runs '<run>,<run>'`) or run it
+from a shell a launcher started, so generation and solving happen in the
+intended world.
 
 Generated artifacts may include `data.txt`, `data_processed.txt`, a linear-program file, `results.txt`, CSV result variables, and Pivot/view data. Generate all of them through MUIO.
 

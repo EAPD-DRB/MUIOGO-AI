@@ -5,24 +5,35 @@ description: Evaluate a MUIOGO CLEWs model for structure and data consistency ag
 
 # CLEWs Model Review
 
-Evaluate whether a MUIO/OSeMOSYS **CLEWs** model (a folder under `WebAPP/DataStorage/`) is well-structured, and flag data inconsistencies. **NamibiaCLEWs** is the reference benchmark: a standard, solid CLEWs model — nothing fancy methodologically, just done right.
+Evaluate whether a MUIO/OSeMOSYS **CLEWs** model (a case folder, laid out as `WebAPP/DataStorage/<model>/` inside a MUIOGO installation) is well-structured, and flag data inconsistencies. **NamibiaCLEWs** is the reference benchmark: a standard, solid CLEWs model — nothing fancy methodologically, just done right.
+
+## Which world
+
+You review the models of ONE world, and the same model name can exist in both.
+Use the pinned launcher `muiogo-ai` (the installed runtime), or `muiogo-live` only
+when the user explicitly asked for their own checkouts; never bare `muiogo`, and
+never fall back to it. Every command prints a `world:` line to stderr — read it,
+and name that world in the scorecard you report. Resolve a model with
+`muiogo-ai case-path`, never a relative `WebAPP/DataStorage/...` path. Exit code 3
+is a refused world crossing: stop. Full rules:
+[../WORLD_DISCIPLINE.md](../WORLD_DISCIPLINE.md).
 
 ## Scope — which model(s) to review
 
-The invocation arguments name the model(s) to review, matched to folder names under `WebAPP/DataStorage/`:
+The invocation arguments name the model(s) to review, matched to the cases of this world (`muiogo-ai cases`):
 - **One model:** the argument is a model name, e.g. `NamibiaCLEWs` or `Philippines` → review only that model.
 - **Several models:** space-separated names → review each.
-- **No argument:** review every model folder found under `WebAPP/DataStorage/`.
+- **No argument:** review every model in this world.
 
-Match the argument to the actual folder name (resolve fuzzy input like "Namibia" → `NamibiaCLEWs`; folder names with spaces such as `CLEWs Demo` must be quoted when passed to the script). If the name doesn't match any folder, list the available folders and stop rather than guessing.
+Match the argument to the actual case name (resolve fuzzy input like "Namibia" → `NamibiaCLEWs`; names with spaces such as `CLEWs Demo` must be quoted when passed to the script). If the name doesn't match any case in this world, list the available ones and stop rather than guessing — do not go looking for it in the other world.
 
 ## How to run
 
-1. Run the bundled checker (auto-discovers models, or name specific ones):
+1. Run the bundled checker (discovers this world's models, or name specific ones). Always give it this world's DataStorage, taken from a case the launcher resolves — never a relative path, which resolves against whatever directory you happen to be in:
    ```bash
-   python .claude/skills/clews-model-review/audit.py                    # all models
-   python .claude/skills/clews-model-review/audit.py NamibiaCLEWs       # one or more
-   python .claude/skills/clews-model-review/audit.py --datastorage <path> <model>
+   DS="$(dirname "$(muiogo-ai case-path --case 'NamibiaCLEWs')")"
+   python .claude/skills/clews-model-review/audit.py --datastorage "$DS"                # all models
+   python .claude/skills/clews-model-review/audit.py --datastorage "$DS" NamibiaCLEWs   # one or more
    ```
    It prints per-model findings tagged `FAIL` / `WARN` / `INFO`, plus a summary. Exit code is non-zero if any `FAIL` is present (usable in CI).
 2. Interpret the output against the rubric below and write the verdict as a short scorecard (see Output).
@@ -34,7 +45,7 @@ Model folders are **git-ignored local data** (`.gitignore`: `WebAPP/DataStorage/
 - `genData.json` — sets/metadata: `osy-tech`, `osy-comm`, `osy-emis`, `osy-scenarios`, `osy-techGroups`, `osy-years`, `osy-ts`/`osy-se`/`osy-dt`/`osy-dtb`, `osy-constraints`, `osy-mo`.
 - Data files named after their OSeMOSYS **index set**: R=Region, Y=Year, T=Technology, C=Commodity, E=Emission, S=Storage, Ts=TimeSlice, M=Mode. Shape: `{ParamId: {ScenarioId: [ {TechId/CommId..., "2019": v, ...} ]}}`. Base scenario `SC_0`; others store `null` = inherit base.
 - `res/<label>/results.txt` — solve output; first line is solver status ("Optimal ..."). No `res/` ⇒ never solved.
-- Tech/comm/emis referenced by opaque IDs (`TEC_*`, `COM_*`, `EMI_*`, `SC_*`); resolve via genData. Param→file→default map is `WebAPP/DataStorage/Parameters.json`.
+- Tech/comm/emis referenced by opaque IDs (`TEC_*`, `COM_*`, `EMI_*`, `SC_*`); resolve via genData. Param→file→default map is `Parameters.json`, which sits beside the case folders — reach it as `"$(dirname "$CASE")/Parameters.json"`, not by typing the layout path.
 
 ## Rubric — markers of a well-structured model (Namibia does all 7)
 
@@ -66,7 +77,7 @@ Model folders are **git-ignored local data** (`.gitignore`: `WebAPP/DataStorage/
 
 ## Output
 
-Report a short scorecard: one line per model with a verdict (BENCHMARK / STRONG / GOOD / GOOD-BUT-UNPROVEN / WEAKEST-NEEDS-CURATION or similar) and its open issues by severity. Lead with the verdict, then FAILs, then WARNs, then INFOs. Keep it to what changes the reader's decision.
+Report a short scorecard: one line per model with a verdict (BENCHMARK / STRONG / GOOD / GOOD-BUT-UNPROVEN / WEAKEST-NEEDS-CURATION or similar) and its open issues by severity. Lead with the verdict, then FAILs, then WARNs, then INFOs. Keep it to what changes the reader's decision. Say which world the models came from — a verdict without it can be read against the wrong installation.
 
 ## Updating this skill
 

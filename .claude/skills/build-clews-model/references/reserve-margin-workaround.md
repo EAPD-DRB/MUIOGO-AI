@@ -124,7 +124,8 @@ The configuration must record:
 
 The checker must:
 
-1. read the live MUIO case;
+1. read the MUIO case at the absolute path returned by
+   `muiogo-ai case-path --case '<case>'`, never a relative one;
 2. resolve base values plus scenario overrides;
 3. recalculate `UCC` and `CCM` for every model year and scenario;
 4. compare them with stored UDC values within a declared tolerance;

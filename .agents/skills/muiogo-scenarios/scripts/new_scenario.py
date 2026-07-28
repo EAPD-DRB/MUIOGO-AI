@@ -7,8 +7,14 @@ scenario must be seeded from an existing one or the generated model input will
 be wrong. This does that mechanically, then you set the few values that define
 the policy.
 
+    DS="$(dirname "$(muiogo-ai case-path --case 'My Case')")"
     python3 new_scenario.py --case "My Case" --name High_CO2_tax \
-        --copy-from CO2_tax --data-storage <path> [--url http://127.0.0.1:5102]
+        --copy-from CO2_tax --data-storage "$DS" [--url http://127.0.0.1:5102]
+
+--data-storage must be this world's DataStorage, never a relative path: ask
+`muiogo-ai case-path` for the case, as above, and the answer is absolute and in
+the right world by construction. If it belongs to a different installation than
+the world that pinned us, this exits 3 rather than editing the wrong models.
 
 It registers the scenario, copies a complete parameter slice from --copy-from
 (default: the base scenario), and prints what to edit next. Use --set to apply a
@@ -31,7 +37,7 @@ BASE_SCENARIO = "SC_0"
 
 
 def default_url():
-    """This world's URL, from the launcher that started us. Never a guess.
+    """This world's URL and record, from the launcher that started us. Never a guess.
 
     This script WRITES: it registers a scenario in genData.json and pushes a
     parameter slice for every R*.json. So resolving the wrong world here edits
@@ -53,20 +59,51 @@ def default_url():
             sys.exit(f"MUIOGO_WORLD_FILE={pinned} is unreadable: {exc}")
         muiogo = record.get("muiogo") or {}
         url = muiogo.get("url")
-        if url:
-            return url
-        if muiogo.get("port"):
-            return f"http://127.0.0.1:{int(muiogo['port'])}"
-        sys.exit(f"the world record {pinned} has no url or port.")
+        if not url and muiogo.get("port"):
+            url = f"http://127.0.0.1:{int(muiogo['port'])}"
+        if not url:
+            sys.exit(f"the world record {pinned} has no url or port.")
+        # Say which world, the way the muiogo client does: whoever reads this
+        # output has to be able to name the installation it wrote to.
+        name = record.get("name") or os.path.basename(os.path.dirname(pinned))
+        print(f"world: {name} · {url} · {muiogo.get('path') or '?'} "
+              f"[pinned by launcher]", file=sys.stderr)
+        return url, record
 
     sys.exit(
         "I cannot tell which MUIOGO this should write to, and this script edits\n"
         "case data, so I will not guess.\n\n"
-        "Run it through a world launcher, which sets the target for you:\n"
-        "    muiogo-ai run-scenario-script ...      (the installed runtime)\n"
-        "or pass the server explicitly:\n"
-        "    --url http://127.0.0.1:5102\n\n"
-        "`muiogo worlds` lists the worlds on this machine.")
+        "Run it from a shell a world launcher started — muiogo-ai exports the\n"
+        "world and child processes inherit it — or name the server explicitly:\n"
+        "    --url http://127.0.0.1:5102           (the installed runtime)\n\n"
+        "`muiogo-ai status` prints this world's URL; `muiogo worlds` lists every\n"
+        "world on this machine.")
+
+
+def require_same_world(record, data_storage):
+    """Refuse to read one world's case files while writing to another's server.
+
+    This script reads the case from --data-storage but writes through the HTTP
+    API, so a --data-storage belonging to a different installation than the
+    pinned world edits the wrong models while looking like it worked. A relative
+    --data-storage is the usual way that happens: it resolves against whatever
+    directory we were started in.
+
+    Exit 3 is the world-crossing code: stop, do not sidestep it.
+    """
+    home = (record.get("muiogo") or {}).get("path")
+    if not home:
+        return
+    expected = os.path.join(home, "WebAPP", "DataStorage")
+    if os.path.realpath(data_storage) == os.path.realpath(expected):
+        return
+    print(f"refusing to cross worlds.\n"
+          f"  writing to   {expected}\n"
+          f"  reading from {os.path.realpath(data_storage)}\n\n"
+          f"Ask this world for the case instead of naming a path:\n"
+          f"  DS=\"$(dirname \"$(muiogo-ai case-path --case '<case>')\")\"",
+          file=sys.stderr)
+    sys.exit(3)
 
 
 def post(url, payload, timeout=120, cookie=None):
@@ -100,7 +137,9 @@ def main():
     ap.add_argument("--desc", default="")
     ap.add_argument("--copy-from", default=None,
                     help="scenario name to seed the parameter slice from (default: base)")
-    ap.add_argument("--data-storage", required=True)
+    ap.add_argument("--data-storage", required=True,
+                    help="this world's DataStorage, absolute: the dirname of "
+                         "`muiogo-ai case-path --case <case>`")
     ap.add_argument("--url", default=None,
                     help="MUIOGO URL (default: the world your launcher pinned; no fallback)")
     ap.add_argument("--set", action="append", default=[],
@@ -108,7 +147,8 @@ def main():
                     help="multiply a row's yearly values, e.g. RYE.json:EP:EMI_6ku9o:x4")
     args = ap.parse_args()
     if not args.url:
-        args.url = default_url()
+        args.url, world = default_url()
+        require_same_world(world, args.data_storage)
 
     case_dir = os.path.join(args.data_storage, args.case)
     gen_path = os.path.join(case_dir, "genData.json")
@@ -192,12 +232,13 @@ def main():
               "define your policy (see the skill's parameter table), then:")
     else:
         print("\nNext:")
-    print(f'  muiogo new-run --case "{args.case}" --run <RUNNAME> --activate {args.name}')
-    print(f'  muiogo run --case "{args.case}" --run <RUNNAME>')
+    print(f'  muiogo-ai new-run --case "{args.case}" --run <RUNNAME> --activate {args.name}')
+    print(f'  muiogo-ai run --case "{args.case}" --run <RUNNAME>')
 
 
 if __name__ == "__main__":
     try:
         main()
     except urllib.error.URLError as exc:
-        sys.exit(f"cannot reach MUIOGO at the given --url ({exc}). Is `muiogo serve` running?")
+        sys.exit(f"cannot reach MUIOGO at the given --url ({exc}). "
+                 f"Is that world's server running (`muiogo-ai serve`)?")

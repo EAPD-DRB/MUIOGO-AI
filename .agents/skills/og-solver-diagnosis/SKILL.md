@@ -19,6 +19,17 @@ model family (mined from `~/Projects/og-country-tests`).
 Phase 4, not Phase 1. Most "solver failures" in this family were not solver failures — they were
 fiscal inconsistencies, calibration placeholders, or the wrong code running.
 
+## Which world
+
+This skill diagnoses a solve in **one** world: the runtime installation reached by
+`muiogo-ai`, unless the user explicitly asked about their own live one
+(`muiogo-live`). Never use bare `muiogo`, and never fall back to it. Every command
+prints a `world:` line to stderr — read it, and name that world when you report a
+diagnosis. This matters more here than anywhere else: the same country model can sit
+at different commits in each world, so a run that fails in one may be fine in the
+other, and diagnosing the wrong copy sends you after a bug that is not there. Full
+rules: `../WORLD_DISCIPLINE.md`.
+
 ## Phase 0 — Rule out contamination
 
 If the failing result is surprising, or reproduces a previously-known-buggy number: suspect the

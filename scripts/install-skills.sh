@@ -108,6 +108,18 @@ hr()       { printf '%s\n' "─────────────────�
 hr_thick() { printf '%s\n' "══════════════════════════════════════════════════════════════"; }
 
 print_pass() { printf "  ${GREEN}[PASS]${RESET} %s%s\n" "$1" "${2:+  ${DIM}($2)${RESET}}"; }
+# Files that live beside the skills rather than inside one. The skills reference
+# WORLD_DISCIPLINE.md as ../WORLD_DISCIPLINE.md, so it has to travel with them or
+# the rule they point at is unreachable from where they are installed.
+copy_shared_files() {
+    local dest="$1" f n
+    for f in "$SKILLS_DIR"/*.md; do
+        [[ -f "$f" ]] || continue
+        n="$(basename "$f")"
+        cp "$f" "$dest/$n" 2>/dev/null || print_fail "$n" "copy failed"
+    done
+}
+
 STAMP="$(date +%Y%m%d-%H%M%S)"
 print_note() { printf '  \033[33m~\033[0m %-34s %s\n' "$1" "$2"; }
 print_fail() { printf "  ${RED}[FAIL]${RESET} %s%s\n" "$1" "${2:+  ${DIM}($2)${RESET}}"; }
@@ -169,7 +181,7 @@ PY
 if [[ $DO_CHECK -eq 1 ]]; then
     section "Checking .claude/skills against .agents/skills"
     if diff -rq "$SKILLS_DIR" "$CLAUDE_LINK_DIR" >/dev/null 2>&1; then
-        print_pass "in sync" "$(ls "$SKILLS_DIR" | wc -l | tr -d ' ') skills"
+        print_pass "in sync" "${#AVAILABLE[@]} skills"
         exit 0
     fi
     diff -rq "$SKILLS_DIR" "$CLAUDE_LINK_DIR" 2>&1 | sed 's/^/  /'
@@ -188,6 +200,7 @@ if [[ $DO_RELINK -eq 1 ]]; then
         printf '  previous copy kept at %s\n' "$ASIDE"
     fi
     mkdir -p "$CLAUDE_LINK_DIR" || err "cannot create $CLAUDE_LINK_DIR"
+    copy_shared_files "$CLAUDE_LINK_DIR"
     for s in "${AVAILABLE[@]}"; do
         cp -R "$SKILLS_DIR/$s" "$CLAUDE_LINK_DIR/$s"
         if [[ -f "$CLAUDE_LINK_DIR/$s/SKILL.md" ]]; then
@@ -341,6 +354,7 @@ for dest in "${DESTS[@]}"; do
         FAILED=$((FAILED + 1))
         continue
     fi
+    copy_shared_files "$dest"
     for s in "${SELECTED[@]}"; do
         # An existing skill of the same name may be the user's own work — edited
         # in place, or written by hand. Deleting it outright to "update cleanly"

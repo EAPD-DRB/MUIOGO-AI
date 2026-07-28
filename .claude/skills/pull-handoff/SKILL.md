@@ -8,6 +8,16 @@ description: Pull and install the latest EAPD Fiji and Philippines CLEWs handoff
 Fast-forward the three handoff repositories and install clean, runnable MUIO
 cases without discarding local work.
 
+## Which world
+
+This skill installs into ONE world — the installed runtime, reached through the
+pinned launcher `muiogo-ai`. Never bare `muiogo`, and never fall back to it. Take
+the MUIOGO checkout and its model-data directory from `muiogo-ai status`, not from
+a sibling directory you happened to find. Every command prints a `world:` line to
+stderr first: read it, and name that world when you report what you installed.
+Exit code 3 means a refused world crossing — stop, do not sidestep it. Full
+rules: [../WORLD_DISCIPLINE.md](../WORLD_DISCIPLINE.md).
+
 ## Scope
 
 Resolve sibling repositories by their remotes:
@@ -15,7 +25,8 @@ Resolve sibling repositories by their remotes:
 - `CLEWs-FJI`
 - `CLEWs-PHL`
 - `Model-tools`
-- target checkout `MUIOGO`
+- target installation `MUIOGO`: take it from `muiogo-ai status` (this world), not
+  by remote resolution
 
 Read applicable `AGENTS.md` files before acting.
 
@@ -32,22 +43,30 @@ Read applicable `AGENTS.md` files before acting.
      `Philippines_v12_CLEWs_build/muio/README.md`.
 3. Verify the documented SHA-256 when available, run `unzip -t`, and require
    exactly one safe top-level case folder matching `genData.json`.
-4. Install under `MUIOGO/WebAPP/DataStorage/`:
+4. Install into this world's model-data directory — the `model data` line of
+   `muiogo-ai status`, never a relative `WebAPP/DataStorage/` path:
    - if the target is absent, extract it;
    - if its non-`res/` content matches the archive, keep it;
    - if it differs, move the whole installed case to a timestamped sibling
      backup, then extract the new case. Do not copy old results into the new
      model because they may be stale or mismatched.
-5. Result-free ZIP files omit empty run directories. Read
-   `view/resData.json` and create `res/<Case>/csv` for every configured run so
-   MUIO can generate `data.txt`.
+5. Result-free ZIP files omit empty run directories. Address the installed case
+   only by its absolute path in this world:
+
+   ```bash
+   CASE="$(muiogo-ai case-path --case '<Case>')"
+   ```
+
+   Read `$CASE/view/resData.json` and create `res/<Case>/csv` under `$CASE` for
+   every configured run so MUIO can generate `data.txt`.
 6. Verify the installed directory name and `osy-casename`, record repository
    `HEAD`s and archive hashes, and confirm no solver results were imported.
    Do not solve or alter model inputs as part of this skill.
 
-Report which repositories changed, the installed case paths, any backup paths,
-and any repository skipped for local changes. If `Model-tools` changed, tell
-the user that Codex may need a reload before newly installed skills appear.
+Report the world you installed into, which repositories changed, the installed
+case paths, any backup paths, and any repository skipped for local changes. If
+`Model-tools` changed, tell the user that Codex may need a reload before newly
+installed skills appear.
 
 ## Related skills
 

@@ -17,6 +17,16 @@ the worked instance — read it when you want a full example of the level of det
 should reach). The problem this solves: ~20 sibling repos drift apart because changes land in one
 repo and propagate by hand, or never (the conda→uv drift is the standing cost of not doing this).
 
+## Which world
+
+This skill deliberately works across the user's **own** checkouts — the live world —
+because inventorying and reconciling them is the whole point. That makes it the one
+place where crossing is intended, so be explicit: name the checkouts you looked at
+and the world they belong to, and never touch the runtime installation's copies
+under a world's `og-models` directory unless the user asked. Never present a live
+checkout's state as if it were the runtime world's. Full rules:
+`../WORLD_DISCIPLINE.md`.
+
 ## The shape of the work
 
 Never loop "fix repo, next repo" from memory. Four phases, with a written artifact between each:

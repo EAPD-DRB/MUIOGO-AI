@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Compare MUIO result trees while excluding explicitly new account rows."""
+"""Compare MUIO result trees while excluding explicitly new account rows.
+
+Give both result folders as absolute paths built from
+`muiogo-ai case-path --case '<case>'`. A relative result path resolves against
+the working directory and can compare against a different MUIOGO installation.
+"""
 
 from __future__ import annotations
 
@@ -317,8 +322,16 @@ def load_tolerance_map(parser: argparse.ArgumentParser, path: Path | None) -> di
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("baseline", type=Path, help="baseline res folder")
-    parser.add_argument("candidate", type=Path, help="candidate res folder")
+    parser.add_argument(
+        "baseline",
+        type=Path,
+        help="baseline res folder (absolute; see module docstring)",
+    )
+    parser.add_argument(
+        "candidate",
+        type=Path,
+        help="candidate res folder (absolute; see module docstring)",
+    )
     parser.add_argument(
         "--exclude",
         action="append",

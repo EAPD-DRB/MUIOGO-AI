@@ -9,22 +9,33 @@ You are probably being asked to do modelling work in a directory that has
 nothing to do with where the models are installed. Do not guess paths, and do
 not ask the user where things are. Find out.
 
+## Which world
+
+This skill acts on ONE world at a time. Call the pinned launcher `muiogo-ai`
+(the installed runtime), or `muiogo-live` only when the user explicitly asked for
+their own live installation — never bare `muiogo`, and never fall back to it.
+Every command prints a `world:` line to stderr as its first output: read it, and
+name that world whenever you report anything. Exit code 3 means a world crossing
+was refused — stop and say so. Full rules: [../WORLD_DISCIPLINE.md](../WORLD_DISCIPLINE.md).
+
 ## First move, always
 
 ```bash
-muiogo status
+muiogo-ai status
 ```
 
 That prints the whole installation and needs no running server:
 
 ```
+world: runtime (installed) · http://127.0.0.1:5102 · <workspace>/MUIOGO [pinned by launcher]
+world         INSTALLED  (a self-contained runtime built by the installer)
 manifest      /Users/<you>/.muiogo/manifest.json
 workspace     /Users/<you>/muiogo-ai
 installed     2026-07-28T11:09:12
 MUIOGO        <workspace>/MUIOGO  (ref 3db8b816)
 model data    <workspace>/MUIOGO/WebAPP/DataStorage
-server URL    http://127.0.0.1:5002
-server        not running   (start it: muiogo serve)
+server URL    http://127.0.0.1:5102
+server        not running   (start it: muiogo-ai serve)
   case        CLEWs Demo
   case        Philippines_v12_ENV_LAND_WATER_DIAGNOSTIC
   OG model    og-phl  /Users/<you>/.muiogo/og-models/OG-PHL
@@ -32,21 +43,31 @@ server        not running   (start it: muiogo serve)
   solvers     glpk=True cbc=True
 ```
 
-`muiogo status --json` gives the same thing machine-readably when you are
-scripting rather than reading. `muiogo worlds` lists every workspace on the
+The first line goes to stderr and names the world; the rest is the installation
+itself. `muiogo-ai status --json` gives the same thing machine-readably when you
+are scripting rather than reading. `muiogo worlds` lists every workspace on the
 machine and marks the active one — worth checking whenever a path looks
-unfamiliar, because a machine may carry both an **adopted** world (checkouts
+unfamiliar, because a machine may carry both a **live** world (adopted checkouts
 someone runs manually, on their own branches, port 5002) and an **installed**
-runtime (self-contained, port 5102). Never assume which one you are in.
+runtime (self-contained, port 5102). Never assume which one you are in, and use
+`worlds` only to orient, never to pick a target: the target comes from the
+launcher you called.
 
 Take every path from that output. Never hardcode a path, and never reuse a path
-from an example — including the examples in this or any other skill file.
+from an example — including the examples in this or any other skill file. For a
+case, ask for its absolute path rather than composing one:
 
-### If `muiogo status` is not found
+```bash
+CASE="$(muiogo-ai case-path --case '<case name>')"   # absolute, in this world
+```
 
-The command line is not installed. Do not fall back to guessing: tell the user
+### If `muiogo-ai` is not found
 
-> I can't find the `muiogo` command, which means the MUIOGO-AI tooling isn't
+Try its full path first — `~/.local/bin/muiogo-ai status` — because a launcher
+that exists but is off PATH is the common case. Do not fall back to bare
+`muiogo`. If it is not there either, the tooling is not installed; tell the user
+
+> I can't find the `muiogo-ai` launcher, which means the MUIOGO-AI tooling isn't
 > installed on this machine. From a MUIOGO-AI checkout, `uv tool install ./client`
 > installs it, and `./scripts/install.sh` sets up the whole stack.
 
@@ -57,8 +78,13 @@ installing again would build a second multi-gigabyte copy:
 
 ```bash
 muiogo adopt --scan      # what is already on this machine
-muiogo adopt --auto      # record it as the workspace, installing nothing
+muiogo adopt --auto      # record it as the live world, installing nothing
 ```
+
+`adopt` and `worlds` are the only bare `muiogo` commands in this skill: they are
+about the worlds themselves, not work inside one, and `adopt` registers the
+user's own checkouts as the **live** world — so propose it and let the user say
+yes. Everything else goes through `muiogo-ai`.
 
 Only if that finds nothing:
 
@@ -68,13 +94,13 @@ Only if that finds nothing:
 
 ### If the paths look wrong
 
-If `muiogo status` reports a workspace in a temporary directory, or a path the
+If `muiogo-ai status` reports a workspace in a temporary directory, or a path the
 user does not recognise, it is pointing at a stale installation. `muiogo adopt
 --scan` shows the real checkouts and `--auto` re-points at them.
 
 ### If a component is missing
 
-`muiogo status` lists only what is installed. No OG model line means no OG
+`muiogo-ai status` lists only what is installed. No OG model line means no OG
 country model is installed; no link line means the OG-CLEWs link is absent. Say
 so plainly rather than attempting the work — for example, a coupled OG-CLEWS run
 is impossible without both an OG model and the link.
@@ -88,7 +114,7 @@ usually exists in **both** families, and they are completely different models:
 |---|---|---|
 | What it is | energy, land, water systems; a cost-minimising capacity/dispatch model | overlapping-generations macroeconomic model; fiscal and demographic policy |
 | Lives in | MUIOGO's model data: `<data storage>/<case>/` | its own repo + venv: `<og-models>/OG-XXX/` |
-| Driven by | the `muiogo` command line (HTTP API) | that repo's own Python (`uv run …`), never imported here |
+| Driven by | the `muiogo-ai` command line (HTTP API) | that repo's own Python (`uv run …`), never imported here |
 | Units of work | a **case**, its **scenarios**, and **runs** | a baseline and a reform |
 | Results | `res/<run>/csv/*.csv` | `OUTPUT_BASELINE/` and `OUTPUT_REFORM/` |
 
@@ -102,7 +128,7 @@ it from the request, not from the country name:
 - Mentions both, or "the effect of the energy plan on the economy" → this is a
   **coupled** OG-CLEWS question; you need the link.
 - Genuinely unclear → ask one short question naming the two candidates from
-  `muiogo status`, e.g. *"the CLEWs energy model `Philippines_v12_…` or the
+  `muiogo-ai status`, e.g. *"the CLEWs energy model `Philippines_v12_…` or the
   macro model `OG-PHL`?"*
 
 ## Where to go next
@@ -135,7 +161,8 @@ of them; do the job directly and say which skill would have covered it.
 
 ## The model data layout (CLEWs side)
 
-Everything under `<data storage>/<case>/`:
+This describes how MUIOGO arranges a case on disk; it is not a path to type.
+Everything sits under `<data storage>/<case>/`:
 
 ```
 genData.json          the case: years, technologies, commodities, emissions,
@@ -151,8 +178,18 @@ res/<run>/            one solved run
 A case with no `res/` has never been solved. A `res/<run>/` with no `csv/`
 means that run failed. Case names contain spaces — always quote them.
 
+To reach any of it, start from `muiogo-ai case-path --case '<name>'`, which
+returns the absolute directory inside this world and fails if the case is not
+here. Never write `WebAPP/DataStorage/<case>` as a command argument: it resolves
+against whatever directory you happen to be in, which is how a same-named case
+in the other world gets edited by accident.
+
 ## Working rules
 
+- **Stay in the world you were called in.** If a case or model is not in the
+  world `muiogo-ai` reports, say so — do not go looking for it in the live world,
+  and do not switch worlds to make an error go away (`muiogo use` is not yours to
+  call). Name the world in what you report.
 - **Read through the command line, not the internals.** `muiogo` talks to
   MUIOGO's HTTP API, which is the same path its web interface uses, so results
   are identical. Never import MUIOGO's Python modules and never edit files

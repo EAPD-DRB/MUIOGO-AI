@@ -9,6 +9,16 @@ Build the most complete Fisheries representation that defensible direct data,
 derived data, proxies, and transparent estimates permit. Do not reproduce the
 omissions of existing sectors, and do not force historical technology outcomes.
 
+## Which world
+
+This skill acts on ONE MUIOGO installation. Use the pinned launcher `muiogo-ai`
+(the installed runtime), or `muiogo-live` only when the user explicitly asked
+for their own checkouts; never bare `muiogo`. Every command prints a `world:`
+line to stderr — read it, and name that world whenever you report a case, a
+solve, or a number. Resolve cases with `muiogo-ai case-path`, never a relative
+`WebAPP/DataStorage/...` path. Exit code 3 is a refused world crossing: stop.
+Full rules: [../WORLD_DISCIPLINE.md](../WORLD_DISCIPLINE.md).
+
 ## Non-negotiable rules
 
 1. Confirm that the original model solves before editing. Preserve a recoverable
@@ -55,6 +65,8 @@ data. Do not edit the templates inside the installed skill.
 ### 1. Establish the technical baseline
 
 - Read repository instructions and locate the authoritative model source.
+  Resolve the case with `CASE="$(muiogo-ai case-path --case '<case>')"` and work
+  from that absolute path.
 - Record model version, years, regions, timeslices, scenarios, solver, saved
   runs, units, parameter defaults, and generation commands.
 - Solve or verify every required baseline run. Record objectives, solver status,

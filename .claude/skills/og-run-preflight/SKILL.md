@@ -17,6 +17,17 @@ contaminated golden records). The cause was import shadowing — invisible at la
 discover. This skill exists so that never recurs: **no solve, battery, or long computation gets
 launched without a GO from the preflight script.** "It looks right" is not a check.
 
+## Which world
+
+This skill acts on **one** world: the runtime installation reached by `muiogo-ai`,
+unless the user explicitly asked for their own live one (`muiogo-live`). Never use
+bare `muiogo`, and never fall back to it. Every command prints a `world:` line to
+stderr — read it, and name that world when you report a result or a number. Worlds
+hold different OG checkouts and different model registries, so the same country
+model can exist in both at different commits. Locate the checkout you mean with
+`muiogo-ai status` rather than assuming a path. Full rules:
+`../WORLD_DISCIPLINE.md`.
+
 ## The rule
 
 Run `scripts/preflight.py` (bundled, stdlib-only) before every launch. It is deterministic and

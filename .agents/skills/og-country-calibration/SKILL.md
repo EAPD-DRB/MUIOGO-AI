@@ -46,6 +46,17 @@ Always verify a claim against the **actual checked-out ref** of the repo in fron
 docs sometimes cite a *cousin repo's feature branch* as if it were canonical, and docs drift from
 code. Open the file; don't trust memory or a sibling's citation.
 
+## Which world
+
+This skill acts on **one** world: the runtime installation reached by `muiogo-ai`,
+unless the user explicitly asked for their own live one (`muiogo-live`). Never use
+bare `muiogo`, and never fall back to it. Every command prints a `world:` line to
+stderr — read it, and name that world when you report a result or a number. Worlds
+hold different OG checkouts and different model registries, so the same country
+model can exist in both at different commits. Locate the checkout you mean with
+`muiogo-ai status` rather than assuming a path. Full rules:
+`../WORLD_DISCIPLINE.md`.
+
 ## The mental model (read this first)
 
 1. **The packaged `og<xxx>_default_parameters.json` is the source of truth.** `Calibration(p,

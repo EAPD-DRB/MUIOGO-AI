@@ -5,8 +5,17 @@ description: Create and run policy scenarios in a MUIOGO CLEWs case — build a 
 
 # Create and run scenarios in a MUIOGO CLEWs case
 
-Orient first with `muiogo status` if you do not know where the model data is
+Orient first with `muiogo-ai status` if you do not know where the model data is
 (see `muiogo-workspace`). All paths below come from that output.
+
+## Which world
+
+This skill acts on ONE MUIOGO installation. Use the pinned launcher `muiogo-ai`
+throughout — never bare `muiogo`, and never fall back to it; `muiogo-live` only
+when the user explicitly asked for their own checkouts. Every command prints a
+`world:` line to stderr: read it, and name that world when you report a
+scenario, a run, or a number. Scenario edits are permanent, so the wrong world
+cannot be undone. Full rules: `../WORLD_DISCIPLINE.md`.
 
 ## The model you are working with
 
@@ -24,6 +33,11 @@ Three layers, and confusing them is the main source of mistakes:
    `<case>/view/resData.json`; each run lists every scenario with an `Active`
    flag. Solving a run merges the active overlays onto the base.
 
+The paths above describe MUIOGO's internal layout — they are not paths to type.
+Never address a case relatively; ask this world for it:
+`CASE="$(muiogo-ai case-path --case '<case>')"` returns an absolute directory and
+fails if the case is not in this world.
+
 So on the demo case: `REF` activates only `SC_0`; `CO2TAX` activates `SC_0` plus
 `CO2_tax`. The `CO2_tax` overlay is simply a non-zero emission penalty (`EP`) on
 CO2 in that scenario's slice, while every other scenario has zeros there.
@@ -31,7 +45,7 @@ CO2 in that scenario's slice, while every other scenario has zeros there.
 See what a case has:
 
 ```bash
-muiogo scenarios --case "CLEWs Demo"
+muiogo-ai scenarios --case "CLEWs Demo"
 ```
 
 ## Combining existing scenarios (the easy, common job)
@@ -39,8 +53,8 @@ muiogo scenarios --case "CLEWs Demo"
 A new run is just a different activation set — no parameter editing at all:
 
 ```bash
-muiogo new-run --case "CLEWs Demo" --run COMBO --activate CO2_tax,RE_Target
-muiogo run     --case "CLEWs Demo" --run COMBO
+muiogo-ai new-run --case "CLEWs Demo" --run COMBO --activate CO2_tax,RE_Target
+muiogo-ai run     --case "CLEWs Demo" --run COMBO
 ```
 
 The base scenario is always included; you name the overlays to add. This is how you answer "what if we did both?" — and the answer is often
@@ -58,22 +72,26 @@ Seed it from an existing scenario, then change only what defines your policy.
 The bundled script does exactly that:
 
 ```bash
+CASE="$(muiogo-ai case-path --case 'My Case')"
 python3 <this skill>/scripts/new_scenario.py \
     --case "My Case" --name High_CO2_tax --desc "CO2 tax at 4x" \
     --copy-from CO2_tax \
     --set RYE.json:EP:EMI_6ku9o:x4 \
-    --data-storage "<data storage>"
+    --data-storage "$(dirname "$CASE")"
 ```
 
 It registers the scenario, copies a full slice from `--copy-from` (default: the
-base), applies any `--set` multipliers, and tells you the next commands. Then:
+base), applies any `--set` multipliers, and tells you the next commands. It
+writes through MUIOGO's HTTP API and refuses to guess a world, so run it from a
+shell a launcher started, or pass `--url` (the `world:` line any `muiogo-ai`
+command prints carries this world's URL). Then:
 
 ```bash
-muiogo new-run --case "My Case" --run HITAX --activate High_CO2_tax
-muiogo run     --case "My Case" --run HITAX
+muiogo-ai new-run --case "My Case" --run HITAX --activate High_CO2_tax
+muiogo-ai run     --case "My Case" --run HITAX
 ```
 
-**Work on a copy while experimenting.** `muiogo copy --case "My Case"` makes
+**Work on a copy while experimenting.** `muiogo-ai copy --case "My Case"` makes
 `My Case_copy`; scenario edits change the case's data for every future run, and
 there is no undo.
 
@@ -114,12 +132,13 @@ per combination, then batch-solve:
 
 ```bash
 # three tax levels seeded from the existing tax scenario
+DS="$(dirname "$(muiogo-ai case-path --case 'My Case')")"
 for f in 2 4 8; do
   python3 <skill>/scripts/new_scenario.py --case "My Case" --name Tax_x$f \
-      --copy-from CO2_tax --set RYE.json:EP:EMI_6ku9o:x$f --data-storage "<ds>"
-  muiogo new-run --case "My Case" --run TAX_X$f --activate Tax_x$f
+      --copy-from CO2_tax --set RYE.json:EP:EMI_6ku9o:x$f --data-storage "$DS"
+  muiogo-ai new-run --case "My Case" --run TAX_X$f --activate Tax_x$f
 done
-muiogo batch --case "My Case" --runs TAX_X2,TAX_X4,TAX_X8
+muiogo-ai batch --case "My Case" --runs TAX_X2,TAX_X4,TAX_X8
 ```
 
 Then check the response is monotonic and sensible before believing it. On the
@@ -143,7 +162,7 @@ the scenario's slice actually holds your values before reporting results.
 Do not trust `status: success` alone — a run can solve while your overlay did
 nothing.
 
-1. The new scenario appears: `muiogo scenarios --case "<case>"`.
+1. The new scenario appears: `muiogo-ai scenarios --case "<case>"`.
 2. The run activates it: same command shows the run and its active scenarios.
 3. The numbers moved in the expected direction, versus the run without it.
 

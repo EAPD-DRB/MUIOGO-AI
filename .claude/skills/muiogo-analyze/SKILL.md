@@ -5,32 +5,49 @@ description: Interpret and present results from a CLEWs/OSeMOSYS model run in MU
 
 # Interpret and present CLEWs results
 
-Orient with `muiogo status` if you do not know where the model data is (see
+Orient with `muiogo-ai status` if you do not know where the model data is (see
 `muiogo-workspace`). Nothing here re-runs a model: it reads the result files a
 solve already produced. If a run has no results, hand back to `muiogo-run`.
+
+## Which world
+
+Everything below acts on ONE world — the installed runtime, reached through the
+pinned launcher `muiogo-ai`. Never bare `muiogo`, and never fall back to it.
+Every command prints a `world:` line to stderr first: read it, and name that
+world when you report a number, a chart, or a comparison. Exit code 3 means the
+command refused a world crossing — stop, do not sidestep it. Full rules:
+`../WORLD_DISCIPLINE.md`.
 
 ## Check the solve before believing the numbers
 
 Interpreting a bad solve is worse than not interpreting at all.
 
 ```bash
-muiogo variables --case "<case>" --run <run>
+muiogo-ai variables --case "<case>" --run <run>
 ```
 
 That lists the result variables a run produced. If it reports no results, the run
 was never solved or the solve failed — stop and say so. Then sanity-check:
 
-- **Status.** The first line of `res/<run>/results.txt` carries the solver's
-  verdict. "Optimal" is what you want; anything else invalidates the analysis.
-- **Provenance.** `muiogo compare` warns when a run has no `RUN.json`, which
+- **Status.** The solver's verdict is the first line of `res/<run>/results.txt`
+  inside the case. Locate the case absolutely rather than typing a relative
+  path:
+
+  ```bash
+  CASE="$(muiogo-ai case-path --case '<case>')"
+  head -1 "$CASE/res/<run>/results.txt"
+  ```
+
+  "Optimal" is what you want; anything else invalidates the analysis.
+- **Provenance.** `muiogo-ai compare` warns when a run has no `RUN.json`, which
   means nobody can say what produced it. Pass that warning on to the user, or
-  settle it with `muiogo verify --case "<case>" --run <run> --resolve`, which
+  settle it with `muiogo-ai verify --case "<case>" --run <run> --resolve`, which
   re-solves and proves whether the stored numbers still hold.
 - **Plausibility.** Demand met, no wild capacity spikes, costs and emissions in a
   believable range for the country's size.
 - **Direction.** A policy run must move in the direction the policy implies. A
   carbon tax that raises emissions means the overlay did not apply — check with
-  `muiogo scenarios --case "<case>"` that the run activates what you think.
+  `muiogo-ai scenarios --case "<case>"` that the run activates what you think.
 - **Structure.** If numbers look impossible, the model may be malformed rather
   than mis-solved — hand off to `clews-model-review`.
 
@@ -41,14 +58,14 @@ means something in the system is acting as a sink.
 ## Compare runs
 
 ```bash
-muiogo compare --case "<case>" --runs REF,CO2TAX --var AnnualTechnologyEmission --filter e=CO2
+muiogo-ai compare --case "<case>" --runs REF,CO2TAX --var AnnualTechnologyEmission --filter e=CO2
 ```
 
 It prints first year, last year, cumulative total, and percentage change against
 the first series listed — so put the baseline first. Add `--table` for the full
 year-by-year matrix.
 
-Common variables (use `muiogo variables` for the full list of a given run):
+Common variables (use `muiogo-ai variables` for the full list of a given run):
 
 | Variable | Question it answers |
 |---|---|
@@ -69,7 +86,7 @@ storage.
 Totals tell you *whether*; a breakdown tells you *why*.
 
 ```bash
-muiogo compare --case "<case>" --runs CO2TAX --var AnnualTechnologyEmission \
+muiogo-ai compare --case "<case>" --runs CO2TAX --var AnnualTechnologyEmission \
     --filter e=CO2 --by t --top 8
 ```
 
@@ -80,7 +97,7 @@ ones that grow to replace them are the story.
 ## Charts
 
 ```bash
-muiogo compare --case "<case>" --runs REF,CO2TAX,HITAX \
+muiogo-ai compare --case "<case>" --runs REF,CO2TAX,HITAX \
     --var AnnualTechnologyEmission --filter e=CO2 --chart ./co2.png
 ```
 

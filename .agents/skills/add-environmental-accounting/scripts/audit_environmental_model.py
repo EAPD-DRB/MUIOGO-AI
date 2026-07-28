@@ -3,6 +3,10 @@
 
 This script is read-only. It inspects JSON sources plus saved annual activity
 results when available and emits either a human-readable report or JSON.
+
+Pass --model as an absolute case path, normally from
+`muiogo-ai case-path --case '<case>'`. A relative case path resolves against the
+working directory and can land in a different MUIOGO installation.
 """
 
 from __future__ import annotations
@@ -34,10 +38,17 @@ def load_json(path: Path) -> dict[str, Any]:
         return json.load(handle)
 
 
-def resolve_model(model: str, datastorage: Path) -> Path:
+def resolve_model(model: str, datastorage: Path | None) -> Path:
     direct = Path(model).expanduser()
     if direct.is_dir():
         return direct.resolve()
+    if datastorage is None:
+        raise SystemExit(
+            f"Model not found: {model}. Pass the absolute case path from "
+            "`muiogo-ai case-path --case '<case>'`, or an explicit "
+            "--datastorage folder. A case name resolved against the working "
+            "directory can point into a different MUIOGO installation."
+        )
     candidate = (datastorage / model).expanduser()
     if candidate.is_dir():
         return candidate.resolve()
@@ -493,12 +504,16 @@ def print_report(report: dict[str, Any]) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model", required=True, help="case folder or case name")
+    parser.add_argument(
+        "--model",
+        required=True,
+        help="absolute case folder, normally from `muiogo-ai case-path`",
+    )
     parser.add_argument(
         "--datastorage",
         type=Path,
-        default=Path("WebAPP/DataStorage"),
-        help="MUIO DataStorage folder when --model is a case name",
+        help="explicit MUIO DataStorage folder when --model is a bare case name; "
+        "prefer an absolute --model so the world cannot be crossed",
     )
     parser.add_argument("--json", action="store_true", help="emit JSON")
     args = parser.parse_args()
