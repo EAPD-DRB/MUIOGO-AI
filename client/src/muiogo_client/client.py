@@ -199,6 +199,106 @@ class MuiogoClient:
             {"casename": case, "caserunname": run, "data": payload},
         )
 
+    # -- bringing models and data in and out ---------------------------------
+
+    def validate_inputs(self, case, run):
+        """Check a case run's inputs before committing to a long solve."""
+        return self._post_json("/validateInputs", {"casename": case, "caserunname": run})
+
+    def import_case(self, zip_path, timeout=900):
+        """Install a MUIO case from a .zip, the same path the GUI's restore uses.
+
+        The archive must contain one top-level case folder holding genData.json.
+        Returns the server's response; confirm afterwards with list_cases().
+        """
+        path = Path(zip_path)
+        if not path.is_file():
+            raise MuiogoError(f"no such file: {path}")
+        with open(path, "rb") as f:
+            r = self._http.post(f"{self.base_url}/uploadCase",
+                                files={"file": (path.name, f, "application/zip")},
+                                timeout=timeout)
+        r.raise_for_status()
+        try:
+            return r.json()
+        except ValueError:
+            return {"raw": r.text[:400]}
+
+    def import_xls(self, case, xls_path, timeout=900):
+        """Load an Excel workbook into a case. Session-gated: selects `case`."""
+        self.select_case(case)
+        path = Path(xls_path)
+        if not path.is_file():
+            raise MuiogoError(f"no such file: {path}")
+        with open(path, "rb") as f:
+            r = self._http.post(f"{self.base_url}/uploadXls",
+                                files={"file": (path.name, f, "application/vnd.ms-excel")},
+                                timeout=timeout)
+        r.raise_for_status()
+        try:
+            return r.json()
+        except ValueError:
+            return {"raw": r.text[:400]}
+
+    def export_case(self, case, dest, timeout=900):
+        """Download a case as a .zip — the shareable, self-contained package."""
+        self.select_case(case)
+        # /backupCase reads the query key `case`, not `casename` (verified:
+        # UploadRoute.backupCase -> request.args.get('case')).
+        r = self._http.get(f"{self.base_url}/backupCase",
+                           params={"case": case}, timeout=timeout)
+        r.raise_for_status()
+        # Treat --out as a directory unless it names a .zip, so a path that does
+        # not exist yet becomes a folder rather than an extensionless file.
+        out = Path(dest)
+        if out.is_dir() or out.suffix.lower() != ".zip":
+            out.mkdir(parents=True, exist_ok=True)
+            out = out / f"{case}.zip"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(r.content)
+        return out
+
+    # -- OG country models (MUIOGO's own installer layer) --------------------
+    # MUIOGO wraps the upstream OG-Core universal installer and keeps a registry
+    # of installed calibrations. Driving it through here means the GUI, the
+    # OG-CLEWs link and the skills all see the same models.
+
+    @staticmethod
+    def _countries(body):
+        """Both /ogc list endpoints wrap their rows in a 'countries' key."""
+        if isinstance(body, dict):
+            return body.get("countries") or body.get("calibrations") or []
+        return body or []
+
+    def og_catalog(self):
+        """Country calibrations available to install, read live from upstream."""
+        return self._countries(self._get("/ogc/getCalibrationCatalog").json())
+
+    def og_installed(self):
+        """Country calibrations installed on this machine."""
+        return self._countries(self._get("/ogc/getInstalledCalibrations").json())
+
+    def og_install(self, catalog_key=None, repo_url=None, branch=None):
+        """Start an OG country-model install. Returns the job's install_id.
+
+        Asynchronous: the install clones and syncs a full model environment,
+        which takes minutes. Poll with og_install_status().
+        """
+        if not (catalog_key or repo_url):
+            raise MuiogoError("give either catalog_key or repo_url")
+        payload = {}
+        if catalog_key:
+            payload["catalog_key"] = catalog_key
+        if repo_url:
+            payload["repo_url"] = repo_url
+        if branch:
+            payload["branch"] = branch
+        return self._post_json("/ogc/installCalibration", payload)
+
+    def og_install_status(self, install_id):
+        r = self._get("/ogc/getInstallStatus", params={"install_id": install_id})
+        return r.json()
+
     def delete_run(self, case, run, results_only=False):
         return self._post_json(
             "/deleteCaseRun",

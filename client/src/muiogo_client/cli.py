@@ -16,6 +16,13 @@ Running:
   muiogo batch  --case NAME --runs A,B,C             generate + solve several (CBC)
   muiogo log    --case NAME --run RUN                solver log for a run
 
+Bringing models in and out:
+  muiogo import --zip FILE.zip                       install a MUIO case archive
+  muiogo import --xls BOOK.xlsx --case NAME          load an Excel workbook
+  muiogo export --case NAME [--out DIR]              download a shareable .zip
+  muiogo validate --case NAME --run RUN              check inputs before solving
+  muiogo og catalog | installed | install --key KEY  OG country models
+
 Results and analysis:
   muiogo results --case NAME --run RUN [--out DIR]   list result CSVs, or download all
   muiogo variables --case NAME --run RUN             what result variables exist
@@ -358,6 +365,100 @@ def cmd_compare(args):
     return 0
 
 
+def cmd_validate(args):
+    """MUIOGO ships ten input-consistency checks; its output carries HTML for
+    the browser, so strip it and report pass/fail plainly."""
+    import re as _re
+    body = _client(args).validate_inputs(args.case, args.run)
+    raw = body.get("msg") or body.get("message") or "" if isinstance(body, dict) else str(body)
+    text = _re.sub(r"<[^>]+>", "", raw)
+    checks, failures = [], []
+    for line in (l.strip() for l in text.splitlines()):
+        m = _re.match(r"(CHECK \d+):\s*(\w+)", line)
+        if m:
+            checks.append(m.group(1))
+            if m.group(2).lower() != "success":
+                failures.append(line)
+        elif line.startswith("CHECK") and ":" in line:
+            pass
+    for f in failures:
+        print(f"  FAIL {f}")
+    if checks:
+        print(f"{len(checks) - len(failures)}/{len(checks)} input checks passed")
+    else:
+        print(text.strip() or body)
+    if failures:
+        print("\nFix these before solving — they cause infeasible or wrong results.",
+              file=sys.stderr)
+        return 1
+    return 0
+
+
+def cmd_import(args):
+    client = _client(args)
+    before = set(client.list_cases())
+    if args.xls:
+        if not args.case:
+            print("--xls needs --case (the case to load the workbook into)", file=sys.stderr)
+            return 2
+        body = client.import_xls(args.case, args.xls)
+        print(body.get("message", body) if isinstance(body, dict) else body)
+        return 0
+    body = client.import_case(args.zip)
+    after = set(client.list_cases())
+    new = sorted(after - before)
+    if new:
+        for case in new:
+            print(f"imported: {case}")
+        return 0
+    print(f"No new case appeared. Server said: "
+          f"{body.get('message', body) if isinstance(body, dict) else body}", file=sys.stderr)
+    return 1
+
+
+def cmd_export(args):
+    out = _client(args).export_case(args.case, args.out or ".")
+    size = out.stat().st_size / (1 << 20)
+    print(f"exported: {out}  ({size:.1f} MB)")
+    return 0
+
+
+def cmd_og(args):
+    client = _client(args)
+    if args.og_command == "catalog":
+        installed = {c.get("country_id") for c in (client.og_installed() or [])}
+        for entry in client.og_catalog() or []:
+            mark = "installed" if entry.get("country_id") in installed else ""
+            print(f"  {entry.get('catalog_key',''):<12} {entry.get('country_id',''):<5} "
+                  f"{entry.get('country_name','')[:40]:<42}{mark}")
+        return 0
+    if args.og_command == "installed":
+        rows = client.og_installed() or []
+        if not rows:
+            print("no OG country models installed")
+        for entry in rows:
+            print(f"  {entry.get('country_id',''):<5} {entry.get('country_name','')[:38]:<40}"
+                  f"{entry.get('install_state','')}")
+        return 0
+    # install
+    body = client.og_install(catalog_key=args.key, repo_url=args.repo_url, branch=args.branch)
+    install_id = body.get("install_id")
+    print(f"install started: {install_id}  ({body.get('install_state')})")
+    if args.wait:
+        import time
+        for _ in range(240):
+            status = client.og_install_status(install_id)
+            state = status.get("install_state")
+            if state in ("installed", "failed"):
+                print(f"  {state}: {status.get('progress_label','')}")
+                return 0 if state == "installed" else 1
+            time.sleep(5)
+        print("  still running — check with: muiogo og installed", file=sys.stderr)
+        return 1
+    print("Poll it with:  muiogo og installed")
+    return 0
+
+
 def cmd_serve(args):
     root = args.root
     if not root:
@@ -466,6 +567,33 @@ def main(argv=None):
     p.add_argument("--chart", help="write a chart image here (.png)")
     p.add_argument("--kind", default="line", choices=["line", "area", "bar"])
     p.set_defaults(func=cmd_compare)
+
+    p = sub.add_parser("validate", help="check a run's inputs before a long solve")
+    p.add_argument("--case", required=True)
+    p.add_argument("--run", required=True, dest="run")
+    p.set_defaults(func=cmd_validate)
+
+    p = sub.add_parser("import", help="bring in a case .zip, or an Excel workbook")
+    p.add_argument("--zip", help="a MUIO case archive to install")
+    p.add_argument("--xls", help="an Excel workbook to load into --case")
+    p.add_argument("--case", help="target case (required with --xls)")
+    p.set_defaults(func=cmd_import)
+
+    p = sub.add_parser("export", help="download a case as a shareable .zip")
+    p.add_argument("--case", required=True)
+    p.add_argument("--out", help="file or directory to write to (default: here)")
+    p.set_defaults(func=cmd_export)
+
+    p = sub.add_parser("og", help="OG country models: catalog, installed, install")
+    ogsub = p.add_subparsers(dest="og_command", required=True)
+    ogsub.add_parser("catalog", help="country models available to install")
+    ogsub.add_parser("installed", help="country models installed here")
+    q = ogsub.add_parser("install", help="install a country model")
+    q.add_argument("--key", help="catalog key, e.g. og-zaf")
+    q.add_argument("--repo-url", help="install from a git URL instead")
+    q.add_argument("--branch")
+    q.add_argument("--wait", action="store_true", help="poll until it finishes")
+    p.set_defaults(func=cmd_og)
 
     p = sub.add_parser("serve", help="run a headless MUIOGO server in the foreground")
     p.add_argument("--root", help="MUIOGO checkout (default: from manifest)")

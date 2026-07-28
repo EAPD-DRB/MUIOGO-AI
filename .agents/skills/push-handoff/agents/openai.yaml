@@ -1,0 +1,4 @@
+interface:
+  display_name: "Push Handoff"
+  short_description: "Package and push Fiji and Philippines handoffs"
+  default_prompt: "Use $push-handoff to package and push the latest Fiji and Philippines model handoffs."

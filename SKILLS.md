@@ -46,6 +46,14 @@ any folder from `.agents/skills/` into your assistant's skills directory
 |---|---|
 | `muiogo-workspace` | Finds your installation, lists what is available, and routes the request to the right model family and skill. Every other skill assumes this one has run. |
 
+## Getting models in and out
+
+| Skill | What it does |
+|---|---|
+| `muiogo-provision` | Installs an OG country model, imports a case archive or Excel workbook, exports a shareable zip, and validates inputs before a long solve. |
+| `pull-handoff` | Pulls the CLEWs country repos and installs their recommended MUIO cases, with checksum checks and a backup of anything replaced. |
+| `push-handoff` | Packages local cases back out with `SHA256SUMS` and a dated handoff note, for laptop-to-laptop transfer or publishing. |
+
 ## MUIOGO — running models and analysing results
 
 | Skill | What it does |
@@ -116,8 +124,10 @@ Canonical homes differ, so update in the right place. Canonical in
 [Model-tools](https://github.com/EAPD-DRB/Model-tools) and mirrored here —
 edit there first, then re-copy: the five CLEWs skills plus
 `og-country-calibration`, `og-scenario-report`, and `og-analysis-studio`.
+`pull-handoff` and `push-handoff` are also mirrored from Model-tools.
 Canonical **here**: `og-run-preflight`, `og-solver-diagnosis`,
-`og-repo-fleet-sync`, `worktree-orchard`, `calibration-provenance`.
+`og-repo-fleet-sync`, `worktree-orchard`, `calibration-provenance`, and the
+`muiogo-*` skills.
 
 **Approval gates, binding on every skill above:** skills propose, draft, and
 prepare; the user decides. A skill may edit files and commit locally, but must

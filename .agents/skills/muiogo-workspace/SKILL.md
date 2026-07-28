@@ -90,6 +90,8 @@ Once you know the layout, hand off to the skill that owns the job:
 
 | The user wants to… | Use |
 |---|---|
+| install a country model, import a case or workbook, export or validate | `muiogo-provision` |
+| move model work between laptops or publish to the country repos | `pull-handoff`, `push-handoff` |
 | solve a case, batch several, collect results | `muiogo-run` |
 | build a policy scenario, combine scenarios, sweep a matrix | `muiogo-scenarios` |
 | compare runs, check solution health, chart, write up findings | `muiogo-analyze` |
