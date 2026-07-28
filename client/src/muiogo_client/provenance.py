@@ -76,7 +76,16 @@ def objective(data_storage, case, run):
 
 
 def results_digest(data_storage, case, run):
-    """One hash over every result CSV, so two result sets can be compared."""
+    """One hash over every result CSV, so two result sets can be compared.
+
+    Deterministic for a given input state: solving the same run twice gives the
+    same objective and the same digest (verified). The digest covers the SET of
+    files as well as their contents, so it also changes when the set changes —
+    MUIOGO writes 32 result variables on a re-solve where some shipped runs
+    carry 44. That is a real difference worth catching, not noise, but it means a
+    digest is only comparable against one produced by the same MUIOGO version.
+    The objective is the more portable check.
+    """
     csv_dir = run_dir(data_storage, case, run) / "csv"
     if not csv_dir.is_dir():
         return None, 0

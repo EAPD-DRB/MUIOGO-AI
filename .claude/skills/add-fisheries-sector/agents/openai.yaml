@@ -1,0 +1,4 @@
+interface:
+  display_name: "Add Fisheries Sector"
+  short_description: "Build a complete, auditable Fisheries sector"
+  default_prompt: "Use $add-fisheries-sector to add a complete, source-traceable and non-forcing Fisheries sector to this country model."

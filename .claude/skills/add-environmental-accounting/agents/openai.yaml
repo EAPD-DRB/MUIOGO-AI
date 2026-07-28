@@ -1,0 +1,4 @@
+interface:
+  display_name: "CLEWS Environmental Accounting"
+  short_description: "Add auditable Earth-system accounts to CLEWS"
+  default_prompt: "Use $add-environmental-accounting to design and validate environmental accounts for this MUIO/OSeMOSYS CLEWS model."

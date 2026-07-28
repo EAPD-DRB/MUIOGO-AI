@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pull Handoff"
+  short_description: "Pull and install the latest CLEWs handoffs"
+  default_prompt: "Use $pull-handoff to update the three model repositories and install the latest Fiji and Philippines cases in MUIO."

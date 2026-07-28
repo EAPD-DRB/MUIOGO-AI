@@ -47,6 +47,7 @@ ASSUME_YES=0
 DO_LIST=0
 DO_LIST_JSON=0
 DO_RELINK=0
+DO_CHECK=0
 
 usage() {
     cat <<EOF
@@ -59,9 +60,10 @@ Options:
   -h, --help              Show this message and exit.
       --list              Print the skill catalogue (human-readable) and exit.
       --list-json         Print the skill catalogue as JSON and exit.
-      --relink            Rebuild this repo's .claude/skills symlinks (one per
-                          skill, pointing at .agents/skills) and exit. Run this
-                          after adding or renaming a skill.
+      --sync              Refresh this repo's .claude/skills copies from
+                          .agents/skills and exit. Run after adding, renaming or
+                          editing a skill. (--relink is accepted as an alias.)
+      --check             Report whether the two copies match; exit 1 if not.
   -y, --yes               Auto-confirm every prompt (non-interactive). Requires
                           --tool or --dir, since the assistant cannot be guessed.
       --tool KEY          Install for a known assistant: claude, codex, or both.
@@ -86,7 +88,8 @@ while [[ $# -gt 0 ]]; do
         -y|--yes)    ASSUME_YES=1;     shift ;;
         --list)      DO_LIST=1;        shift ;;
         --list-json) DO_LIST_JSON=1;   shift ;;
-        --relink)    DO_RELINK=1;      shift ;;
+        --sync|--relink) DO_RELINK=1;  shift ;;
+        --check)     DO_CHECK=1;       shift ;;
         -h|--help)   usage; exit 0 ;;
         *) echo "Unknown option: $1" >&2; exit 1 ;;
     esac
@@ -156,25 +159,37 @@ print(sentence[:96])
 PY
 }
 
-# ── In-repo symlinks (Claude Code reads .claude/skills; a per-skill entry may
-# be a symlink, which is the form Claude Code documents as supported) ─────────
+# ── In-repo copies for Claude Code (.claude/skills) ──────────────────────────
+# Real copies, not symlinks: a Windows clone made without core.symlinks turns a
+# symlink into a text file holding its target, which would silently disable every
+# repo-scoped skill. The whole set is well under a megabyte, so duplication is
+# cheaper than that failure mode. .agents/skills stays the single source of truth.
+if [[ $DO_CHECK -eq 1 ]]; then
+    section "Checking .claude/skills against .agents/skills"
+    if diff -rq "$SKILLS_DIR" "$CLAUDE_LINK_DIR" >/dev/null 2>&1; then
+        print_pass "in sync" "$(ls "$SKILLS_DIR" | wc -l | tr -d ' ') skills"
+        exit 0
+    fi
+    diff -rq "$SKILLS_DIR" "$CLAUDE_LINK_DIR" 2>&1 | sed 's/^/  /'
+    echo
+    printf "  out of sync — run: ./scripts/install-skills.sh --sync\n"
+    exit 1
+fi
+
 if [[ $DO_RELINK -eq 1 ]]; then
-    section "Rebuilding .claude/skills symlinks"
+    section "Refreshing .claude/skills from .agents/skills"
+    rm -rf "$CLAUDE_LINK_DIR"
     mkdir -p "$CLAUDE_LINK_DIR" || err "cannot create $CLAUDE_LINK_DIR"
-    # Drop existing symlinks only; never touch a real directory someone added.
-    for existing in "$CLAUDE_LINK_DIR"/*; do
-        [[ -L "$existing" ]] && rm -f "$existing"
-    done
     for s in "${AVAILABLE[@]}"; do
-        ln -sfn "../../.agents/skills/$s" "$CLAUDE_LINK_DIR/$s"
+        cp -R "$SKILLS_DIR/$s" "$CLAUDE_LINK_DIR/$s"
         if [[ -f "$CLAUDE_LINK_DIR/$s/SKILL.md" ]]; then
             print_pass "$s"
         else
-            print_fail "$s" "symlink does not resolve"
+            print_fail "$s" "copy incomplete"
         fi
     done
     echo
-    printf "  %d symlinks rebuilt in .claude/skills\n" "${#AVAILABLE[@]}"
+    printf "  %d skills copied into .claude/skills\n" "${#AVAILABLE[@]}"
     exit 0
 fi
 

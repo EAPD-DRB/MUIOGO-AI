@@ -25,10 +25,17 @@ class MuiogoServer:
         self.process = None
 
     def _python(self):
-        py = self.root / ".venv" / "bin" / "python"
-        if not py.exists():
+        """The checkout's own interpreter, on either platform.
+
+        Uses the same resolver as everything else — POSIX puts it at
+        .venv/bin/python, Windows at .venv/Scripts/python.exe. Hardcoding the
+        POSIX path here made serve and stop impossible on Windows.
+        """
+        from muiogo_client.workspace import venv_python
+        py = venv_python(self.root)
+        if py is None:
             raise ServerError(
-                f"No venv python at {py}. Run 'uv sync' in {self.root} first."
+                f"No virtual environment in {self.root}. Run 'uv sync' there first."
             )
         return py
 
@@ -116,10 +123,17 @@ class MuiogoServer:
         log = Path(log_path) if log_path else (self._state_dir() / f"port-{self.port}.log")
         log.parent.mkdir(parents=True, exist_ok=True)
         env = dict(os.environ, PORT=str(self.port), **self._og_env())
+        # Detach so the server outlives this process. setsid is POSIX; Windows
+        # wants a new process group instead.
+        spawn = {}
+        if os.name == "nt":
+            spawn["creationflags"] = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        else:
+            spawn["start_new_session"] = True
         with open(log, "ab") as handle:
             proc = subprocess.Popen(
                 [str(self._python()), str(app)], cwd=str(self.root), env=env,
-                stdout=handle, stderr=handle, start_new_session=True)
+                stdout=handle, stderr=handle, **spawn)
         deadline = time.time() + wait_seconds
         while time.time() < deadline:
             if self.is_running():
@@ -144,15 +158,26 @@ class MuiogoServer:
         except (OSError, ValueError):
             path.unlink(missing_ok=True)
             return None
+        # os.kill on Windows ignores the signal and terminates abruptly whatever
+        # you pass, so ask for a graceful stop only where that means something.
         try:
-            os.kill(pid, signal.SIGTERM)
-        except ProcessLookupError:
+            if os.name == "nt":
+                subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"],
+                               capture_output=True, timeout=30)
+            else:
+                os.kill(pid, signal.SIGTERM)
+        except (ProcessLookupError, OSError, subprocess.SubprocessError):
             path.unlink(missing_ok=True)
             return None
         for _ in range(20):
             if not self.is_running():
                 break
             time.sleep(0.5)
+        if self.is_running() and os.name != "nt":
+            try:
+                os.kill(pid, signal.SIGKILL)      # it ignored the polite request
+            except (ProcessLookupError, OSError):
+                pass
         path.unlink(missing_ok=True)
         return pid
 

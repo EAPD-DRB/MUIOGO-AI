@@ -207,8 +207,28 @@ for cmd in open xdg-open; do
     printf '#!/bin/sh\nexit 0\n' > "$SHIM_DIR/$cmd" && chmod +x "$SHIM_DIR/$cmd"
 done
 
+# Port checks go through python3 (already a requirement) rather than lsof, which
+# does not exist on Windows or in Git Bash.
+port_busy() {
+    python3 - "$PORT" <<'PYEOF' 2>/dev/null
+import socket, sys
+s = socket.socket()
+s.settimeout(1)
+sys.exit(0 if s.connect_ex(("127.0.0.1", int(sys.argv[1]))) == 0 else 1)
+PYEOF
+}
 server_pid() { lsof -ti ":$PORT" 2>/dev/null | head -1; }
-stop_server() { local pid; pid="$(server_pid)"; [[ -n "$pid" ]] && kill "$pid" 2>/dev/null && sleep 1; }
+stop_server() {
+    # Prefer the pid we recorded; fall back to a port lookup only where lsof exists.
+    local pidfile="$HOME/.muiogo/servers/port-$PORT.pid"
+    if [[ -f "$pidfile" ]]; then
+        kill "$(cat "$pidfile")" 2>/dev/null && rm -f "$pidfile" && sleep 1 && return 0
+    fi
+    if command -v lsof >/dev/null; then
+        local pid; pid="$(server_pid)"
+        [[ -n "$pid" ]] && kill "$pid" 2>/dev/null && sleep 1
+    fi
+}
 api() { curl -s -m "${2:-10}" "http://127.0.0.1:${PORT}${1}"; }
 wait_api() { # wait_api SECONDS — until /getCases answers
     local deadline=$(( $(date +%s) + $1 ))
@@ -222,11 +242,11 @@ wait_api() { # wait_api SECONDS — until /getCases answers
 # ── preflight ─────────────────────────────────────────────────────────────────
 CURRENT_STEP="preflight"
 section "Preflight"
-for tool in git curl python3 lsof; do
+for tool in git curl python3; do
     command -v "$tool" >/dev/null || die "'$tool' is required — install it and re-run."
 done
 [[ -n "${VIRTUAL_ENV:-}${CONDA_DEFAULT_ENV:-}" ]] && warn "active venv/conda detected — component installers run with a cleaned environment"
-[[ -n "$(server_pid)" ]] && die "port $PORT is already in use — stop that server or pass --port"
+port_busy && die "port $PORT is already in use — stop that server or pass --port"
 mkdir -p "$DEST"
 DEST="$(cd "$DEST" && pwd)"
 mkdir -p "$OG_HOME/og-models" "$OG_HOME/og-state"

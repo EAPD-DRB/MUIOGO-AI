@@ -315,7 +315,7 @@ def cmd_adopt(args):
     if pending:
         print(f"  {len(pending)} model(s) recorded but NOT registered with MUIOGO —")
         print("  start a server and re-run so its registry (and the GUI) sees them:")
-        print("    muiogo serve &  &&  muiogo adopt --auto")
+        print("    muiogo serve --detach && muiogo adopt --auto")
     print("\nCheck it with:  muiogo status")
     return 0
 

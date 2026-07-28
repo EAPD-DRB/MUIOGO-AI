@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build CLEWs Model for MUIO"
+  short_description: "Build a traceable whole-country CLEWs model for MUIO"
+  default_prompt: "Use $build-clews-model to build a complete, technically valid, uncalibrated and provenance-traceable CLEWs Global country model, then deliver it as a solved, frozen, portable MUIO case."
