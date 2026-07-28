@@ -8,6 +8,19 @@ description: Add models and data to a MUIOGO installation and get them out again
 Orient first with `muiogo status` (see `muiogo-workspace`) — it lists what is
 already installed, so you do not install something twice.
 
+## Before installing anything: is it already here?
+
+Most people already have MUIOGO and some country models checked out. A country
+model is one to three gigabytes, and a second copy is worse than none — the
+tooling can end up pointing at whichever one you did not mean.
+
+```bash
+muiogo adopt --scan      # list existing checkouts, change nothing
+muiogo adopt --auto      # record them as the workspace, installing nothing
+```
+
+Adopt first, install only what is genuinely missing.
+
 ## What is already here
 
 ```bash

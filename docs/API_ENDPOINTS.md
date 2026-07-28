@@ -59,6 +59,34 @@ standard locations — see MUIOGO `docs/ARCHITECTURE.md`). On macOS:
 `brew install glpk cbc`. Resolution happens per request; no server restart
 needed after installing.
 
+## The /ogc layer: MUIOGO's own model registry (verified 2026-07-28)
+
+MUIOGO already tracks which OG country models are installed, so tooling should
+read and write that registry rather than keeping its own list.
+
+| Endpoint | Method | Notes |
+|---|---|---|
+| `/ogc/getCalibrationCatalog` | GET | what can be installed; rows under **`countries`**, read live from the upstream register |
+| `/ogc/getInstalledCalibrations` | GET | what IS installed; rows under **`calibrations`** — a different key from the catalogue, so handle both |
+| `/ogc/registerLocalCalibration` | POST | adopt a model already on disk: `{country_id, country_name, local_path, package_name, run_uv_sync}` |
+| `/ogc/installCalibration` | POST | install a new one via the upstream OG-Core installer |
+| `/ogc/getInstallStatus` | GET | `?install_id=` — both of the above are **asynchronous jobs** |
+
+Two things that will bite:
+
+- **The two list endpoints use different keys** (`countries` vs `calibrations`).
+  A client that only reads one silently reports nothing installed.
+- **Registration is asynchronous.** `registerLocalCalibration` returns an
+  `install_id` immediately; the registry file
+  (`<og-state>/og_calibrations_installed.json`) appears only once the job
+  finishes. Poll `getInstallStatus`, or re-read the registry, rather than
+  checking straight after the call.
+
+The registry's location comes from `MUIOGO_OG_DATA_DIR` (default
+`~/.muiogo/og-state`), and models from `MUIOGO_OG_MODELS_DIR` (default
+`~/.muiogo/og-models`). A server started without those pointed at the right
+place will not see models registered elsewhere.
+
 ## Present, not yet exercised
 
 From `API/Routes/` at the same commit — payloads unverified:

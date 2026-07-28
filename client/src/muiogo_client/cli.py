@@ -2,6 +2,7 @@
 
 Orientation (works with no server running):
   muiogo status                                      where everything is installed
+  muiogo adopt --scan | --auto                       use installs you already have
 
 Models and scenarios:
   muiogo cases                                       list cases
@@ -83,6 +84,28 @@ def _data_storage(args):
     return info["data_storage"]
 
 
+def _checkout_state(path):
+    """Live branch, HEAD and cleanliness of a checkout — not a recorded snapshot.
+
+    A recorded ref goes stale the moment someone switches branch, and telling a
+    user the wrong code is installed is worse than saying nothing.
+    """
+    import subprocess
+    if not path:
+        return "no path"
+    def git(*a):
+        r = subprocess.run(["git", "-C", str(path), *a], capture_output=True,
+                           text=True, timeout=15)
+        return r.stdout.strip() if r.returncode == 0 else ""
+    head = git("rev-parse", "--short=8", "HEAD")
+    if not head:
+        return "not a git checkout"
+    branch = git("rev-parse", "--abbrev-ref", "HEAD") or "?"
+    dirty = " +uncommitted changes" if git("status", "--porcelain") else ""
+    where = "detached" if branch == "HEAD" else f"on {branch}"
+    return f"{where} at {head}{dirty}"
+
+
 def cmd_status(args):
     """Orientation: what is installed and where. Needs no running server."""
     try:
@@ -94,7 +117,8 @@ def cmd_status(args):
     print(f"manifest      {info['manifest']}")
     print(f"workspace     {info['workspace']}")
     print(f"installed     {info['generated']}")
-    print(f"MUIOGO        {info['muiogo_path']}  (ref {info['muiogo_ref']})")
+    live = _checkout_state(info["muiogo_path"])
+    print(f"MUIOGO        {info['muiogo_path']}  ({live})")
     print(f"model data    {info['data_storage']}")
     print(f"server URL    {info['muiogo_url']}")
 
@@ -118,13 +142,109 @@ def cmd_status(args):
     for case in cases or []:
         print(f"  case        {case}")
 
-    for model in info["og_models"]:
-        print(f"  OG model    {model.get('key')}  {model.get('path')}")
+    # MUIOGO's own registry is authoritative for OG models; the manifest is only
+    # a fallback for when no server is running to ask.
+    registered = None
+    if cases is not None:
+        try:
+            registered = client.og_installed()
+        except Exception:
+            registered = None
+    if registered:
+        for entry in registered:
+            print(f"  OG model    {entry.get('country_id','?'):<5} "
+                  f"{entry.get('local_path') or entry.get('country_name','')}"
+                  f"   [{entry.get('install_state','?')}]")
+    elif info["og_models"]:
+        for model in info["og_models"]:
+            state = "not registered with MUIOGO" if cases is not None else "unverified"
+            print(f"  OG model    {model.get('key'):<8} {model.get('path')}   [{state}]")
     if info["link_path"]:
         print(f"  link        {info['link_path']}")
     solvers = info["solvers"]
     if solvers:
         print(f"  solvers     glpk={bool(solvers.get('glpsol'))} cbc={bool(solvers.get('cbc'))}")
+    return 0
+
+
+def cmd_adopt(args):
+    """Point the tooling at installations that already exist on this machine."""
+    found = workspace.discover()
+    if args.scan:
+        print("MUIOGO checkouts:")
+        for p in found["muiogo"] or ["  (none found)"]:
+            print(f"  {p}")
+        print("OG country models:")
+        for p in found["og_models"] or ["  (none found)"]:
+            print(f"  {p}")
+        print("OG-CLEWs link:")
+        for p in found["link"] or ["  (none found)"]:
+            print(f"  {p}")
+        print("\nAdopt them with:  muiogo adopt --auto")
+        return 0
+
+    muiogo_path = args.muiogo
+    og_models = [m for m in (args.og_model or [])]
+    link_path = args.link
+
+    if args.auto:
+        if not muiogo_path:
+            if not found["muiogo"]:
+                print("No MUIOGO checkout found. Pass --muiogo PATH.", file=sys.stderr)
+                return 1
+            if len(found["muiogo"]) > 1:
+                print("Several MUIOGO checkouts found — name one with --muiogo:",
+                      file=sys.stderr)
+                for p in found["muiogo"]:
+                    print(f"  {p}", file=sys.stderr)
+                return 1
+            muiogo_path = found["muiogo"][0]
+        og_models = og_models or found["og_models"]
+        link_path = link_path or (found["link"][0] if found["link"] else None)
+
+    if not muiogo_path:
+        print("Pass --muiogo PATH, or --auto to discover it.", file=sys.stderr)
+        return 1
+
+    try:
+        dest, manifest = workspace.adopt(muiogo_path, og_models, link_path, port=args.port)
+    except workspace.WorkspaceError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
+    # Register the OG models with MUIOGO itself, so its registry — the record the
+    # GUI and the link read — knows about them too. Needs a running server; the
+    # manifest alone is only a fallback.
+    registered, pending = [], []
+    if manifest["og_models"]:
+        try:
+            client = MuiogoClient(base_url=manifest["muiogo"]["url"], timeout=120)
+            client.list_cases()                       # is anything listening?
+            for m in manifest["og_models"]:
+                cid = m["repo"].rsplit("-", 1)[-1].upper()
+                try:
+                    client.og_register_local(cid, m["repo"], m["path"],
+                                             package_name=m.get("package"))
+                    registered.append(m["key"])
+                except Exception as exc:              # noqa: BLE001
+                    pending.append(f"{m['key']} ({exc})")
+        except Exception:
+            pending = [m["key"] for m in manifest["og_models"]]
+
+    print(f"adopted -> {dest}")
+    print(f"  MUIOGO      {manifest['muiogo']['path']}  (ref {manifest['muiogo']['ref']})")
+    print(f"  cases       {len(manifest['clews_cases'])}")
+    for m in manifest["og_models"]:
+        print(f"  OG model    {m['key']:<8} {m['path']}")
+    if manifest["ogclews_link"]["path"]:
+        print(f"  link        {manifest['ogclews_link']['path']}")
+    if registered:
+        print(f"  registered with MUIOGO: {', '.join(registered)}")
+    if pending:
+        print(f"  {len(pending)} model(s) recorded but NOT registered with MUIOGO —")
+        print("  start a server and re-run so its registry (and the GUI) sees them:")
+        print("    muiogo serve &  &&  muiogo adopt --auto")
+    print("\nCheck it with:  muiogo status")
     return 0
 
 
@@ -493,6 +613,15 @@ def main(argv=None):
 
     sub.add_parser("status", help="where everything is installed (no server needed)"
                    ).set_defaults(func=cmd_status)
+    p = sub.add_parser("adopt", help="point the tooling at existing installations")
+    p.add_argument("--scan", action="store_true", help="show what was found, change nothing")
+    p.add_argument("--auto", action="store_true", help="adopt everything discovered")
+    p.add_argument("--muiogo", help="path to an existing MUIOGO checkout")
+    p.add_argument("--og-model", action="append", help="path to an OG country model (repeatable)")
+    p.add_argument("--link", help="path to an ogclews-link checkout")
+    p.add_argument("--port", type=int, default=5002)
+    p.set_defaults(func=cmd_adopt)
+
     sub.add_parser("cases", help="list cases").set_defaults(func=cmd_cases)
 
     p = sub.add_parser("scenarios", help="scenarios and runs defined in a case")

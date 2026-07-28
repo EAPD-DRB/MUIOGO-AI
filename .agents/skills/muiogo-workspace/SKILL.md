@@ -45,11 +45,25 @@ The command line is not installed. Do not fall back to guessing: tell the user
 
 ### If it reports no workspace
 
-Same principle — report, don't improvise:
+Check first whether the user already has the models — most people do, and
+installing again would build a second multi-gigabyte copy:
+
+```bash
+muiogo adopt --scan      # what is already on this machine
+muiogo adopt --auto      # record it as the workspace, installing nothing
+```
+
+Only if that finds nothing:
 
 > No MUIOGO-AI workspace is installed. `./scripts/install.sh` from a MUIOGO-AI
 > checkout will build one, or set `MUIOGO_WORKSPACE` if it lives somewhere
 > unusual.
+
+### If the paths look wrong
+
+If `muiogo status` reports a workspace in a temporary directory, or a path the
+user does not recognise, it is pointing at a stale installation. `muiogo adopt
+--scan` shows the real checkouts and `--auto` re-points at them.
 
 ### If a component is missing
 

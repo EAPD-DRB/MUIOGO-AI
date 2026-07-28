@@ -295,6 +295,22 @@ class MuiogoClient:
             payload["branch"] = branch
         return self._post_json("/ogc/installCalibration", payload)
 
+    def og_register_local(self, country_id, country_name, local_path,
+                          package_name=None, run_uv_sync=False):
+        """Register an OG model that is ALREADY on this machine.
+
+        This is MUIOGO's own mechanism for adopting an existing checkout, and it
+        writes MUIOGO's registry — so the GUI, the OG-CLEWs link and the skills
+        all see the same model. Prefer it over installing a second copy.
+        """
+        return self._post_json("/ogc/registerLocalCalibration", {
+            "country_id": country_id,
+            "country_name": country_name,
+            "local_path": str(local_path),
+            "package_name": package_name,
+            "run_uv_sync": bool(run_uv_sync),
+        })
+
     def og_install_status(self, install_id):
         r = self._get("/ogc/getInstallStatus", params={"install_id": install_id})
         return r.json()

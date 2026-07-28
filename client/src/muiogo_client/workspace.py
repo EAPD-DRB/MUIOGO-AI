@@ -89,6 +89,130 @@ def publish(manifest_path):
         return None
 
 
+def looks_like_muiogo(path):
+    p = Path(path)
+    return (p / "API" / "app.py").is_file() and (p / "WebAPP" / "DataStorage").is_dir()
+
+
+def looks_like_og_model(path):
+    """An OG country model: an og* package beside its own virtual environment."""
+    p = Path(path)
+    if not venv_python(p):
+        return False
+    return any(
+        d.is_dir() and d.name.startswith("og") and (d / "__init__.py").is_file()
+        for d in p.iterdir()
+    )
+
+
+def looks_like_link(path):
+    p = Path(path)
+    return (p / "ogclews_link").is_dir() and venv_python(p) is not None
+
+
+def venv_python(path):
+    """The interpreter inside a checkout's own venv, or None."""
+    for rel in ("bin/python", "Scripts/python.exe"):
+        candidate = Path(path) / ".venv" / rel
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def discover(roots=None):
+    """Find MUIOGO, OG country models, and the link already installed on this machine.
+
+    The installer creates its own workspace, but most people already have these
+    checkouts somewhere. Adopting them avoids installing a second multi-gigabyte
+    copy and pointing the tooling at the wrong one.
+    """
+    if roots is None:
+        roots = [Path.home() / "Projects", CANONICAL_DIR / "og-models",
+                 DEFAULT_WORKSPACE, Path.home()]
+    found = {"muiogo": [], "og_models": [], "link": []}
+    seen = set()
+    for root in roots:
+        root = Path(root).expanduser()
+        if not root.is_dir():
+            continue
+        for child in sorted(root.iterdir()):
+            try:
+                if not child.is_dir() or child.resolve() in seen:
+                    continue
+                seen.add(child.resolve())
+                if looks_like_muiogo(child):
+                    found["muiogo"].append(child)
+                elif looks_like_link(child):
+                    found["link"].append(child)
+                elif looks_like_og_model(child):
+                    found["og_models"].append(child)
+            except (OSError, PermissionError):
+                continue
+    return found
+
+
+def _git_ref(path):
+    import subprocess
+    try:
+        out = subprocess.run(["git", "-C", str(path), "rev-parse", "--short=8", "HEAD"],
+                             capture_output=True, text=True, timeout=15)
+        return out.stdout.strip() or None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def build_manifest(muiogo_path, og_models=(), link_path=None, port=5002, workspace=None):
+    """A manifest describing installations that already exist on this machine."""
+    import datetime
+    import shutil
+    muiogo_path = Path(muiogo_path)
+    if not looks_like_muiogo(muiogo_path):
+        raise WorkspaceError(f"{muiogo_path} does not look like a MUIOGO checkout "
+                             f"(needs API/app.py and WebAPP/DataStorage)")
+    models = []
+    for path in og_models:
+        path = Path(path)
+        pkg = next((d.name for d in path.iterdir()
+                    if d.is_dir() and d.name.startswith("og")
+                    and (d / "__init__.py").is_file()), None)
+        models.append({
+            "key": f"og-{path.name.rsplit('-', 1)[-1].lower()}",
+            "repo": path.name, "package": pkg, "path": str(path),
+            "ref": _git_ref(path), "python": str(venv_python(path) or ""),
+        })
+    data_storage = muiogo_path / "WebAPP" / "DataStorage"
+    cases = sorted(p.name for p in data_storage.iterdir()
+                   if (p / "genData.json").is_file()) if data_storage.is_dir() else []
+    return {
+        "generated": datetime.datetime.now().isoformat(timespec="seconds"),
+        "workspace": str(workspace or muiogo_path.parent),
+        "adopted": True,
+        "muiogo": {
+            "path": str(muiogo_path), "ref": _git_ref(muiogo_path),
+            "python": str(venv_python(muiogo_path) or ""),
+            "url": f"http://127.0.0.1:{port}", "port": int(port),
+            "og_models_dir": str(CANONICAL_DIR / "og-models"),
+            "og_state_dir": str(CANONICAL_DIR / "og-state"),
+        },
+        "muiogo_ai": {"path": None, "ref": None, "client_python": None},
+        "ogclews_link": ({"path": str(link_path), "ref": _git_ref(link_path),
+                          "python": str(venv_python(link_path) or "")}
+                         if link_path else {"path": None, "ref": None, "python": None}),
+        "og_models": models,
+        "clews_cases": [{"key": None, "case": c} for c in cases],
+        "solvers": {"glpsol": shutil.which("glpsol"), "cbc": shutil.which("cbc")},
+    }
+
+
+def adopt(muiogo_path, og_models=(), link_path=None, port=5002):
+    """Record existing installations as the workspace. Returns (path, manifest)."""
+    manifest = build_manifest(muiogo_path, og_models, link_path, port)
+    CANONICAL_DIR.mkdir(parents=True, exist_ok=True)
+    dest = CANONICAL_DIR / MANIFEST_NAME
+    dest.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    return dest, manifest
+
+
 def summary(start=None):
     """A flat, printable picture of the installation for orientation."""
     data, path = load(start)

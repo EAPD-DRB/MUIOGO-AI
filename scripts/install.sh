@@ -222,6 +222,22 @@ DEST="$(cd "$DEST" && pwd)"
 mkdir -p "$OG_HOME/og-models" "$OG_HOME/og-state"
 OG_HOME="$(cd "$OG_HOME" && pwd)"
 ok "workspace: $DEST"
+
+# Do not silently build a second copy of things the user already has. A country
+# model is 1-3 GB, and two checkouts of the same model is worse than none: the
+# tooling can end up pointing at whichever one you did not mean.
+EXISTING="$(ls -d "$HOME"/Projects/MUIOGO "$HOME"/Projects/OG-* "$HOME"/Projects/ogclews-link 2>/dev/null | head -12)"
+if [[ -n "$EXISTING" && ! -d "$DEST/MUIOGO" ]]; then
+    warn "you already have model checkouts on this machine:"
+    printf '%s\n' "$EXISTING" | sed 's/^/        /'
+    echo "      Installing will create SEPARATE copies in $DEST."
+    echo "      To use the ones you have instead, stop here and run:"
+    echo_cmd "muiogo adopt --auto"
+    if ! prompt_yn "Continue and install fresh copies anyway?" n; then
+        echo "      Nothing installed. Adopt what you have with: muiogo adopt --auto"
+        exit 0
+    fi
+fi
 record preflight OK "$DEST"
 
 # ── 1. MUIOGO-AI (this repo: client + skills) ────────────────────────────────
@@ -276,8 +292,10 @@ CURRENT_STEP="muiogo"
 step_banner "2" "MUIOGO (upstream installer: app + solvers + demo data)"
 MUIOGO_DIR="$DEST/MUIOGO"
 MUIOGO_PIN_FILE="$AI_DIR/scripts/MUIOGO_PIN"
+MUIOGO_WAS_HERE=0
 if [[ -x "$MUIOGO_DIR/.venv/bin/python" && -f "$MUIOGO_DIR/API/app.py" ]]; then
     skip "MUIOGO install"
+    MUIOGO_WAS_HERE=1
     record muiogo SKIP "$MUIOGO_DIR"
 else
     TMP_INST="$(mktemp -d)/muiogo-install.sh"
@@ -301,13 +319,25 @@ fi
 if [[ -f "$MUIOGO_PIN_FILE" ]]; then
     PIN="$(tr -d '[:space:]' < "$MUIOGO_PIN_FILE")"
     CUR="$(git -C "$MUIOGO_DIR" rev-parse --short=8 HEAD)"
-    if [[ "$CUR" != "$PIN"* && "$PIN" != "$CUR"* ]]; then
+    BRANCH="$(git -C "$MUIOGO_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')"
+    DIRTY="$(git -C "$MUIOGO_DIR" status --porcelain 2>/dev/null | head -1)"
+    if [[ "$CUR" == "$PIN"* || "$PIN" == "$CUR"* ]]; then
+        ok "MUIOGO already at pin $PIN"
+    elif [[ $MUIOGO_WAS_HERE -eq 1 ]]; then
+        # Never move someone else's checkout. Detaching HEAD here would abandon
+        # the branch they are working on, and discarding changes is not ours to do.
+        warn "MUIOGO at $MUIOGO_DIR is $BRANCH ($CUR), not the pin $PIN — leaving it alone"
+        [[ -n "$DIRTY" ]] && warn "  it also has uncommitted changes"
+        echo "      This checkout was already here, so it is yours to manage."
+        echo "      To run against the pin instead, use a separate --dest."
+        record muiogo-pin SKIP "kept $BRANCH ($CUR)"
+    elif [[ -n "$DIRTY" ]]; then
+        die "MUIOGO at $MUIOGO_DIR has uncommitted changes; not touching it"
+    else
         git -C "$MUIOGO_DIR" fetch --quiet origin
         git -C "$MUIOGO_DIR" checkout --quiet --detach "$PIN" || die "could not checkout MUIOGO pin $PIN"
         ( cd "$MUIOGO_DIR" && clean_env uv sync -q ) || die "uv sync at the pin failed"
         ok "MUIOGO pinned to $PIN"
-    else
-        ok "MUIOGO already at pin $PIN"
     fi
 fi
 for solver in glpsol cbc; do
