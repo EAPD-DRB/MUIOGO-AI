@@ -132,7 +132,7 @@ record preflight OK "$DEST"
 # ── 1. MUIOGO-AI (this repo: client + skills) ────────────────────────────────
 CURRENT_STEP="muiogo-ai"
 step "1/5 MUIOGO-AI (client + skills)"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 if [[ -f "$SCRIPT_DIR/../client/pyproject.toml" ]]; then
     AI_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
     ok "running from checkout: $AI_DIR"
