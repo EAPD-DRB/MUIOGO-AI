@@ -87,7 +87,9 @@ link → `ogclews-link` CLI + `OGCLEWS_*` env vars + its model registry.
   machine to a solved coupled Philippine example. The muiogo-ai installer
   should copy its structure.
 - Country/case configuration is data, not code: `ogclews_countries.json`.
-- No Windows script yet (bash only).
+- Cross-platform since PR #15 (merged): the logic lives in `scripts/setup.py`,
+  with `setup.sh` and `setup.ps1` as thin wrappers taking the same flags, plus
+  Linux and Windows CI. Verified at `origin/main` `c24eb7a` (2026-07-30).
 
 ## 2. Environment topology (what "correct environments" means)
 
@@ -162,12 +164,20 @@ checkout's interpreter, which is what `og-run-preflight` checks.
    SCOPE Phase 0). Interim: the orchestrator can treat the auto-start as its
    smoke test — poll the port, verify, then stop the process — but the flag is
    the honest fix.
-2. **Registry location skew:** ogclews-link discovers MUIOGO-installed OG
-   models by reading `WebAPP/DataStorage/OGCore/og_calibrations_installed.json`
-   (`ogclews_link/registry.py:151`), but MUIOGO moved that registry to
-   `~/.muiogo/og-state/` (MUIOGO issue #500). At the pin, the link's MUIOGO
-   auto-discovery is silently broken. Fix in ogclews-link: read the new
-   location (fall back to the old one).
+2. **Registry location skew — still open.** ogclews-link discovers
+   MUIOGO-installed OG models by reading
+   `$OGCLEWS_MUIOGO_HOME/WebAPP/DataStorage/OGCore/og_calibrations_installed.json`
+   (`ogclews_link/registry.py:151`). MUIOGO moved that registry to
+   `~/.muiogo/og-state/` when it closed issue #500 (completed 2026-07-20), and
+   the old directory no longer exists.
+
+   Re-checked at ogclews-link `origin/main` `c24eb7a` on 2026-07-30: the old path
+   is still the only one read, there is no `og-state` fallback, and no issue or PR
+   tracks it. `load_muiogo_registry()` is deliberately fault-tolerant — a missing
+   file returns `{}` and the link falls back to its own registry — so this loses a
+   convenience rather than producing a wrong answer, and it is why our installer
+   registers each model explicitly with `--og-path` instead of relying on
+   discovery. Fix in ogclews-link: read the new location, falling back to the old.
 3. **Private-repo one-liner:** while MUIOGO-AI is private, `curl` against
    raw.githubusercontent.com fails without a token. Two forms needed:
    - while private: `gh repo clone EAPD-DRB/MUIOGO-AI && MUIOGO-AI/scripts/install.sh`
@@ -317,11 +327,11 @@ shape than our own layer.
 | Solvers (GLPK/CBC) | ✅ | MUIOGO's `setup_dev.py` downloads the Windows binaries (25 platform-specific lines) |
 | `muiogo` client | ✅ after this round | interpreter resolution, backgrounding and termination are now platform-aware; `lsof` dropped |
 | Repo-scoped skills | ✅ after this round | real copies instead of symlinks, which a Windows clone would have broken |
-| **ogclews-link** | ❌ bash only | **being fixed upstream separately; we pull it when it lands** |
+| **ogclews-link** | ✅ landed upstream | PRs #7 and #15: `scripts/setup.py` with `setup.sh`/`setup.ps1` wrappers, Linux+Windows CI. We clone unpinned, so this arrived without any change on our side; `--og-path`, `--key` and `--check` all still work |
 | **our composed installer** | ❌ bash only | the remaining piece in our control |
 
-So the sequence is: the link gains PowerShell upstream, we pull it, and the last
-gap is a PowerShell twin of `scripts/install.sh`. That twin is deliberately not
+The link has now gained its PowerShell path upstream, so the last remaining gap is
+a PowerShell twin of our own `scripts/install.sh`. That twin is deliberately not
 written yet — shipping untested PowerShell as though it worked would be worse
 than not shipping it. When it is written it needs to do what the bash version
 does: run each component's own installer in turn, keep the master directory
