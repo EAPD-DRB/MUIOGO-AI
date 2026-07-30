@@ -276,6 +276,28 @@ print(h.hexdigest())
 PYHASH
 }
 
+# Two paths can name ONE directory. macOS's default filesystem is
+# case-insensitive, so $HOME/muiogo-ai and $HOME/MUIOGO-AI are the same place —
+# but `cd` + `pwd` echoes back whichever case you asked for, so comparing the
+# strings says they differ. Only the device+inode tells the truth.
+same_dir() {
+    [[ -d "$1" && -d "$2" ]] || return 1
+    python3 - "$1" "$2" <<'PYSAME'
+import os, sys
+try:
+    sys.exit(0 if os.path.samefile(sys.argv[1], sys.argv[2]) else 1)
+except OSError:
+    sys.exit(1)
+PYSAME
+}
+
+# Is this path inside a git working tree? Installing gigabytes of model data into
+# one is a trap: `git clean -fdx` in that checkout would delete every model, and
+# the repo's .gitignore was never written to cover them.
+git_tree_of() {
+    git -C "$1" rev-parse --show-toplevel 2>/dev/null
+}
+
 # ── preflight ─────────────────────────────────────────────────────────────────
 CURRENT_STEP="preflight"
 section "Preflight"
@@ -305,6 +327,43 @@ DEST="$(cd "$DEST" && pwd)"
 mkdir -p "$OG_HOME/og-models" "$OG_HOME/og-state"
 OG_HOME="$(cd "$OG_HOME" && pwd)"
 ok "workspace: $DEST"
+
+# ── the installation must not land inside the source checkout ─────────────────
+THIS_REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
+if same_dir "$DEST" "$THIS_REPO"; then
+    err_lines=(
+        "the install directory and this repository are the SAME directory."
+        ""
+        "  install target : $DEST"
+        "  this checkout  : $THIS_REPO"
+        ""
+        "On macOS these differ only by capitalisation, and the filesystem treats"
+        "them as one place. Installing here would unpack MUIOGO, the country"
+        "models and about 4 GB of data straight into the git checkout, where a"
+        "later \`git clean\` or \`git pull\` could destroy them."
+        ""
+        "Pick a separate directory — nothing is moved or deleted:"
+        "    ./scripts/install.sh --dest ~/muiogo-runtime $*"
+        ""
+        "Or move this checkout somewhere else first, for example ~/Projects,"
+        "and run it again from there."
+    )
+    printf '  %s\n' "${err_lines[@]}" >&2
+    die "refusing to install into the source checkout"
+fi
+
+# Even a DIFFERENT directory is unsafe if it sits inside a git working tree.
+DEST_TREE="$(git_tree_of "$DEST")"
+if [[ -n "$DEST_TREE" ]]; then
+    warn "$DEST is inside the git repository at $DEST_TREE"
+    echo "        Model data does not belong in a checkout: \`git clean -fdx\` there"
+    echo "        would delete it, and \`git status\` will be permanently noisy."
+    echo "        A directory outside any repository is safer, e.g. --dest ~/muiogo-runtime"
+    if ! prompt_yn "Install into a git working tree anyway?" n; then
+        echo "      Nothing installed."
+        exit 0
+    fi
+fi
 
 # Do not silently build a second copy of things the user already has. A country
 # model is 1-3 GB, and two checkouts of the same model is worse than none: the
