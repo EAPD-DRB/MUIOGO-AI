@@ -32,6 +32,15 @@ run:
 git clone https://github.com/EAPD-DRB/MUIOGO-AI.git
 ```
 
+If that says **"destination path 'MUIOGO-AI' already exists"**, you already have
+a copy here — skip the clone and bring it up to date instead:
+
+```bash
+cd MUIOGO-AI && git pull
+```
+
+Otherwise:
+
 ```bash
 cd MUIOGO-AI
 ```
@@ -81,6 +90,22 @@ Ctrl+C in the terminal to stop.
 
 ## If something goes wrong
 
+- **"destination path 'MUIOGO-AI' already exists and is not an empty
+  directory"** — the folder is already there, usually because the clone was run
+  twice. Nothing is wrong. Check what it is:
+
+  ```bash
+  git -C MUIOGO-AI remote -v
+  ```
+
+  If that prints `EAPD-DRB/MUIOGO-AI`, it is the right thing — carry on with
+  `cd MUIOGO-AI && git pull` and then the installer. If it prints something
+  else, or nothing at all, move it out of the way (don't delete it — it may be
+  someone's work) and clone again:
+
+  ```bash
+  mv MUIOGO-AI MUIOGO-AI.old
+  ```
 - **"port … is already in use"** — add `--port 5103` to the command. (The installed runtime uses 5102; 5002 is left for a MUIOGO you run yourself.)
 - **A message about conda** — run `conda deactivate` and try again.
 - Still stuck? The installer writes logs into `~/muiogo-ai/` —
