@@ -108,7 +108,7 @@ Ctrl+C in the terminal to stop.
   ```
 - **"port … is already in use"** — add `--port 5103` to the command. (The installed runtime uses 5102; 5002 is left for a MUIOGO you run yourself.)
 - **A message about conda** — run `conda deactivate` and try again.
-- Still stuck? The installer writes logs into `~/muiogo-ai/` —
+- Still stuck? The installer writes logs into `~/muiogoai/` —
   share the newest `.log` file when asking for help.
 
 ## Manual installation

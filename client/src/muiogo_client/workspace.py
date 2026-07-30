@@ -47,8 +47,17 @@ LIVE_PORT = 5002        # adopted world: MUIOGO's own default
 RUNTIME_PORT = 5102     # installed world: deliberately not MUIOGO's default
 
 CANONICAL_DIR = Path.home() / ".muiogo"
-DEFAULT_WORKSPACE = Path.home() / "muiogo-ai"
-LEGACY_WORKSPACE = Path.home() / "muiogo-ai-workspace"
+
+# The install directory is deliberately NOT called muiogo-ai. This repository is
+# MUIOGO-AI, and on a case-insensitive filesystem — macOS's default — the two
+# names are one directory. Cloning the repo into $HOME then made the installer
+# unpack MUIOGO and several gigabytes of models into the git checkout, where a
+# later `git clean` would delete them. "muiogoai" cannot collide, and is kept
+# all-lowercase because mixed case works on macOS and fails on Linux.
+DEFAULT_WORKSPACE = Path.home() / "muiogoai"
+LEGACY_WORKSPACES = (Path.home() / "muiogo-ai",
+                     Path.home() / "muiogo-ai-workspace")
+LEGACY_WORKSPACE = LEGACY_WORKSPACES[0]      # kept for older callers
 
 # One record PER WORLD, never one shared slot. A single canonical manifest meant
 # that installing a runtime overwrote the only record of the adopted world — and
@@ -395,7 +404,7 @@ def candidate_paths(start=None):
     paths.extend(known_worlds().values())
     paths.append(LEGACY_MANIFEST)
     paths.append(DEFAULT_WORKSPACE / MANIFEST_NAME)
-    paths.append(LEGACY_WORKSPACE / MANIFEST_NAME)
+    paths.extend(w / MANIFEST_NAME for w in LEGACY_WORKSPACES)
     here = Path(start or Path.cwd()).resolve()
     for parent in [here, *here.parents]:
         paths.append(parent / MANIFEST_NAME)

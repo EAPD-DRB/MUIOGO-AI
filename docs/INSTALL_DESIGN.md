@@ -92,10 +92,10 @@ link → `ogclews-link` CLI + `OGCLEWS_*` env vars + its model registry.
 ## 2. Environment topology (what "correct environments" means)
 
 Everything the installer creates lives under **one master directory**, default
-`~/muiogo-ai`, so it never competes with checkouts used for live work:
+`~/muiogoai`, so it never competes with checkouts used for live work:
 
 ```
-~/muiogo-ai/                          the master directory (--dest)
+~/muiogoai/                          the master directory (--dest)
   MUIOGO/.venv                        MUIOGO app (Flask, waitress, ...)
   og-models/<OG-XXX>/.venv            one env per OG country model (uv)
   og-state/                           THIS installation's OG registry + jobs
@@ -188,7 +188,7 @@ adds ordering, clean-env handling, a manifest, and end-to-end verification.
 Structure copied from `test-drive.sh`: zero-input with flags, resume-safe,
 every step idempotent, step-report table at the end.
 
-### Workspace layout (default `~/muiogo-ai`, `--dest` to change)
+### Workspace layout (default `~/muiogoai`, `--dest` to change)
 
 ```
 <workspace>/
@@ -344,4 +344,4 @@ is a usable if manual path.
 
 Open decisions for Marcelo: default OG country set for `--og` (none vs
 `og-phl` as the worked example), and whether the workspace default should be
-`~/muiogo-ai` or something shorter.
+`~/muiogoai` or something shorter.

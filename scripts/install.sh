@@ -19,7 +19,7 @@
 # Usage:
 #   ./scripts/install.sh [options]
 # Options:
-#   --dest DIR          Master directory for everything (default: ~/muiogo-ai)
+#   --dest DIR          Master directory for everything (default: ~/muiogoai)
 #   --country ISO3s     Comma-separated countries (PHL,...). Resolves BOTH sides
 #                       by the ISO3 join: the OG model (og-<iso3>) via the
 #                       upstream catalog AND the CLEWs case via clews/ manifests.
@@ -50,7 +50,7 @@ OG_CATALOG_URL="https://raw.githubusercontent.com/PSLmodels/OG-Core/master/scrip
 LINK_REPO_URL="https://github.com/marcelolafleur/ogclews-link.git"
 MUIOGO_AI_REPO_URL="https://github.com/EAPD-DRB/MUIOGO-AI.git"
 
-DEST="${HOME}/muiogo-ai"
+DEST="${HOME}/muiogoai"
 OG_KEYS=""
 CLEWS_KEYS=""
 COUNTRIES=""
@@ -78,7 +78,7 @@ Options:
   -h, --help              Show this message and exit.
   -y, --yes               Auto-confirm every prompt (non-interactive).
       --dest DIR          Master directory holding MUIOGO, the OG models, the
-                          link and their registries (default: ~/muiogo-ai).
+                          link and their registries (default: ~/muiogoai).
                           Kept separate from repos you use for live work.
       --country ISO3s     Countries to set up, comma-separated (e.g. PHL).
                           Resolves BOTH sides from the one key: the OG model
@@ -343,7 +343,7 @@ if same_dir "$DEST" "$THIS_REPO"; then
         "later \`git clean\` or \`git pull\` could destroy them."
         ""
         "Pick a separate directory — nothing is moved or deleted:"
-        "    ./scripts/install.sh --dest ~/muiogo-runtime $*"
+        "    ./scripts/install.sh --dest ~/muiogoai-2 $*"
         ""
         "Or move this checkout somewhere else first, for example ~/Projects,"
         "and run it again from there."
@@ -358,7 +358,7 @@ if [[ -n "$DEST_TREE" ]]; then
     warn "$DEST is inside the git repository at $DEST_TREE"
     echo "        Model data does not belong in a checkout: \`git clean -fdx\` there"
     echo "        would delete it, and \`git status\` will be permanently noisy."
-    echo "        A directory outside any repository is safer, e.g. --dest ~/muiogo-runtime"
+    echo "        A directory outside any repository is safer, e.g. --dest ~/muiogoai-2"
     if ! prompt_yn "Install into a git working tree anyway?" n; then
         echo "      Nothing installed."
         exit 0
