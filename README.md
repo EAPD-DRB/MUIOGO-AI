@@ -52,6 +52,11 @@ cd MUIOGO-AI
 This installs MUIOGO, the Philippines example country, and the OG-CLEWS
 link, and checks that everything works before finishing.
 
+It first asks where everything should live — press Enter to accept the
+default (`~/muiogoai`, or your existing installation if you have one). The
+location is permanent, so pick a folder outside any git checkout and with a
+few gigabytes to spare.
+
 At the end it offers to install the modelling skills for use outside this
 repository. You can say no and do it later — see below.
 
@@ -108,8 +113,9 @@ Ctrl+C in the terminal to stop.
   ```
 - **"port … is already in use"** — add `--port 5103` to the command. (The installed runtime uses 5102; 5002 is left for a MUIOGO you run yourself.)
 - **A message about conda** — run `conda deactivate` and try again.
-- Still stuck? The installer writes logs into `~/muiogoai/` —
-  share the newest `.log` file when asking for help.
+- Still stuck? The installer writes logs into the install directory
+  (`~/muiogoai` unless you chose another) — share the newest `.log` file when
+  asking for help.
 
 ## Manual installation
 

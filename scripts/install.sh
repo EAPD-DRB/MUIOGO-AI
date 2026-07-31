@@ -19,7 +19,9 @@
 # Usage:
 #   ./scripts/install.sh [options]
 # Options:
-#   --dest DIR          Master directory for everything (default: ~/muiogoai)
+#   --dest DIR          Master directory for everything. Asked interactively
+#                       when not given; the default is the already-registered
+#                       installation if one exists, otherwise ~/muiogoai.
 #   --country ISO3s     Comma-separated countries (PHL,...). Resolves BOTH sides
 #                       by the ISO3 join: the OG model (og-<iso3>) via the
 #                       upstream catalog AND the CLEWs case via clews/ manifests.
@@ -50,7 +52,7 @@ OG_CATALOG_URL="https://raw.githubusercontent.com/PSLmodels/OG-Core/master/scrip
 LINK_REPO_URL="https://github.com/marcelolafleur/ogclews-link.git"
 MUIOGO_AI_REPO_URL="https://github.com/EAPD-DRB/MUIOGO-AI.git"
 
-DEST="${HOME}/muiogoai"
+DEST=""           # resolved in preflight: flag > prompt > registered world > ~/muiogoai
 OG_KEYS=""
 CLEWS_KEYS=""
 COUNTRIES=""
@@ -78,7 +80,9 @@ Options:
   -h, --help              Show this message and exit.
   -y, --yes               Auto-confirm every prompt (non-interactive).
       --dest DIR          Master directory holding MUIOGO, the OG models, the
-                          link and their registries (default: ~/muiogoai).
+                          link and their registries. Asked interactively when
+                          not given; defaults to the already-registered
+                          installation if one exists, otherwise ~/muiogoai.
                           Kept separate from repos you use for live work.
       --country ISO3s     Countries to set up, comma-separated (e.g. PHL).
                           Resolves BOTH sides from the one key: the OG model
@@ -124,10 +128,6 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 [[ "$OG_KEYS" == "none" ]] && OG_KEYS=""
-# Everything this installer creates lives under one directory, so it never
-# competes with checkouts you use for live work — including MUIOGO's OG registry,
-# which holds only one entry per country and would otherwise displace yours.
-[[ -z "$OG_HOME" ]] && OG_HOME="$DEST"
 
 # ── Colors (detect before any stdout redirect) ────────────────────────────────
 if [[ -t 1 ]]; then
@@ -298,6 +298,41 @@ git_tree_of() {
     git -C "$1" rev-parse --show-toplevel 2>/dev/null
 }
 
+# `read` does not expand ~, and a relative answer means "relative to here".
+expand_path() {
+    local p="$1"
+    case "$p" in
+        "~")   p="$HOME" ;;
+        "~/"*) p="$HOME/${p#\~/}" ;;
+    esac
+    case "$p" in
+        /*) : ;;
+        *)  p="$(pwd)/$p" ;;
+    esac
+    printf '%s\n' "$p"
+}
+
+# The workspace of an already-registered 'runtime' world, if it still exists.
+# Installing somewhere new while one exists would not be a fresh install: it
+# would build a second multi-gigabyte world AND repoint the 'runtime' name at
+# it, quietly orphaning the first. So an existing world is the default answer —
+# re-running into it is safe, finished steps skip themselves.
+runtime_world_dir() {
+    local wf="$HOME/.muiogo/worlds/runtime.json"
+    [[ -f "$wf" ]] || return 1
+    python3 - "$wf" <<'PYWORLD'
+import json, os, sys
+try:
+    ws = json.load(open(sys.argv[1])).get("workspace") or ""
+except (OSError, ValueError):
+    sys.exit(1)
+if ws and os.path.isdir(ws):
+    print(ws)
+else:
+    sys.exit(1)
+PYWORLD
+}
+
 # ── preflight ─────────────────────────────────────────────────────────────────
 CURRENT_STEP="preflight"
 section "Preflight"
@@ -306,6 +341,49 @@ for tool in git curl python3; do
 done
 [[ -n "${VIRTUAL_ENV:-}${CONDA_DEFAULT_ENV:-}" ]] && warn "active venv/conda detected — component installers run with a cleaned environment"
 port_busy && die "port $PORT is already in use — stop that server or pass --port"
+
+# ── where the installation lives ──────────────────────────────────────────────
+# Flag > prompt > default. The default is the already-registered installation
+# when one exists (see runtime_world_dir), otherwise ~/muiogoai. Every source of
+# the answer — flag, typed, defaulted — flows through the same expansion and
+# the same safety checks below.
+DEFAULT_DEST="${HOME}/muiogoai"
+PREV_WORLD="$(runtime_world_dir)" || PREV_WORLD=""
+[[ -n "$PREV_WORLD" ]] && DEFAULT_DEST="$PREV_WORLD"
+if [[ -z "$DEST" ]]; then
+    if [[ $ASSUME_YES -eq 1 || ! -r /dev/tty ]]; then
+        DEST="$DEFAULT_DEST"
+        ok "install location: $DEST (default)"
+    else
+        echo "  Everything installs into one directory: MUIOGO, the country models,"
+        echo "  and about 4 GB of data. The location is permanent — it cannot be"
+        echo "  moved later without reinstalling."
+        if [[ -n "$PREV_WORLD" ]]; then
+            echo "  An installation is already registered at $PREV_WORLD —"
+            echo "  press Enter to reuse it (finished steps are skipped)."
+        fi
+        printf "  Install where? [%s] " "$DEFAULT_DEST" > /dev/tty
+        IFS= read -r DEST_ANSWER < /dev/tty || DEST_ANSWER=""
+        DEST="${DEST_ANSWER:-$DEFAULT_DEST}"
+    fi
+fi
+DEST="$(expand_path "$DEST")"
+
+# A non-empty directory that is not a previous installation is somebody's data;
+# unpacking an app tree into the middle of it is not ours to decide. A previous
+# installation is recognised by its manifest, its MUIOGO checkout, or — for an
+# install that died before either existed — the og-models/og-state pair this
+# script creates first.
+if [[ -d "$DEST" && -n "$(ls -A "$DEST" 2>/dev/null)" \
+      && ! -f "$DEST/manifest.json" && ! -d "$DEST/MUIOGO" \
+      && ! ( -d "$DEST/og-models" && -d "$DEST/og-state" ) ]]; then
+    warn "$DEST already exists and does not look like a MUIOGO-AI installation:"
+    ls -A "$DEST" 2>/dev/null | head -5 | sed 's/^/        /'
+    if ! prompt_yn "Install into it anyway?" n; then
+        echo "      Nothing installed. Pick another directory with --dest, or re-run and type one."
+        exit 0
+    fi
+fi
 
 # A full install writes roughly 4 GB. Finding that out after 20 minutes of
 # cloning wastes the user's time and leaves a half-tree to clean up.
@@ -324,6 +402,13 @@ SHARED_REGISTRY_BEFORE=""
 [[ -f "$SHARED_REGISTRY" ]] && SHARED_REGISTRY_BEFORE="$(sha256_of "$SHARED_REGISTRY")"
 mkdir -p "$DEST"
 DEST="$(cd "$DEST" && pwd)"
+# Everything this installer creates lives under one directory, so it never
+# competes with checkouts you use for live work — including MUIOGO's OG registry,
+# which holds only one entry per country and would otherwise displace yours.
+# Derived HERE, after the prompt, so a typed destination carries the registry
+# with it instead of leaving it pointing at the compile-time default.
+[[ -z "$OG_HOME" ]] && OG_HOME="$DEST"
+OG_HOME="$(expand_path "$OG_HOME")"
 mkdir -p "$OG_HOME/og-models" "$OG_HOME/og-state"
 OG_HOME="$(cd "$OG_HOME" && pwd)"
 ok "workspace: $DEST"
