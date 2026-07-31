@@ -290,7 +290,13 @@ def write_launcher(path, world_file, state_home, muiogo_exe=None):
     import shutil
     import sys as _sys
     path = Path(path)
-    exe = muiogo_exe or shutil.which("muiogo") or (Path(_sys.prefix) / "bin" / "muiogo")
+    # The launcher runs the client that wrote it. Preferring PATH here would
+    # couple every world to whichever `muiogo` happens to be installed
+    # user-wide — uninstalling or upgrading that one tool would silently break
+    # or retarget every launcher on the machine.
+    own = Path(_sys.prefix) / ("Scripts" if os.name == "nt" else "bin") / (
+        "muiogo.exe" if os.name == "nt" else "muiogo")
+    exe = muiogo_exe or (own if own.exists() else None) or shutil.which("muiogo") or own
     body = (WINDOWS_LAUNCHER if os.name == "nt" else POSIX_LAUNCHER).format(
         world_file=_quote(world_file), state_home=_quote(state_home),
         muiogo=_quote(exe) if os.name != "nt" else exe)

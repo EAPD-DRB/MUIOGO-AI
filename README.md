@@ -117,6 +117,19 @@ Ctrl+C in the terminal to stop.
   (`~/muiogoai` unless you chose another) — share the newest `.log` file when
   asking for help.
 
+## Uninstall
+
+```bash
+./scripts/uninstall.sh
+```
+
+It stops the server and **moves** the installation aside
+(`~/muiogoai` becomes `~/muiogoai.removed-<timestamp>`, with the launcher and
+world record tucked inside) — nothing is deleted. Check the moved folder,
+then delete it yourself when you are sure. Your own model checkouts, the
+shared registry, and any `muiogo` command you installed yourself are never
+touched.
+
 ## Manual installation
 
 The installer above just runs each project's own installer for you. To do it

@@ -475,29 +475,49 @@ if [[ -f "$SCRIPT_DIR/../client/pyproject.toml" ]]; then
     AI_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
     ok "running from checkout: $AI_DIR"
 else
-    AI_DIR="$DEST/MUIOGO-AI"
-    if [[ -d "$AI_DIR/.git" ]]; then skip "clone"; else
-        git clone --quiet "$MUIOGO_AI_REPO_URL" "$AI_DIR" \
-            || die "could not clone MUIOGO-AI (private repo: authenticate git/gh first)"
-    fi
+    AI_DIR=""
 fi
 command -v uv >/dev/null || { curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1; export PATH="$HOME/.local/bin:$PATH"; }
-( cd "$AI_DIR/client" && clean_env uv sync -q ) || die "uv sync failed in $AI_DIR/client"
-ok "client env ready"
 
-# Put `muiogo` on PATH. Without this the command only exists inside the repo's
-# private venv, so an assistant working in any other directory cannot run it —
-# which is the whole point of the installation.
-if clean_env uv tool install --force "$AI_DIR/client" >/dev/null 2>&1; then
-    if command -v muiogo >/dev/null; then
-        ok "muiogo command installed ($(command -v muiogo))"
-    else
-        warn "muiogo installed but not on PATH — add ~/.local/bin to your PATH"
+# The installed world carries its OWN copy of this repo and its own client
+# venv, and everything that drives the world runs from there. Nothing is
+# installed into the user's shared tools: a `muiogo` command they already have
+# is theirs and is never overwritten, and this world stays intact if their
+# checkout or their tools change. `muiogo-ai` (written at the end) is the one
+# handle on this installation.
+RUNTIME_AI_DIR="$DEST/MUIOGO-AI"
+if [[ -n "$AI_DIR" ]] && same_dir "$AI_DIR" "$RUNTIME_AI_DIR"; then
+    RUNTIME_AI_DIR="$AI_DIR"
+    skip "runtime copy (the installer already runs from it)"
+elif [[ -d "$RUNTIME_AI_DIR/.git" ]]; then
+    # Resuming: refresh from the invoking checkout when there is one, so the
+    # runtime copy matches the installer that is running. Never force it.
+    if [[ -n "$AI_DIR" && -d "$AI_DIR/.git" ]]; then
+        git -C "$RUNTIME_AI_DIR" pull --ff-only --quiet "$AI_DIR" 2>/dev/null \
+            || warn "could not fast-forward $RUNTIME_AI_DIR from $AI_DIR — continuing with what is there"
     fi
+    skip "runtime copy"
 else
-    warn "could not install the muiogo command globally; use $AI_DIR/client/.venv/bin/muiogo"
+    if [[ -n "$AI_DIR" && -d "$AI_DIR/.git" ]]; then
+        git clone --quiet "$AI_DIR" "$RUNTIME_AI_DIR" \
+            || die "could not clone the runtime copy from $AI_DIR"
+        [[ -n "$(git -C "$AI_DIR" status --porcelain 2>/dev/null | head -1)" ]] \
+            && warn "your checkout has uncommitted changes — they are not part of the runtime copy"
+    else
+        git clone --quiet "$MUIOGO_AI_REPO_URL" "$RUNTIME_AI_DIR" \
+            || die "could not clone MUIOGO-AI (private repo: authenticate git/gh first)"
+    fi
+    ok "runtime copy: $RUNTIME_AI_DIR"
 fi
-record muiogo-ai OK "$AI_DIR"
+# Config (the pin, the CLEWs manifests, the skills) reads from the invoking
+# checkout so it matches this running installer; without one, from the copy.
+[[ -z "$AI_DIR" ]] && AI_DIR="$RUNTIME_AI_DIR"
+( cd "$RUNTIME_AI_DIR/client" && clean_env uv sync -q ) || die "uv sync failed in $RUNTIME_AI_DIR/client"
+RUNTIME_MUIOGO="$RUNTIME_AI_DIR/client/.venv/bin/muiogo"
+[[ -x "$RUNTIME_MUIOGO" ]] || RUNTIME_MUIOGO="$RUNTIME_AI_DIR/client/.venv/Scripts/muiogo.exe"
+[[ -x "$RUNTIME_MUIOGO" ]] || die "client env has no muiogo command at $RUNTIME_AI_DIR/client/.venv"
+ok "client env ready ($RUNTIME_MUIOGO)"
+record muiogo-ai OK "$RUNTIME_AI_DIR"
 
 # --country ISO3: resolve both sides by the join key. OG side becomes og-<iso3>
 # (validated against the upstream catalog in step 3); CLEWs side requires a
@@ -919,7 +939,7 @@ arr = json.loads(sys.argv[1])
 arr.append({"key": sys.argv[2], "case": sys.argv[3]})
 print(json.dumps(arr))' "$CLEWS_JSON" "${CLEWS_INSTALLED_KEYS[$i]}" "${CLEWS_INSTALLED_CASES[$i]}")"
 done
-python3 - "$DEST" "$MUIOGO_DIR" "$AI_DIR" "${LINK_DIR:-}" "$OG_JSON" "$PORT" "$OG_HOME" "$CLEWS_JSON" <<'PY'
+python3 - "$DEST" "$MUIOGO_DIR" "$RUNTIME_AI_DIR" "${LINK_DIR:-}" "$OG_JSON" "$PORT" "$OG_HOME" "$CLEWS_JSON" <<'PY'
 import json, subprocess, sys, datetime, shutil, os, glob
 dest, muiogo, ai, link, og_json, port, og_home, clews_json = sys.argv[1:9]
 def ref(path):
@@ -979,14 +999,31 @@ PY
 # Publish to the canonical well-known path so an assistant running in ANY
 # directory finds this installation. Uses the client's own interpreter: the
 # package needs its dependencies, which the system python does not have.
-CLIENT_PY="$AI_DIR/client/.venv/bin/python"
+#
+# Registration is NOT activation. The active pointer is whichever world the
+# user works in by default; installing a runtime must never steal it from an
+# existing setup. It is taken only when nothing holds it — a fresh machine —
+# so that bare `muiogo` still works out of the box there.
+CLIENT_PY="$RUNTIME_AI_DIR/client/.venv/bin/python"
+[[ -x "$CLIENT_PY" ]] || CLIENT_PY="$RUNTIME_AI_DIR/client/.venv/Scripts/python.exe"
 if [[ -x "$CLIENT_PY" ]]; then
-    PUBLISHED="$("$CLIENT_PY" -c "
+    PUB_OUT="$("$CLIENT_PY" - "$DEST/manifest.json" <<'PYPUB' 2>/dev/null
+import sys
 from muiogo_client import workspace
-print(workspace.publish('$DEST/manifest.json', name='runtime') or '')
-" 2>/dev/null)"
+prev = workspace.active_world()
+path = workspace.publish(sys.argv[1], name="runtime", make_active=(prev is None))
+print(path or "")
+print(prev or "")
+PYPUB
+)"
+    PUBLISHED="$(printf '%s\n' "$PUB_OUT" | sed -n 1p)"
+    PREV_ACTIVE="$(printf '%s\n' "$PUB_OUT" | sed -n 2p)"
     if [[ -n "$PUBLISHED" ]]; then
-        ok "registered as world 'runtime': $PUBLISHED"
+        if [[ -n "$PREV_ACTIVE" ]]; then
+            ok "registered as world 'runtime' — your active world stays '$PREV_ACTIVE'"
+        else
+            ok "registered as world 'runtime' and made active (no other world was)"
+        fi
     else
         warn "could not publish the manifest to ~/.muiogo — 'muiogo status' will need MUIOGO_WORKSPACE"
     fi
@@ -1003,7 +1040,7 @@ record manifest OK "$DEST/manifest.json"
 CURRENT_STEP="launcher"
 LAUNCHER_DIR="${HOME}/.local/bin"
 LAUNCHER="$LAUNCHER_DIR/muiogo-ai"
-if clean_env "$AI_DIR/client/.venv/bin/muiogo" launcher runtime \
+if clean_env "$RUNTIME_MUIOGO" launcher runtime \
         --out "$LAUNCHER" --state-home "$OG_HOME" >/dev/null 2>&1; then
     ok "muiogo-ai command written ($LAUNCHER)"
     command -v muiogo-ai >/dev/null \
@@ -1012,7 +1049,7 @@ if clean_env "$AI_DIR/client/.venv/bin/muiogo" launcher runtime \
 else
     warn "could not write the muiogo-ai launcher"
     echo "        Until that is fixed, target this world explicitly:"
-    echo_cmd "muiogo --url http://127.0.0.1:$PORT"
+    echo_cmd "$RUNTIME_MUIOGO --url http://127.0.0.1:$PORT"
     record launcher FAIL "see above"
 fi
 
@@ -1068,6 +1105,7 @@ fi
 printf "  ${GREEN}${BOLD}MUIOGO-AI stack installed and verified.${RESET}\n"
 echo    "  Workspace : $DEST"
 echo    "  Manifest  : $DEST/manifest.json"
-echo    "  World     : runtime (port $PORT) — \`muiogo worlds\` shows all of them"
+echo    "  World     : runtime (port $PORT) — \`muiogo-ai worlds\` shows all of them"
 echo    "  Start it:   muiogo-ai serve --detach"
+echo    "  Remove it:  scripts/uninstall.sh — moves everything aside, deletes nothing"
 exit 0
