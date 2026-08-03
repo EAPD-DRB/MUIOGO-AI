@@ -58,17 +58,16 @@ muiogo-ai stop
 ```
 
 **Stop with `muiogo-ai stop`, never by port.** It stops the exact process it
-started, from a pidfile in `~/.muiogo/servers/`. Killing whatever holds a port —
-`kill $(lsof -ti :5002)` — can match an unrelated process; that has actually
-happened. Run-state lives outside every checkout, so a detached server never
-leaves untracked files in a model repository.
+started, from a pidfile in the installation's own `servers/` directory. Killing
+whatever holds a port — `kill $(lsof -ti :5002)` — can match an unrelated
+process; that has actually happened. Run-state lives outside every checkout, so
+a detached server never leaves untracked files in a model repository.
 
-Two things to know. The port comes from the workspace, and the two worlds differ
-on purpose: an installed runtime defaults to 5102, checkouts you run manually
-keep MUIOGO's own 5002. `muiogo worlds` shows which workspaces exist, their
-ports, and which is active. And MUIOGO solves synchronously: one solve occupies
-the server, so do not fire runs in parallel against a single server; use
-`muiogo-ai batch`.
+Two things to know. The port comes from the setup, and the two differ on
+purpose: an installed muiogoai defaults to 5102, checkouts the user runs
+manually keep MUIOGO's own 5002 — so a command can never silently drive the
+wrong server. And MUIOGO solves synchronously: one solve occupies the server,
+so do not fire runs in parallel against a single server; use `muiogo-ai batch`.
 
 ## Solvers
 

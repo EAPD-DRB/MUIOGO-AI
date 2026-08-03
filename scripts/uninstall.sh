@@ -2,7 +2,7 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # MUIOGO-AI uninstaller (macOS / Linux).
 #
-# MOVES the installed runtime world aside; it deletes NOTHING. The workspace is
+# MOVES the installation aside; it deletes NOTHING. The workspace is
 # renamed to <workspace>.removed-<timestamp>, and the few files that live
 # outside it (the world record, the muiogo-ai launcher, this port's server
 # files) are moved INTO that renamed directory. When you have checked that

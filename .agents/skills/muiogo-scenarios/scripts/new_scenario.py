@@ -42,7 +42,7 @@ def default_url():
     This script WRITES: it registers a scenario in genData.json and pushes a
     parameter slice for every R*.json. So resolving the wrong world here edits
     someone's real models. The previous version ended in a hardcoded
-    127.0.0.1:5002 fallback — the live world's port — directly contradicting its
+    127.0.0.1:5002 fallback — the adopted setup's port — directly contradicting its
     own docstring.
 
     A launcher (muiogo-ai, muiogo-live) exports MUIOGO_WORLD_FILE, and child
@@ -73,11 +73,11 @@ def default_url():
     sys.exit(
         "I cannot tell which MUIOGO this should write to, and this script edits\n"
         "case data, so I will not guess.\n\n"
-        "Run it from a shell a world launcher started — muiogo-ai exports the\n"
-        "world and child processes inherit it — or name the server explicitly:\n"
-        "    --url http://127.0.0.1:5102           (the installed runtime)\n\n"
-        "`muiogo-ai status` prints this world's URL; `muiogo worlds` lists every\n"
-        "world on this machine.")
+        "Run it from a shell a launcher started — muiogo-ai exports the setup\n"
+        "and child processes inherit it — or name the server explicitly:\n"
+        "    --url http://127.0.0.1:5102           (the installation)\n\n"
+        "`muiogo-ai status` prints the installation's URL; `muiogo status`\n"
+        "prints the URL of the user's own adopted checkouts.")
 
 
 def require_same_world(record, data_storage):

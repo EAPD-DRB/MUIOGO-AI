@@ -170,6 +170,7 @@ Propose, draft, and prepare; the user decides. Listing and validating are free.
 **Stop and ask before installing a country model** (a long download and build),
 **before importing over an existing case**, and before deleting anything. Say
 what you are about to change and where it will land — including which world.
-Never install or import into the live world unless the user asked for that; if a
-case is missing from the runtime world, report that rather than reaching into
+Never install or import into the user's own checkouts unless they asked for
+that; if a case is missing from the installation, report that rather than
+reaching into
 theirs.

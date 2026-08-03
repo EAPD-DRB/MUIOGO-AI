@@ -27,31 +27,31 @@ muiogo-ai status
 That prints the whole installation and needs no running server:
 
 ```
-world: runtime (installed) · http://127.0.0.1:5102 · <workspace>/MUIOGO [pinned by launcher]
+world: muiogoai (installed) · http://127.0.0.1:5102 · <workspace>/MUIOGO [pinned by launcher]
 world         INSTALLED  (a self-contained runtime built by the installer)
-manifest      /Users/<you>/.muiogo/manifest.json
-workspace     /Users/<you>/muiogo-ai
-installed     2026-07-28T11:09:12
-MUIOGO        <workspace>/MUIOGO  (ref 3db8b816)
+workspace     /Users/<you>/muiogoai
+manifest      /Users/<you>/muiogoai/manifest.json
+recorded      2026-08-03T12:04:02
+MUIOGO        <workspace>/MUIOGO  (detached at 928a13bb)
 model data    <workspace>/MUIOGO/WebAPP/DataStorage
 server URL    http://127.0.0.1:5102
 server        not running   (start it: muiogo-ai serve)
   case        CLEWs Demo
   case        Philippines_v12_ENV_LAND_WATER_DIAGNOSTIC
-  OG model    og-phl  /Users/<you>/.muiogo/og-models/OG-PHL
+  OG model    og-phl  <workspace>/og-models/OG-PHL
   link        <workspace>/ogclews-link
   solvers     glpk=True cbc=True
 ```
 
-The first line goes to stderr and names the world; the rest is the installation
+The first line goes to stderr and names the setup; the rest is the installation
 itself. `muiogo-ai status --json` gives the same thing machine-readably when you
-are scripting rather than reading. `muiogo worlds` lists every workspace on the
-machine and marks the active one — worth checking whenever a path looks
-unfamiliar, because a machine may carry both a **live** world (adopted checkouts
-someone runs manually, on their own branches, port 5002) and an **installed**
-runtime (self-contained, port 5102). Never assume which one you are in, and use
-`worlds` only to orient, never to pick a target: the target comes from the
-launcher you called.
+are scripting rather than reading. A machine may carry two separate setups: an
+**installed** muiogoai (self-contained, port 5102, visible only through
+`muiogo-ai`) and **adopted** checkouts the user runs manually (their own
+branches, port 5002, visible to bare `muiogo`). There is no command that lists
+across them — orient with `muiogo-ai status` for the installation and
+`muiogo status` for the user's checkouts, and never assume which one a path
+belongs to. The target always comes from the launcher you called.
 
 Take every path from that output. Never hardcode a path, and never reuse a path
 from an example — including the examples in this or any other skill file. For a
@@ -78,13 +78,12 @@ installing again would build a second multi-gigabyte copy:
 
 ```bash
 muiogo adopt --scan      # what is already on this machine
-muiogo adopt --auto      # record it as the live world, installing nothing
+muiogo adopt --auto      # record it as the adopted setup, installing nothing
 ```
 
-`adopt` and `worlds` are the only bare `muiogo` commands in this skill: they are
-about the worlds themselves, not work inside one, and `adopt` registers the
-user's own checkouts as the **live** world — so propose it and let the user say
-yes. Everything else goes through `muiogo-ai`.
+`adopt` is the only bare `muiogo` command in this skill: it records the user's
+own checkouts as the adopted setup — their setup, so propose it and let the
+user say yes. Everything else goes through `muiogo-ai`.
 
 Only if that finds nothing:
 
@@ -186,10 +185,10 @@ in the other world gets edited by accident.
 
 ## Working rules
 
-- **Stay in the world you were called in.** If a case or model is not in the
-  world `muiogo-ai` reports, say so — do not go looking for it in the live world,
-  and do not switch worlds to make an error go away (`muiogo use` is not yours to
-  call). Name the world in what you report.
+- **Stay in the setup you were called in.** If a case or model is not in the
+  setup `muiogo-ai` reports, say so — do not go looking for it in the user's
+  own checkouts. There is no switching command; the setup is decided by which
+  launcher you ran. Name the setup in what you report.
 - **Read through the command line, not the internals.** `muiogo` talks to
   MUIOGO's HTTP API, which is the same path its web interface uses, so results
   are identical. Never import MUIOGO's Python modules and never edit files
