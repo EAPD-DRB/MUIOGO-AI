@@ -225,9 +225,11 @@ def cmd_status(args):
     client = MuiogoClient(base_url=info["muiogo_url"] or DEFAULT_URL, timeout=5)
     try:
         cases = client.list_cases()
+        server_up = True
         print(f"server        running — {len(cases)} case(s)")
     except Exception:
         cases = None
+        server_up = False
         print("server        not running   (start it: muiogo serve)")
 
     if cases is None:
@@ -243,9 +245,10 @@ def cmd_status(args):
         print(f"  case        {case}")
 
     # MUIOGO's own registry is authoritative for OG models; the manifest is only
-    # a fallback for when no server is running to ask.
+    # a fallback. With no server to ask, the registry FILE this world's server
+    # would read is consulted directly — same source of truth, no server needed.
     registered = None
-    if cases is not None:
+    if server_up:
         try:
             registered = client.og_installed()
         except Exception:
@@ -256,17 +259,33 @@ def cmd_status(args):
                   f"{entry.get('local_path') or entry.get('country_name','')}"
                   f"   [{entry.get('install_state','?')}]")
     elif info["og_models"]:
-        # An empty registry is not proof a model is unregistered: this world's
+        # An empty answer is not proof a model is unregistered: this world's
         # server reads the registry its own environment points at, so a model
         # registered in the other world legitimately shows as absent here.
         # Claiming "not registered with MUIOGO" would be a false statement
         # about the user's other installation.
-        state = ("not in this world's registry" if cases is not None
-                 else "unverified — no server running")
+        reg_ids = None
+        if not server_up:
+            from pathlib import Path
+            import json as _json
+
+            reg_dir = info.get("og_state_dir")
+            reg_file = Path(reg_dir) / "og_calibrations_installed.json" if reg_dir else None
+            if reg_file and reg_file.is_file():
+                try:
+                    reg_ids = set(_json.loads(reg_file.read_text()).get("calibrations") or {})
+                except (OSError, ValueError):
+                    reg_ids = None
         for model in info["og_models"]:
+            cid = (model.get("key") or "")[3:].upper()
+            if server_up or (reg_ids is not None and cid not in reg_ids):
+                state = "not in this world's registry"
+            elif reg_ids is not None:
+                state = "registered (read from this world's registry file)"
+            else:
+                state = "unverified — no registry file to read"
             print(f"  OG model    {model.get('key'):<8} {model.get('path')}   [{state}]")
-        if cases is not None:
-            print(f"              registry: {info['muiogo'].get('og_state_dir', '?')}")
+        print(f"              registry: {info.get('og_state_dir', '?')}")
     if info["link_path"]:
         print(f"  link        {info['link_path']}")
     solvers = info["solvers"]

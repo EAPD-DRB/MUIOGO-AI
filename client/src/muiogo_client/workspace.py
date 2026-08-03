@@ -702,6 +702,7 @@ def summary(start=None):
             str(Path(muiogo["path"]) / "WebAPP" / "DataStorage")
             if muiogo.get("path") else None
         ),
+        "og_state_dir": muiogo.get("og_state_dir"),
         "og_models": data.get("og_models") or [],
         "clews_cases": data.get("clews_cases") or [],
         "link_path": link.get("path"),

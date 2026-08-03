@@ -200,12 +200,18 @@ prompt_yn() {
 # refuse (or misbehave) inside an active environment.
 clean_env() { env -u VIRTUAL_ENV -u CONDA_DEFAULT_ENV -u CONDA_PREFIX -u CONDA_SHLVL "$@"; }
 
+# The cleanup lists exist before anything is created, so nothing can be added
+# to them and then wiped by a later declaration.
+CLEANUP_PATHS=()
+CLEANUP_FILES=()
+
 # No-op `open`/`xdg-open` shim so the MUIOGO installer's auto-start can't pop
 # a browser. The auto-start itself is absorbed as our health probe.
 SHIM_DIR="$(mktemp -d)"
 CLEANUP_PATHS+=("$SHIM_DIR")
 for cmd in open xdg-open; do
     printf '#!/bin/sh\nexit 0\n' > "$SHIM_DIR/$cmd" && chmod +x "$SHIM_DIR/$cmd"
+    CLEANUP_FILES+=("$SHIM_DIR/$cmd")
 done
 
 # Port checks go through python3 (already a requirement) rather than lsof, which
@@ -237,8 +243,6 @@ stop_server() {
 # Scratch dirs are removed with rmdir, never recursively. rmdir refuses to touch
 # a non-empty directory, so a wrong path here cannot destroy anything: the worst
 # case is a leftover directory, which is reported rather than forced.
-CLEANUP_PATHS=()
-CLEANUP_FILES=()
 cleanup() {
     stop_server
     local f p
@@ -501,6 +505,10 @@ else
     if [[ -n "$AI_DIR" && -d "$AI_DIR/.git" ]]; then
         git clone --quiet "$AI_DIR" "$RUNTIME_AI_DIR" \
             || die "could not clone the runtime copy from $AI_DIR"
+        # The copy must outlive the checkout it came from: record the canonical
+        # repository as origin, so the world stays self-describing even if the
+        # checkout moves or disappears.
+        git -C "$RUNTIME_AI_DIR" remote set-url origin "$MUIOGO_AI_REPO_URL"
         [[ -n "$(git -C "$AI_DIR" status --porcelain 2>/dev/null | head -1)" ]] \
             && warn "your checkout has uncommitted changes — they are not part of the runtime copy"
     else
@@ -546,6 +554,7 @@ if [[ -x "$MUIOGO_DIR/.venv/bin/python" && -f "$MUIOGO_DIR/API/app.py" ]]; then
     record muiogo SKIP "$MUIOGO_DIR"
 else
     TMP_INST="$(mktemp -d)/muiogo-install.sh"
+    CLEANUP_FILES+=("$TMP_INST")
     CLEANUP_PATHS+=("$(dirname "$TMP_INST")")
     curl -fsSL "$MUIOGO_INSTALLER_URL" -o "$TMP_INST" || die "could not fetch the MUIOGO installer"
     EXTRA=(); [[ $NO_DEMO_DATA -eq 1 ]] && EXTRA+=("--no-demo-data")
