@@ -1,5 +1,15 @@
 # One-line installer: assessment and design
 
+> **Superseded in part (2026-08-03).** The "worlds" model described below
+> (registered world records, an active pointer, `muiogo use`) was retired for
+> installations after the full install-to-results test: an installed muiogoai
+> is now a single self-contained app per machine, found only through the
+> `muiogo-ai` launcher, and it neither reads nor writes any shared state.
+> Components (MUIOGO, OG models, ogclews-link) are separate apps that never
+> learn muiogoai exists. See `experiments/2026-08-full-install-test/` and the
+> installer itself for the current model. The assessment below is kept as the
+> design record it was.
+
 Goal: one command takes a clean machine to a fully working headless OG-CLEWS
 stack — MUIOGO (headless), solvers, OG country model(s), ogclews-link, and the
 muiogo-ai client/skills — with every component in its correct, isolated

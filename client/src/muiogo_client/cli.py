@@ -750,7 +750,16 @@ def cmd_validate(args):
     """MUIOGO ships ten input-consistency checks; its output carries HTML for
     the browser, so strip it and report pass/fail plainly."""
     import re as _re
-    body = _client(args).validate_inputs(args.case, args.run)
+    from .client import MuiogoError
+    try:
+        body = _client(args).validate_inputs(args.case, args.run)
+    except MuiogoError as exc:
+        if "Data file is not created" in str(exc):
+            print("This run has no generated data file yet — validation checks the")
+            print("generated input, so there is nothing to validate until one exists.")
+            print(f'Generate and solve in one step:  muiogo run --case "{args.case}" --run {args.run}')
+            return 1
+        raise
     raw = body.get("msg") or body.get("message") or "" if isinstance(body, dict) else str(body)
     text = _re.sub(r"<[^>]+>", "", raw)
     checks, failures = [], []
