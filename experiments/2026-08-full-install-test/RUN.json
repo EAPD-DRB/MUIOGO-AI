@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "recorded": "2026-08-03T11:53:10",
+  "case": "Philippines_v12_ENV_LAND_WATER_DIAGNOSTIC",
+  "run": "BASE_CHK",
+  "scenarios_active": [
+    "BASE"
+  ],
+  "solver": "cbc",
+  "solver_status": "Optimal - objective value 375930821.34054232",
+  "objective": 375930821.3405423,
+  "input_sha256": "dd5152ae79eeaaccf8140ae7cdee1ce98984d46eefc1718ee9a728e9bec925be",
+  "results_sha256": "11b6fcd978d05ec8947e90ca856fa83ae01740103f80195d72a57912b0fbe5fc",
+  "result_files": 24,
+  "muiogo_ref": "3db8b816",
+  "platform": "Darwin arm64"
+}
