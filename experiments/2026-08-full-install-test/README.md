@@ -49,10 +49,16 @@ what the test was for.
    exists, failing with an unexplained 500 (`FileNotFoundError` →
    `IndexError`). Runs created through the API (`muiogo-ai new-run`) get their
    directory and work — hence `BASE_CHK` instead of the shipped `Base_v12`.
-   Fix belongs in MUIOGO (`generateDatafile` should create the run directory,
-   or `/uploadCase` should restore it); propose upstream, issue first.
-   Also minor: `muiogo-ai validate` before first generation reports
-   "Data file is not created" instead of pointing at `run`.
+   **Resolved 2026-08-03 without an issue: upstream had already fixed it.**
+   MUIOGO main gained `dataFilePath.parent.mkdir(parents=True, exist_ok=True)`
+   between our pin `3db8b816` and `928a13bb`, and the results path already
+   guards the `csv/` directory. Verified by moving the installation to
+   `928a13bb` and solving the shipped `Base_v12` end-to-end: Optimal,
+   objective 375,930,821.34 — matching `BASE_CHK` on the identical input hash
+   `dd5152ae79ee`. The pin is bumped accordingly.
+   The minor half (client `validate` before first generation reported the
+   server's raw "Data file is not created" error) now prints an explanation
+   and the `muiogo run` command that generates it.
 
 ## Wiring check for users
 
