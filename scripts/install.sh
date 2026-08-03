@@ -19,9 +19,10 @@
 # Usage:
 #   ./scripts/install.sh [options]
 # Options:
-#   --dest DIR          Master directory for everything. Asked interactively
-#                       when not given; the default is the already-registered
-#                       installation if one exists, otherwise ~/muiogoai.
+#   --dest DIR          Where the installation lives. Interactive runs always
+#                       confirm it (default ~/muiogoai); non-interactive runs
+#                       must pass it. With an existing installation, re-running
+#                       repairs it in place — one installation per machine.
 #   --country ISO3s     Comma-separated countries (PHL,...). Resolves BOTH sides
 #                       by the ISO3 join: the OG model (og-<iso3>) via the
 #                       upstream catalog AND the CLEWs case via clews/ manifests.
@@ -52,7 +53,7 @@ OG_CATALOG_URL="https://raw.githubusercontent.com/PSLmodels/OG-Core/master/scrip
 LINK_REPO_URL="https://github.com/marcelolafleur/ogclews-link.git"
 MUIOGO_AI_REPO_URL="https://github.com/EAPD-DRB/MUIOGO-AI.git"
 
-DEST=""           # resolved in preflight: flag > prompt > registered world > ~/muiogoai
+DEST=""           # resolved in preflight: flag > existing installation > prompt
 OG_KEYS=""
 CLEWS_KEYS=""
 COUNTRIES=""
@@ -78,12 +79,15 @@ Usage:
 
 Options:
   -h, --help              Show this message and exit.
-  -y, --yes               Auto-confirm every prompt (non-interactive).
-      --dest DIR          Master directory holding MUIOGO, the OG models, the
-                          link and their registries. Asked interactively when
-                          not given; defaults to the already-registered
-                          installation if one exists, otherwise ~/muiogoai.
-                          Kept separate from repos you use for live work.
+  -y, --yes               Auto-confirm every prompt EXCEPT the install
+                          location, which is always confirmed interactively
+                          or given with --dest.
+      --dest DIR          Where the installation lives — MUIOGO, the OG models,
+                          the link and their state. Interactive runs always
+                          confirm the location (default ~/muiogoai);
+                          non-interactive runs must pass --dest. When an
+                          installation already exists, re-running repairs it
+                          in place: one installation per machine.
       --country ISO3s     Countries to set up, comma-separated (e.g. PHL).
                           Resolves BOTH sides from the one key: the OG model
                           (og-<iso3>) and the CLEWs case.
@@ -226,8 +230,9 @@ PYEOF
 }
 server_pid() { lsof -ti ":$PORT" 2>/dev/null | head -1; }
 stop_server() {
-    # Prefer the pid we recorded; fall back to a port lookup only where lsof exists.
-    local pidfile="$HOME/.muiogo/servers/port-$PORT.pid"
+    # Prefer the pid we recorded; fall back to a port lookup only where lsof
+    # exists. Server state lives inside the installation, never in a shared dir.
+    local pidfile="${OG_HOME:-${DEST:-}}/servers/port-$PORT.pid"
     if [[ -f "$pidfile" ]]; then
         kill "$(cat "$pidfile")" 2>/dev/null && rm -f "$pidfile" && sleep 1 && return 0
     fi
@@ -266,20 +271,6 @@ wait_api() { # wait_api SECONDS — until /getCases answers
     return 1
 }
 
-# shasum is on macOS, sha256sum on most Linux; python3 is already required, so
-# it is the one thing guaranteed present on both.
-sha256_of() {
-    [[ -f "$1" ]] || { echo "absent"; return 0; }
-    python3 - "$1" <<'PYHASH'
-import hashlib, sys
-h = hashlib.sha256()
-with open(sys.argv[1], "rb") as fh:
-    for chunk in iter(lambda: fh.read(1 << 20), b""):
-        h.update(chunk)
-print(h.hexdigest())
-PYHASH
-}
-
 # Two paths can name ONE directory. macOS's default filesystem is
 # case-insensitive, so $HOME/muiogo-ai and $HOME/MUIOGO-AI are the same place —
 # but `cd` + `pwd` echoes back whichever case you asked for, so comparing the
@@ -316,14 +307,17 @@ expand_path() {
     printf '%s\n' "$p"
 }
 
-# The workspace of an already-registered 'runtime' world, if it still exists.
-# Installing somewhere new while one exists would not be a fresh install: it
-# would build a second multi-gigabyte world AND repoint the 'runtime' name at
-# it, quietly orphaning the first. So an existing world is the default answer —
-# re-running into it is safe, finished steps skip themselves.
-runtime_world_dir() {
-    local wf="$HOME/.muiogo/worlds/runtime.json"
-    [[ -f "$wf" ]] || return 1
+# The one existing installation, found the only way an installation is ever
+# found: through the launcher's baked-in manifest path. No registry, no
+# pointer, no shared state — if the launcher or its manifest is gone, there is
+# no installation.
+LAUNCHER_FILE="${HOME}/.local/bin/muiogo-ai"
+existing_install_dir() {
+    [[ -f "$LAUNCHER_FILE" ]] || return 1
+    local wf
+    wf="$(sed -n 's/^MUIOGO_WORLD_FILE=//p' "$LAUNCHER_FILE" | head -1)"
+    wf="${wf%\'}"; wf="${wf#\'}"
+    [[ -n "$wf" && -f "$wf" ]] || return 1
     python3 - "$wf" <<'PYWORLD'
 import json, os, sys
 try:
@@ -347,31 +341,39 @@ done
 port_busy && die "port $PORT is already in use — stop that server or pass --port"
 
 # ── where the installation lives ──────────────────────────────────────────────
-# Flag > prompt > default. The default is the already-registered installation
-# when one exists (see runtime_world_dir), otherwise ~/muiogoai. Every source of
-# the answer — flag, typed, defaulted — flows through the same expansion and
-# the same safety checks below.
-DEFAULT_DEST="${HOME}/muiogoai"
-PREV_WORLD="$(runtime_world_dir)" || PREV_WORLD=""
-[[ -n "$PREV_WORLD" ]] && DEFAULT_DEST="$PREV_WORLD"
-if [[ -z "$DEST" ]]; then
-    if [[ $ASSUME_YES -eq 1 || ! -r /dev/tty ]]; then
-        DEST="$DEFAULT_DEST"
-        ok "install location: $DEST (default)"
-    else
-        echo "  Everything installs into one directory: MUIOGO, the country models,"
-        echo "  and about 4 GB of data. The location is permanent — it cannot be"
-        echo "  moved later without reinstalling."
-        if [[ -n "$PREV_WORLD" ]]; then
-            echo "  An installation is already registered at $PREV_WORLD —"
-            echo "  press Enter to reuse it (finished steps are skipped)."
-        fi
-        printf "  Install where? [%s] " "$DEFAULT_DEST" > /dev/tty
-        IFS= read -r DEST_ANSWER < /dev/tty || DEST_ANSWER=""
-        DEST="${DEST_ANSWER:-$DEFAULT_DEST}"
+# One installation per machine. An existing one (found via the launcher) is
+# repaired in place; --dest pointing anywhere else is refused rather than
+# building a second. On first install the location is ALWAYS confirmed by the
+# user: interactively with a default, or explicitly with --dest. --yes does
+# not decide it — an assistant or script running this hands-free must ask its
+# human first.
+EXISTING_DEST="$(existing_install_dir)" || EXISTING_DEST=""
+if [[ -n "$DEST" ]]; then
+    DEST="$(expand_path "$DEST")"
+    if [[ -n "$EXISTING_DEST" ]] && ! same_dir "$DEST" "$EXISTING_DEST"; then
+        die "an installation already exists at $EXISTING_DEST — one per machine.
+       Re-run without --dest to repair it, or remove it first:  scripts/uninstall.sh"
     fi
+elif [[ -n "$EXISTING_DEST" ]]; then
+    DEST="$EXISTING_DEST"
+    ok "existing installation: $DEST — repairing/completing it"
+else
+    if [ ! -r /dev/tty ]; then
+        die "no terminal to confirm the install location — pass --dest DIR (for example: --dest ~/muiogoai)"
+    fi
+    DEFAULT_DEST="${HOME}/muiogoai"
+    echo "  Everything installs into one directory: MUIOGO, the country models,"
+    echo "  and about 4 GB of data. The location is permanent — it cannot be"
+    echo "  moved later without reinstalling."
+    printf "  Install where? [%s] " "$DEFAULT_DEST" > /dev/tty
+    # EOF is not a confirmation. Pressing Enter accepts the default; a closed
+    # or silent terminal means nobody chose, and the location is never guessed.
+    if ! IFS= read -r DEST_ANSWER < /dev/tty; then
+        echo
+        die "could not read a confirmation for the install location — pass --dest DIR (for example: --dest ~/muiogoai)"
+    fi
+    DEST="$(expand_path "${DEST_ANSWER:-$DEFAULT_DEST}")"
 fi
-DEST="$(expand_path "$DEST")"
 
 # A non-empty directory that is not a previous installation is somebody's data;
 # unpacking an app tree into the middle of it is not ours to decide. A previous
@@ -398,12 +400,6 @@ if [[ -n "$FREE_MB" ]]; then
     fi
 fi
 
-# Fingerprint the registry World 1 uses. The whole point of this installation is
-# that it keeps its own; if that fingerprint changes, isolation has failed and
-# the user's manual setup has been altered behind their back.
-SHARED_REGISTRY="${HOME}/.muiogo/og-state/og_calibrations_installed.json"
-SHARED_REGISTRY_BEFORE=""
-[[ -f "$SHARED_REGISTRY" ]] && SHARED_REGISTRY_BEFORE="$(sha256_of "$SHARED_REGISTRY")"
 mkdir -p "$DEST"
 DEST="$(cd "$DEST" && pwd)"
 # Everything this installer creates lives under one directory, so it never
@@ -454,21 +450,9 @@ if [[ -n "$DEST_TREE" ]]; then
     fi
 fi
 
-# Do not silently build a second copy of things the user already has. A country
-# model is 1-3 GB, and two checkouts of the same model is worse than none: the
-# tooling can end up pointing at whichever one you did not mean.
-EXISTING="$(ls -d "$HOME"/Projects/MUIOGO "$HOME"/Projects/OG-* "$HOME"/Projects/ogclews-link 2>/dev/null | head -12)"
-if [[ -n "$EXISTING" && ! -d "$DEST/MUIOGO" ]]; then
-    warn "you already have model checkouts on this machine:"
-    printf '%s\n' "$EXISTING" | sed 's/^/        /'
-    echo "      Installing will create SEPARATE copies in $DEST."
-    echo "      To use the ones you have instead, stop here and run:"
-    echo_cmd "muiogo adopt --auto"
-    if ! prompt_yn "Continue and install fresh copies anyway?" n; then
-        echo "      Nothing installed. Adopt what you have with: muiogo adopt --auto"
-        exit 0
-    fi
-fi
+# Checkouts of MUIOGO or OG models elsewhere on the machine are separate apps,
+# used for their own purposes. This installation neither reads them nor warns
+# about them: it builds and uses only its own copies.
 record preflight OK "$DEST"
 
 # ── 1. MUIOGO-AI (this repo: client + skills) ────────────────────────────────
@@ -893,30 +877,20 @@ if [[ $NO_VERIFY -eq 0 ]]; then
         ( cd "$LINK_DIR" && clean_env ./scripts/setup.sh --check ) >/dev/null 2>&1 \
             && ok "link --check passes" || die "ogclews-link --check failed"
     fi
-    # Isolation is the reason this installation exists, and it is the one
-    # property nothing else here would notice failing: a server reading the
-    # shared registry serves and solves perfectly well.
-    if [[ "$OG_HOME" != "${HOME}/.muiogo" ]]; then
-        ACTIVE_STATE="$(grep -E '^MUIOGO_OG_DATA_DIR=' "$DEST/MUIOGO/.env" 2>/dev/null | cut -d= -f2-)"
-        [[ "$ACTIVE_STATE" == "$OG_HOME/og-state" ]] \
-            && ok "world isolation: configured registry is $OG_HOME/og-state" \
-            || die "world isolation FAILED: this MUIOGO's registry is '${ACTIVE_STATE:-unset}', expected $OG_HOME/og-state"
-        # Configuration can be right while the running server ignores it, so
-        # check where registration actually landed rather than trusting .env.
-        if [[ ${#OG_INSTALLED_KEYS[@]} -gt 0 ]]; then
-            [[ -f "$OG_HOME/og-state/og_calibrations_installed.json" ]] \
-                && ok "registrations landed in this world's registry" \
-                || die "registered ${#OG_INSTALLED_KEYS[@]} model(s) but $OG_HOME/og-state/og_calibrations_installed.json does not exist — the server wrote its registry somewhere else"
-        fi
-        if [[ -n "$SHARED_REGISTRY_BEFORE" ]]; then
-            [[ "$(sha256_of "$SHARED_REGISTRY")" == "$SHARED_REGISTRY_BEFORE" ]] \
-                && ok "your existing registry is untouched" \
-                || die "this install MODIFIED $SHARED_REGISTRY — that is your manual setup's registry. Stopping so you can check it."
-        elif [[ -f "$SHARED_REGISTRY" ]]; then
-            die "this install CREATED $SHARED_REGISTRY — it should only ever write $OG_HOME/og-state"
-        fi
+    # Everything this installation runs on must be its own: the registry its
+    # server reads is configured inside it, and registrations land inside it.
+    ACTIVE_STATE="$(grep -E '^MUIOGO_OG_DATA_DIR=' "$DEST/MUIOGO/.env" 2>/dev/null | cut -d= -f2-)"
+    [[ "$ACTIVE_STATE" == "$OG_HOME/og-state" ]] \
+        && ok "self-contained: configured registry is $OG_HOME/og-state" \
+        || die "self-containment FAILED: this MUIOGO's registry is '${ACTIVE_STATE:-unset}', expected $OG_HOME/og-state"
+    # Configuration can be right while the running server ignores it, so
+    # check where registration actually landed rather than trusting .env.
+    if [[ ${#OG_INSTALLED_KEYS[@]} -gt 0 ]]; then
+        [[ -f "$OG_HOME/og-state/og_calibrations_installed.json" ]] \
+            && ok "registrations landed in this installation's registry" \
+            || die "registered ${#OG_INSTALLED_KEYS[@]} model(s) but $OG_HOME/og-state/og_calibrations_installed.json does not exist — the server wrote its registry somewhere else"
     fi
-    VERIFIED="demo solve + world isolation"
+    VERIFIED="demo solve + self-containment"
     [[ ${#OG_INSTALLED_KEYS[@]} -gt 0 ]] && VERIFIED="$VERIFIED + OG imports"
     [[ -n "$LINK_DIR" ]] && VERIFIED="$VERIFIED + link check"
     record verify OK "$VERIFIED"
@@ -1005,43 +979,12 @@ print(f"  ok manifest: {out}")
 
 PY
 
-# Publish to the canonical well-known path so an assistant running in ANY
-# directory finds this installation. Uses the client's own interpreter: the
-# package needs its dependencies, which the system python does not have.
-#
-# Registration is NOT activation. The active pointer is whichever world the
-# user works in by default; installing a runtime must never steal it from an
-# existing setup. It is taken only when nothing holds it — a fresh machine —
-# so that bare `muiogo` still works out of the box there.
-CLIENT_PY="$RUNTIME_AI_DIR/client/.venv/bin/python"
-[[ -x "$CLIENT_PY" ]] || CLIENT_PY="$RUNTIME_AI_DIR/client/.venv/Scripts/python.exe"
-if [[ -x "$CLIENT_PY" ]]; then
-    PUB_OUT="$("$CLIENT_PY" - "$DEST/manifest.json" <<'PYPUB' 2>/dev/null
-import sys
-from muiogo_client import workspace
-prev = workspace.active_world()
-path = workspace.publish(sys.argv[1], name="runtime", make_active=(prev is None))
-print(path or "")
-print(prev or "")
-PYPUB
-)"
-    PUBLISHED="$(printf '%s\n' "$PUB_OUT" | sed -n 1p)"
-    PREV_ACTIVE="$(printf '%s\n' "$PUB_OUT" | sed -n 2p)"
-    if [[ -n "$PUBLISHED" ]]; then
-        if [[ -n "$PREV_ACTIVE" ]]; then
-            ok "registered as world 'runtime' — your active world stays '$PREV_ACTIVE'"
-        else
-            ok "registered as world 'runtime' and made active (no other world was)"
-        fi
-    else
-        warn "could not publish the manifest to ~/.muiogo — 'muiogo status' will need MUIOGO_WORKSPACE"
-    fi
-else
-    warn "no client interpreter; skipped publishing the manifest"
-fi
+# No registration anywhere. The manifest inside the workspace IS the record,
+# and the launcher written below is the only pointer to it on the machine.
+# Other setups — checkouts, other tools — never learn this installation exists.
 record manifest OK "$DEST/manifest.json"
 
-# ── the launcher: how you get this world without switching to it ──────────────
+# ── the launcher: the one handle on this installation ─────────────────────────
 # `muiogo-ai` carries this installation's manifest path as an absolute literal,
 # so it cannot be retargeted by an environment variable, a working directory, or
 # a stored pointer — there is nothing to change. Child processes inherit it,
@@ -1049,7 +992,7 @@ record manifest OK "$DEST/manifest.json"
 CURRENT_STEP="launcher"
 LAUNCHER_DIR="${HOME}/.local/bin"
 LAUNCHER="$LAUNCHER_DIR/muiogo-ai"
-if clean_env "$RUNTIME_MUIOGO" launcher runtime \
+if clean_env "$RUNTIME_MUIOGO" launcher "$DEST/manifest.json" \
         --out "$LAUNCHER" --state-home "$OG_HOME" >/dev/null 2>&1; then
     ok "muiogo-ai command written ($LAUNCHER)"
     command -v muiogo-ai >/dev/null \
@@ -1057,7 +1000,7 @@ if clean_env "$RUNTIME_MUIOGO" launcher runtime \
     record launcher OK "$LAUNCHER"
 else
     warn "could not write the muiogo-ai launcher"
-    echo "        Until that is fixed, target this world explicitly:"
+    echo "        Until that is fixed, target this installation explicitly:"
     echo_cmd "$RUNTIME_MUIOGO --url http://127.0.0.1:$PORT"
     record launcher FAIL "see above"
 fi
@@ -1114,7 +1057,7 @@ fi
 printf "  ${GREEN}${BOLD}MUIOGO-AI stack installed and verified.${RESET}\n"
 echo    "  Workspace : $DEST"
 echo    "  Manifest  : $DEST/manifest.json"
-echo    "  World     : runtime (port $PORT) — \`muiogo-ai worlds\` shows all of them"
+echo    "  Health    : muiogo-ai status"
 echo    "  Start it:   muiogo-ai serve --detach"
 echo    "  Remove it:  scripts/uninstall.sh — moves everything aside, deletes nothing"
 exit 0

@@ -291,7 +291,10 @@ def cmd_status(args):
     solvers = info["solvers"]
     if solvers:
         print(f"  solvers     glpk={bool(solvers.get('glpsol'))} cbc={bool(solvers.get('cbc'))}")
-    if others:
+    # A launcher-pinned command IS its installation: other setups on the
+    # machine are none of its business, and `muiogo use` cannot retarget it —
+    # suggesting either would be a false affordance.
+    if others and not workspace.pinned_world_file():
         print()
         print(f"{len(others)} other world(s) on this machine — `muiogo worlds` to see them,")
         print("`muiogo use <name>` to switch.")
@@ -335,19 +338,31 @@ def cmd_use(args):
 
 
 def cmd_launcher(args):
-    """Write a launcher that pins one world, so nothing has to be switched."""
+    """Write a launcher that pins one installation, so nothing has to be switched.
+
+    Takes a manifest path (the normal case: the installer pins the manifest
+    inside the installation itself) or a registered world name (adopted
+    setups).
+    """
     name = args.name
-    worlds = workspace.known_worlds()
-    if name not in worlds:
-        print(f"error: no world named {name!r}. Known: "
-              f"{', '.join(sorted(worlds)) or '(none)'}", file=sys.stderr)
-        return 2
-    record = worlds[name]
-    world = workspace.World(json.loads(Path(record).read_text()), record)
+    manifest = Path(name).expanduser()
+    if manifest.is_file():
+        record = manifest.resolve()
+        world = workspace.World(json.loads(record.read_text()), record)
+        default_name = "muiogo-ai"
+    else:
+        worlds = workspace.known_worlds()
+        if name not in worlds:
+            print(f"error: {name!r} is neither a manifest file nor a known world. "
+                  f"Known: {', '.join(sorted(worlds)) or '(none)'}", file=sys.stderr)
+            return 2
+        record = worlds[name]
+        world = workspace.World(json.loads(Path(record).read_text()), record)
+        default_name = f"muiogo-{name}" if name != "runtime" else "muiogo-ai"
     state_home = args.state_home or (
         world.og_state_dir.parent if world.og_state_dir else workspace.state_root())
     out = Path(args.out).expanduser() if args.out else (
-        Path.home() / ".local" / "bin" / (f"muiogo-{name}" if name != "runtime" else "muiogo-ai"))
+        Path.home() / ".local" / "bin" / default_name)
     written = workspace.write_launcher(out, record, state_home)
     print(f"launcher: {written}")
     print(f"  world      {world.describe()}")
@@ -911,8 +926,8 @@ def main(argv=None):
     p.add_argument("--case", required=True)
     p.set_defaults(func=cmd_case_path)
 
-    p = sub.add_parser("launcher", help="write a command that pins one world")
-    p.add_argument("name", help="world name (see `muiogo worlds`)")
+    p = sub.add_parser("launcher", help="write a command that pins one installation")
+    p.add_argument("name", help="path to the installation's manifest.json, or a world name")
     p.add_argument("--out", help="where to write it (default ~/.local/bin/muiogo-<name>)")
     p.add_argument("--state-home", help="this world's state dir (default: beside its OG registry)")
     p.set_defaults(func=cmd_launcher)

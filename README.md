@@ -53,9 +53,15 @@ This installs MUIOGO, the Philippines example country, and the OG-CLEWS
 link, and checks that everything works before finishing.
 
 It first asks where everything should live — press Enter to accept the
-default (`~/muiogoai`, or your existing installation if you have one). The
-location is permanent, so pick a folder outside any git checkout and with a
-few gigabytes to spare.
+default (`~/muiogoai`) or type another folder. The location is permanent, so
+pick one outside any git checkout and with a few gigabytes to spare.
+(Scripted runs pass `--dest` instead.)
+
+There is one installation per machine. Running the installer again repairs
+or completes the existing one; to start over, run `scripts/uninstall.sh`
+first. The installation is fully self-contained — it never touches, and is
+never affected by, any MUIOGO or OG model checkouts you keep for your own
+work.
 
 At the end it offers to install the modelling skills for use outside this
 repository. You can say no and do it later — see below.

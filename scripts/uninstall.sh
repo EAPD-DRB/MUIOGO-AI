@@ -53,17 +53,35 @@ prompt_yn() {
 }
 
 STATE_ROOT="${HOME}/.muiogo"
-WORLD_FILE="$STATE_ROOT/worlds/runtime.json"
+WORLD_FILE="$STATE_ROOT/worlds/runtime.json"   # legacy: old installs registered here
+LAUNCHER="${HOME}/.local/bin/muiogo-ai"
 
-# ── find the world ────────────────────────────────────────────────────────────
+# The launcher's baked-in manifest path is how an installation is found — no
+# registry involved. Old installs are still discovered via their legacy record.
+launcher_dest() {
+    [[ -f "$LAUNCHER" ]] || return 1
+    local wf
+    wf="$(sed -n 's/^MUIOGO_WORLD_FILE=//p' "$LAUNCHER" | head -1)"
+    wf="${wf%\'}"; wf="${wf#\'}"
+    [[ -n "$wf" && -f "$wf" ]] || return 1
+    python3 -c '
+import json, sys
+print(json.load(open(sys.argv[1])).get("workspace") or "")' "$wf" 2>/dev/null
+}
+
+# ── find the installation ─────────────────────────────────────────────────────
 FROM_REGISTRY=0
 if [[ -z "$DEST" ]]; then
-    [[ -f "$WORLD_FILE" ]] || die "no registered runtime world ($WORLD_FILE) — pass --dest to name the workspace"
-    DEST="$(python3 -c '
+    DEST="$(launcher_dest)" || DEST=""
+    if [[ -z "$DEST" && -f "$WORLD_FILE" ]]; then
+        DEST="$(python3 -c '
 import json, sys
 print(json.load(open(sys.argv[1])).get("workspace") or "")' "$WORLD_FILE" 2>/dev/null)"
-    [[ -n "$DEST" ]] || die "could not read a workspace path from $WORLD_FILE"
-    FROM_REGISTRY=1
+        [[ -n "$DEST" ]] || die "could not read a workspace path from $WORLD_FILE"
+        FROM_REGISTRY=1
+    fi
+    [[ -z "$DEST" && -d "$HOME/muiogoai" && -f "$HOME/muiogoai/manifest.json" ]] && DEST="$HOME/muiogoai"
+    [[ -n "$DEST" ]] || die "no installation found (no launcher, no legacy record, nothing at ~/muiogoai) — pass --dest"
 fi
 case "$DEST" in
     "~") DEST="$HOME" ;;
@@ -129,7 +147,10 @@ if ! prompt_yn "Move this installation aside now?"; then
 fi
 
 # ── stop the server (this port only) ──────────────────────────────────────────
-PIDFILE="$STATE_ROOT/servers/port-$PORT.pid"
+# New installs keep server state inside the installation; the shared path is
+# checked only for installs made before that.
+PIDFILE="$DEST/servers/port-$PORT.pid"
+[[ -f "$PIDFILE" ]] || PIDFILE="$STATE_ROOT/servers/port-$PORT.pid"
 if [[ -f "$PIDFILE" ]]; then
     kill "$(cat "$PIDFILE")" 2>/dev/null && info "stopped the server on port $PORT"
     sleep 1
@@ -160,7 +181,6 @@ if [[ -f "$WORLD_FILE" ]]; then
         warn "$WORLD_FILE points at a different workspace — left in place"
     fi
 fi
-LAUNCHER="${HOME}/.local/bin/muiogo-ai"
 if [[ -f "$LAUNCHER" ]]; then
     # Only if it is ours: a generated launcher names this workspace inside.
     if grep -q "$DEST" "$LAUNCHER" 2>/dev/null || grep -q "$TRASH" "$LAUNCHER" 2>/dev/null; then

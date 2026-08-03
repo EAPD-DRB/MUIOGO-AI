@@ -409,8 +409,9 @@ def candidate_paths(start=None):
         paths.append(world_file(active))
     paths.extend(known_worlds().values())
     paths.append(LEGACY_MANIFEST)
-    paths.append(DEFAULT_WORKSPACE / MANIFEST_NAME)
-    paths.extend(w / MANIFEST_NAME for w in LEGACY_WORKSPACES)
+    # Deliberately NOT searched: ~/muiogoai and other install locations. An
+    # installation is a separate app with its own pinned launcher; bare
+    # `muiogo` discovering it silently would re-entangle the two.
     here = Path(start or Path.cwd()).resolve()
     for parent in [here, *here.parents]:
         paths.append(parent / MANIFEST_NAME)
@@ -672,7 +673,23 @@ def list_workspaces(start=None):
             "port": muiogo.get("port"),
             "active": active is not None and path.resolve() == active.resolve(),
         })
-    return out
+    # Two files can describe ONE workspace (a registered record is a copy of
+    # the workspace's own manifest). Listing both shows a phantom second world.
+    # Keep one row per workspace, preferring the named record.
+    by_ws, deduped = {}, []
+    for row in out:
+        key = os.path.realpath(row["workspace"]) if row.get("workspace") else row["manifest"]
+        prev = by_ws.get(key)
+        if prev is None:
+            by_ws[key] = row
+            deduped.append(row)
+            continue
+        prev["active"] = prev["active"] or row["active"]
+        if prev["name"] == "(unregistered)" and row["name"] != "(unregistered)":
+            row["active"] = prev["active"]
+            deduped[deduped.index(prev)] = row
+            by_ws[key] = row
+    return deduped
 
 
 def summary(start=None):
