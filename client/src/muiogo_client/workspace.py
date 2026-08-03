@@ -59,32 +59,21 @@ LEGACY_WORKSPACES = (Path.home() / "muiogo-ai",
                      Path.home() / "muiogo-ai-workspace")
 LEGACY_WORKSPACE = LEGACY_WORKSPACES[0]      # kept for older callers
 
-# One record PER WORLD, never one shared slot. A single canonical manifest meant
-# that installing a runtime overwrote the only record of the adopted world — and
-# re-adopting to recover clobbered the runtime's record in the other direction,
-# with no way out but hand-editing JSON. Each world now owns a file, and a
-# separate pointer says which is active.
-WORLDS_DIR = CANONICAL_DIR / "worlds"          # default only; see worlds_dir()
-_ACTIVE_NAME = "active"
-LEGACY_MANIFEST = CANONICAL_DIR / MANIFEST_NAME
+# A machine has at most TWO setups this tooling can see, and they are found in
+# two fixed ways: an INSTALLED muiogoai through its launcher's baked-in
+# manifest path (never through any shared record), and the user's own ADOPTED
+# checkouts through this single manifest, written only by `muiogo adopt`.
+# There used to be a registry of named "worlds" with an active pointer; it
+# existed because installs once overwrote this slot. Installs no longer write
+# any shared record at all, so the slot is safe and the registry is retired.
+ADOPTED_MANIFEST = CANONICAL_DIR / MANIFEST_NAME
+LEGACY_MANIFEST = ADOPTED_MANIFEST             # kept for older callers
 
 
 def state_root():
     """This world's own state directory. Never assume the shared default."""
     override = os.environ.get(STATE_HOME_ENV)
     return Path(override).expanduser() if override else CANONICAL_DIR
-
-
-def worlds_dir():
-    """Where world RECORDS live — machine-wide, deliberately not per-world.
-
-    The catalogue must be shared even though every world's contents are
-    isolated. A world that can only see its own record cannot tell that a path
-    belongs to another world, so the cross-world guard silently passes and the
-    crossing it exists to stop goes through. Isolation belongs to state
-    (pidfiles, the OG registry, models) — not to the list of what exists.
-    """
-    return CANONICAL_DIR / "worlds"
 
 
 def servers_dir():
@@ -124,9 +113,16 @@ class World:
         recorded = self.data.get("name")
         if recorded:
             return recorded
+        # The single adopted slot is not named for its directory (".muiogo"
+        # says nothing); it is simply the adopted setup.
+        try:
+            if self.path.resolve() == ADOPTED_MANIFEST.resolve():
+                return "adopted"
+        except OSError:
+            pass
         stem = self.path.stem
         # A manifest inside an install directory is named for the install, not
-        # for the file: "manifest" tells a reader nothing about which world.
+        # for the file: "manifest" tells a reader nothing about which setup.
         if stem in ("manifest", "world"):
             return self.path.parent.name
         return stem
@@ -191,53 +187,22 @@ def _looks_like_manifest(path):
     return isinstance(data, dict) and "muiogo" in data
 
 
-def active_file():
-    return state_root() / _ACTIVE_NAME
+def known_manifests():
+    """The manifests this process can legitimately see, in resolution order.
 
-
-def world_file(name):
-    return worlds_dir() / f"{name}.json"
-
-
-def active_world():
-    """Name of the world the tooling is currently pointed at, or None."""
-    try:
-        name = active_file().read_text(encoding="utf-8").strip()
-    except OSError:
-        return None
-    return name if name and world_file(name).is_file() else None
-
-
-def known_worlds():
-    """Every registered world: {name: path}, newest naming wins."""
-    if not worlds_dir().is_dir():
-        return {}
-    return {p.stem: p for p in sorted(worlds_dir().glob("*.json"))}
-
-
-def register_world(name, manifest, make_active=True):
-    """Record a world under its own name. Never disturbs another world's record."""
-    worlds_dir().mkdir(parents=True, exist_ok=True)
-    path = world_file(name)
-    path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-    if make_active:
-        set_active(name)
-    return path
-
-
-def set_active(name):
-    """Point the tooling at a registered world."""
-    if not world_file(name).is_file():
-        raise WorkspaceError(f"no world named {name!r} (have: {', '.join(known_worlds()) or 'none'})")
-    CANONICAL_DIR.mkdir(parents=True, exist_ok=True)
-    active_file().write_text(f"{name}\n", encoding="utf-8")
-    # Kept in step for anything still reading the old single-slot location.
-    try:
-        LEGACY_MANIFEST.write_text(world_file(name).read_text(encoding="utf-8"),
-                                   encoding="utf-8")
-    except OSError:
-        pass
-    return name
+    At most two: the launcher's pinned manifest (an installed muiogoai — only
+    visible when a launcher set it, which is the whole point), and the single
+    adopted manifest. This list is what the cross-setup guards walk; there is
+    deliberately no machine-wide registry to consult.
+    """
+    out = []
+    pinned = pinned_world_file()
+    if pinned is not None:
+        out.append(pinned)
+    if ADOPTED_MANIFEST.is_file() and (pinned is None or
+                                       ADOPTED_MANIFEST.resolve() != pinned.resolve()):
+        out.append(ADOPTED_MANIFEST)
+    return out
 
 
 def resolve(start=None):
@@ -314,18 +279,20 @@ def _quote(value):
 
 
 def owning_world(path):
-    """Which registered world's MUIOGO tree contains `path`, if any.
+    """Which visible setup's MUIOGO tree contains `path`, if any.
 
     Path containment is the only reliable test for "does this belong to another
-    world". Ports do not distinguish worlds (two may share one) and names are
-    labels. This is what lets a command notice it is about to touch someone
-    else's installation before it does it.
+    setup" — ports do not distinguish them. Walks known_manifests(), so a
+    pinned command can notice a path inside the adopted checkouts and vice
+    versa. An installation is only visible through its launcher: bare `muiogo`
+    handed a path inside one treats it like any other foreign directory, by
+    design.
     """
     try:
         target = Path(path).expanduser().resolve()
     except OSError:
         return None
-    for name, record in known_worlds().items():
+    for record in known_manifests():
         try:
             world = World(_read_manifest(record), record)
         except WorkspaceError:
@@ -370,18 +337,13 @@ class WorldCrossing(RuntimeError):
 
 
 def world_for_root(root):
-    """The registered world whose MUIOGO checkout is `root`, or None.
+    """The visible setup whose MUIOGO checkout is `root`, or None.
 
     Identity comes from the path on disk, which is the only thing that actually
-    distinguishes two worlds. A port does not: both may use the same one.
+    distinguishes two setups. A port does not: both may use the same one.
     """
     root = Path(root).resolve()
-    pinned = pinned_world_file()
-    if pinned is not None:
-        world = World(_read_manifest(pinned), pinned)
-        if world.muiogo_path and world.muiogo_path.resolve() == root:
-            return world
-    for name, path in known_worlds().items():
+    for path in known_manifests():
         try:
             world = World(_read_manifest(path), path)
         except WorkspaceError:
@@ -404,11 +366,7 @@ def candidate_paths(start=None):
     env = os.environ.get("MUIOGO_WORKSPACE", "").strip()
     if env:
         paths.append(Path(env).expanduser() / MANIFEST_NAME)
-    active = active_world()
-    if active:
-        paths.append(world_file(active))
-    paths.extend(known_worlds().values())
-    paths.append(LEGACY_MANIFEST)
+    paths.append(ADOPTED_MANIFEST)
     # Deliberately NOT searched: ~/muiogoai and other install locations. An
     # installation is a separate app with its own pinned launcher; bare
     # `muiogo` discovering it silently would re-entangle the two.
@@ -436,27 +394,6 @@ def load(start=None):
         )
     with open(path, encoding="utf-8") as f:
         return json.load(f), path
-
-
-def publish(manifest_path, name=None, make_active=True):
-    """Register a workspace as a named world so it can be found from anywhere.
-
-    Registers under its own name rather than overwriting a shared slot, so
-    installing a runtime can never destroy the record of an adopted world.
-    Returns the registered path, or None if it could not be written.
-    """
-    src = Path(manifest_path)
-    try:
-        data = json.loads(src.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    if name is None:
-        kind, _ = describe_kind(data)
-        name = "runtime" if kind == "installed" else "live"
-    try:
-        return register_world(name, data, make_active=make_active)
-    except OSError:
-        return None
 
 
 # OG country models are named OG-<ISO3> and hold a package og<iso3>; the library
@@ -620,14 +557,18 @@ def build_manifest(muiogo_path, og_models=(), link_path=None, port=LIVE_PORT,
     }
 
 
-def adopt(muiogo_path, og_models=(), link_path=None, port=LIVE_PORT, name="live"):
-    """Register existing installations as a named world. Returns (path, manifest).
+def adopt(muiogo_path, og_models=(), link_path=None, port=LIVE_PORT):
+    """Record the user's own checkouts in the single adopted manifest.
 
-    Writes only that world's own record, so an installed runtime registered
-    separately is untouched.
+    Returns (path, manifest). This is the only writer of that file; an
+    installed muiogoai keeps its manifest inside its own workspace and never
+    appears here.
     """
     manifest = build_manifest(muiogo_path, og_models, link_path, port)
-    return register_world(name, manifest), manifest
+    CANONICAL_DIR.mkdir(parents=True, exist_ok=True)
+    ADOPTED_MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n",
+                                encoding="utf-8")
+    return ADOPTED_MANIFEST, manifest
 
 
 def describe_kind(data):
@@ -636,60 +577,6 @@ def describe_kind(data):
     if kind == "adopted":
         return "adopted", "your own checkouts, used for live work"
     return "installed", "a self-contained runtime built by the installer"
-
-
-def list_workspaces(start=None):
-    """Every workspace manifest on this machine, so the active one is visible.
-
-    Without this, which world a command acts on is implicit — whichever manifest
-    the search order happened to reach first.
-    """
-    active = find_manifest(start)
-    names = {v.resolve(): k for k, v in known_worlds().items()}
-    # The legacy single-slot file is a mirror of the active world, not a world of
-    # its own — listing it would show a phantom duplicate.
-    skip = {LEGACY_MANIFEST.resolve()} if names else set()
-    seen, out = set(), []
-    for path in candidate_paths(start):
-        if not path.is_file() or not _looks_like_manifest(path):
-            continue
-        real = path.resolve()
-        if real in seen or real in skip:
-            continue
-        seen.add(real)
-        try:
-            with open(path, encoding="utf-8") as f:
-                data = json.load(f)
-        except (OSError, ValueError):
-            continue
-        kind, _ = describe_kind(data)
-        muiogo = data.get("muiogo") or {}
-        out.append({
-            "manifest": str(path),
-            "name": names.get(real, "(unregistered)"),
-            "kind": kind,
-            "workspace": data.get("workspace"),
-            "muiogo_path": muiogo.get("path"),
-            "port": muiogo.get("port"),
-            "active": active is not None and path.resolve() == active.resolve(),
-        })
-    # Two files can describe ONE workspace (a registered record is a copy of
-    # the workspace's own manifest). Listing both shows a phantom second world.
-    # Keep one row per workspace, preferring the named record.
-    by_ws, deduped = {}, []
-    for row in out:
-        key = os.path.realpath(row["workspace"]) if row.get("workspace") else row["manifest"]
-        prev = by_ws.get(key)
-        if prev is None:
-            by_ws[key] = row
-            deduped.append(row)
-            continue
-        prev["active"] = prev["active"] or row["active"]
-        if prev["name"] == "(unregistered)" and row["name"] != "(unregistered)":
-            row["active"] = prev["active"]
-            deduped[deduped.index(prev)] = row
-            by_ws[key] = row
-    return deduped
 
 
 def summary(start=None):

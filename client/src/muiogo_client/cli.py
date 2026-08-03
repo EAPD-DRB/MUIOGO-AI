@@ -2,9 +2,8 @@
 
 Orientation (works with no server running):
   muiogo status                                      where everything is installed
-  muiogo adopt --scan | --auto                       use installs you already have
-  muiogo worlds                                      which worlds exist; * = active
-  muiogo use <name>                                  switch world (live | runtime)
+  muiogo adopt --scan | --auto                       record your own checkouts
+  (an installed muiogoai is its own app — drive it with `muiogo-ai`, not `muiogo`)
 
 Models and scenarios:
   muiogo cases                                       list cases
@@ -109,7 +108,7 @@ def _resolve_url(args):
 
 
 def _warn_other_world(args):
-    """Warn when another world's server is up but this one's is not."""
+    """Warn when the other visible setup's server is up but this one's is not."""
     if getattr(args, "url", None):
         return
     try:
@@ -119,14 +118,18 @@ def _warn_other_world(args):
     mine = info["muiogo_url"]
     if not mine or _answers(mine):
         return
-    for other in workspace.list_workspaces():
-        if other["active"] or not other.get("port"):
+    me = Path(info["manifest"]).resolve()
+    for record in workspace.known_manifests():
+        if record.resolve() == me:
             continue
-        url = f"http://127.0.0.1:{other['port']}"
+        try:
+            other = workspace.World(json.loads(record.read_text(encoding="utf-8")), record)
+            url = other.url
+        except (workspace.WorkspaceError, OSError, ValueError):
+            continue
         if _answers(url):
-            print(f"note: nothing is listening on {mine} for the "
-                  f"{info['kind']} workspace, but a {other['kind']} workspace IS "
-                  f"running on {url}.\n"
+            print(f"note: nothing is listening on {mine} for this setup, but "
+                  f"{other.describe()} IS running on {url}.\n"
                   f"      Start this one with `muiogo serve`, or target the other "
                   f"explicitly with --url {url}.", file=sys.stderr)
             return
@@ -208,7 +211,6 @@ def cmd_status(args):
             info["cases"] = sorted(
                 x.name for x in _P(ds).iterdir() if (x / "genData.json").is_file()
             ) if ds and _P(ds).is_dir() else []
-        info["other_workspaces"] = [w for w in workspace.list_workspaces() if not w["active"]]
         print(_json.dumps(info, indent=2, default=str))
         return 0
 
@@ -221,7 +223,6 @@ def cmd_status(args):
     print(f"model data    {info['data_storage']}")
     print(f"server URL    {info['muiogo_url']}")
 
-    others = [w for w in workspace.list_workspaces() if not w["active"]]
     client = MuiogoClient(base_url=info["muiogo_url"] or DEFAULT_URL, timeout=5)
     try:
         cases = client.list_cases()
@@ -291,49 +292,6 @@ def cmd_status(args):
     solvers = info["solvers"]
     if solvers:
         print(f"  solvers     glpk={bool(solvers.get('glpsol'))} cbc={bool(solvers.get('cbc'))}")
-    # A launcher-pinned command IS its installation: other setups on the
-    # machine are none of its business, and `muiogo use` cannot retarget it —
-    # suggesting either would be a false affordance.
-    if others and not workspace.pinned_world_file():
-        print()
-        print(f"{len(others)} other world(s) on this machine — `muiogo worlds` to see them,")
-        print("`muiogo use <name>` to switch.")
-    return 0
-
-
-def cmd_use(args):
-    """Set the fallback world for bare `muiogo`. Prefer a launcher.
-
-    This writes machine-wide, sticky state: it persists across shells and days,
-    so a later command in another terminal silently inherits it. That is the
-    hazard the launchers exist to remove, which is why this warns and why an
-    assistant should never call it.
-    """
-    if workspace.pinned_world_file():
-        print(f"error: this command was launched with a world already pinned "
-              f"({_world(args).describe()}).\n"
-              f"       Setting the fallback pointer would change nothing here but "
-              f"would\n"
-              f"       silently retarget bare `muiogo` elsewhere on this machine. "
-              f"Refusing.\n"
-              f"       To act on another world, use its launcher.", file=sys.stderr)
-        return 3
-    try:
-        workspace.set_active(args.name)
-        record = workspace.known_worlds()[args.name]
-        world = workspace.World(json.loads(Path(record).read_text()), record)
-    except (workspace.WorkspaceError, KeyError, OSError, ValueError) as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 1
-    # Report the world we actually set, read from its own record — not through
-    # resolution, which could answer with something else entirely.
-    print(f"fallback world for bare `muiogo`: {world.describe()}")
-    print(f"  MUIOGO  {world.muiogo_path}")
-    print(f"  server  {world.url}")
-    print("\nThis is machine-wide and sticky: another terminal, and any command "
-          "you run\ntomorrow, will use it too. For work that must stay in one "
-          "world, use a launcher:")
-    print(f"  muiogo launcher {args.name}")
     return 0
 
 
@@ -341,34 +299,36 @@ def cmd_launcher(args):
     """Write a launcher that pins one installation, so nothing has to be switched.
 
     Takes a manifest path (the normal case: the installer pins the manifest
-    inside the installation itself) or a registered world name (adopted
-    setups).
+    inside the installation itself). With no argument, pins the setup this
+    command currently resolves to — for the user's own checkouts, the adopted
+    manifest.
     """
-    name = args.name
-    manifest = Path(name).expanduser()
-    if manifest.is_file():
-        record = manifest.resolve()
-        world = workspace.World(json.loads(record.read_text()), record)
-        default_name = "muiogo-ai"
-    else:
-        worlds = workspace.known_worlds()
-        if name not in worlds:
-            print(f"error: {name!r} is neither a manifest file nor a known world. "
-                  f"Known: {', '.join(sorted(worlds)) or '(none)'}", file=sys.stderr)
+    if args.name:
+        manifest = Path(args.name).expanduser()
+        if not manifest.is_file():
+            print(f"error: {args.name!r} is not a manifest file. Pass the path "
+                  f"to a manifest.json, or no argument to pin the current setup.",
+                  file=sys.stderr)
             return 2
-        record = worlds[name]
-        world = workspace.World(json.loads(Path(record).read_text()), record)
-        default_name = f"muiogo-{name}" if name != "runtime" else "muiogo-ai"
+        record = manifest.resolve()
+    else:
+        try:
+            record = workspace.resolve().path.resolve()
+        except workspace.WorkspaceError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+    world = workspace.World(json.loads(record.read_text(encoding="utf-8")), record)
+    default_name = "muiogo-ai" if world.kind == "installed" else "muiogo-live"
     state_home = args.state_home or (
         world.og_state_dir.parent if world.og_state_dir else workspace.state_root())
     out = Path(args.out).expanduser() if args.out else (
         Path.home() / ".local" / "bin" / default_name)
     written = workspace.write_launcher(out, record, state_home)
     print(f"launcher: {written}")
-    print(f"  world      {world.describe()}")
+    print(f"  setup      {world.describe()}")
     print(f"  MUIOGO     {world.muiogo_path}")
     print(f"  state      {state_home}")
-    print(f"\nRun {written.name} instead of muiogo to act on this world only.")
+    print(f"\nRun {written.name} instead of muiogo to act on this setup only.")
     if str(out.parent) not in os.environ.get("PATH", ""):
         print(f"note: {out.parent} is not on your PATH; add it, or call the "
               f"launcher by full path.", file=sys.stderr)
@@ -393,29 +353,6 @@ def cmd_case_path(args):
               f"       cases here: {', '.join(available) or '(none)'}", file=sys.stderr)
         return 1
     print(path)
-    return 0
-
-
-def cmd_worlds(args):
-    """List every workspace on this machine and mark the active one."""
-    rows = workspace.list_workspaces()
-    if getattr(args, "json", False):
-        import json as _json
-        for w in rows:
-            w["running"] = bool(w.get("port")) and _answers(f"http://127.0.0.1:{w['port']}")
-        print(_json.dumps(rows, indent=2, default=str))
-        return 0 if rows else 1
-    if not rows:
-        print("No workspaces found. `muiogo adopt --scan` finds existing checkouts.")
-        return 1
-    for w in rows:
-        mark = "*" if w["active"] else " "
-        live = "running" if w.get("port") and _answers(f"http://127.0.0.1:{w['port']}") else "stopped"
-        print(f" {mark} {w.get('name','?'):<9} {w['kind']:<10} port {str(w.get('port') or '?'):<5} "
-              f"{live:<8} {w['muiogo_path']}")
-        print(f"   {'':<10} {w['manifest']}")
-    print()
-    print("* = active. Switch with:  muiogo use <name>")
     return 0
 
 
@@ -927,23 +864,17 @@ def main(argv=None):
                    help=f"port this world serves on (default {workspace.LIVE_PORT}, MUIOGO's own)")
     p.set_defaults(func=cmd_adopt)
 
-    p = sub.add_parser("use", help="switch which world the tooling acts on")
-    p.add_argument("name")
-    p.set_defaults(func=cmd_use)
-
-    p = sub.add_parser("case-path", help="absolute path of a case in this world")
+    p = sub.add_parser("case-path", help="absolute path of a case in this setup")
     p.add_argument("--case", required=True)
     p.set_defaults(func=cmd_case_path)
 
     p = sub.add_parser("launcher", help="write a command that pins one installation")
-    p.add_argument("name", help="path to the installation's manifest.json, or a world name")
-    p.add_argument("--out", help="where to write it (default ~/.local/bin/muiogo-<name>)")
-    p.add_argument("--state-home", help="this world's state dir (default: beside its OG registry)")
+    p.add_argument("name", nargs="?",
+                   help="path to a manifest.json (default: the current setup)")
+    p.add_argument("--out", help="where to write it (default ~/.local/bin/muiogo-ai or muiogo-live)")
+    p.add_argument("--state-home", help="this setup's state dir (default: beside its OG registry)")
     p.set_defaults(func=cmd_launcher)
 
-    p = sub.add_parser("worlds", help="list workspaces on this machine, mark the active one")
-    p.add_argument("--json", action="store_true", help="machine-readable output")
-    p.set_defaults(func=cmd_worlds)
     sub.add_parser("cases", help="list cases").set_defaults(func=cmd_cases)
 
     p = sub.add_parser("scenarios", help="scenarios and runs defined in a case")
@@ -1078,7 +1009,7 @@ def main(argv=None):
         if "Connect" in name or "Timeout" in name:
             url = _resolve_url(args)
             print(f"error: no MUIOGO server is answering at {url}.\n"
-                  f"       Start it with `muiogo serve`, or see `muiogo worlds`.",
+                  f"       Start it with `muiogo serve`, or check `muiogo status`.",
                   file=sys.stderr)
             return 1
         raise
