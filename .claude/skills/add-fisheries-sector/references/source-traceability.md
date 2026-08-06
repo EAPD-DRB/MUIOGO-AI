@@ -1,5 +1,32 @@
 # Source traceability standard
 
+> **Both are required.** The registers described below are what you author. The canonical
+> six-table ledger in [SCHEMA.md](SCHEMA.md) — one validator, shared with every other CLEWs
+> skill — is what you deliver. Nothing here is superseded: keep populating these registers,
+> because they hold fisheries-specific fields the ledger has no column for, and they are
+> where an analyst actually works.
+>
+> **Do not author the ledger twice.** These registers are a superset of the canonical
+> columns, so `scripts/project_registers_to_ledger.py` generates it: `source-register` →
+> `SOURCES`, `assumption-register` → `ASSUMPTIONS`, `calculation-register` →
+> `CALCULATIONS`, `parameter-register` → `MODEL_MAP`, and `GAPS` from two places — the
+> `data_gap` and `not_applicable` rows of `completeness-register` plus the excluded flows of
+> `boundary-register`. An included boundary correction is already lineage, carried by the
+> calculation its row cites. Register columns with no canonical home fold into `notes` as
+> `key=value` pairs, with the original ID kept as `legacy_id=…`.
+>
+> `CHANGES.csv` is the one table with nothing to project from: it is an append-only log, so
+> pass the `--change-*` arguments when you project. `policymaker-trace-test` and
+> `residual-capacity-input` are not projected — the first is a pass/fail line in the delivery
+> note and the second is a script input; neither carries lineage.
+>
+> Two vocabularies differ, and the projector records rather than hides it. The ledger has no
+> `proxy` type and derives the type from lineage — a calculation makes a value `derived` even
+> where §5 below calls it a proxy or an estimate — so the register's label is preserved as
+> `declared_evidence_type=…` in the ledger's `notes`. The principles in this document — the
+> lineage chain, exact locators, calculation lineage, proxy labelling, evidence grades, the
+> trace test — are unchanged and apply to both.
+
 ## Contents
 
 1. Traceability objective
@@ -105,7 +132,11 @@ the model. Record:
 - evidence type;
 - direct source IDs or calculation ID;
 - assumption IDs;
-- uncertainty and confidence.
+- uncertainty and confidence;
+- `superseded_by` — blank while the row is live, and the `CHG_` ID that retired it once it
+  is not. Retire rows this way instead of deleting them: the ledger keeps retired lineage so
+  an earlier model version stays reconstructable, and a retired row stops counting as
+  coverage.
 
 If a row represents interpolation, identify the calculation record containing
 both endpoints and the interpolation rule.
@@ -253,8 +284,9 @@ python scripts/validate_provenance.py \
 
 ## 8. Policymaker trace test
 
-Before delivery, sample at least ten populated model values, or 10% when fewer
-than 100 values exist. Include:
+Before delivery, sample **ten** populated model values — not a percentage, so the cost does
+not scale with model size. Draw them to cover the categories below, one each where the model
+has one. Include:
 
 - at least one direct value;
 - one unit conversion;
@@ -292,8 +324,24 @@ When a source is replaced:
 - update affected calculations and parameters;
 - retain the superseded lineage;
 - identify changed model values;
-- regenerate and solve all scenarios;
-- rerun the policymaker trace test.
+- record the replacement as a row in `CHANGES.csv` — re-project with the `--change-*`
+  arguments, which fill `map_rows_affected` with the `MAP_` IDs actually in the ledger, and
+  set `superseded_by` on a retired `parameter-register` row rather than deleting it.
+
+**Then re-run only what the change touched.** Compare the new model values against the old
+ones first:
+
+- **No model value changed** — a better locator, a fixed URL, a corrected citation, a
+  re-issued edition with identical numbers. This is a Class A change. Do **not** regenerate
+  or re-solve anything. Record `resolve_status=objective_unchanged` and re-trace only the
+  affected values.
+- **Some model values changed.** Regenerate and re-solve the scenarios those values feed.
+  Re-solve every scenario only when the change reaches a parameter every scenario shares.
+- **The trace test** is re-run on the affected samples, not on all ten, unless the
+  replacement touched more than a quarter of the sampled values.
+
+A re-solve is worth tens of minutes to hours. Never spend one to prove that a number which
+did not change did not change.
 
 Never overwrite source provenance in a way that makes an earlier model version
 unreconstructable.

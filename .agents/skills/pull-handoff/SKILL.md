@@ -1,77 +1,60 @@
 ---
 name: pull-handoff
-description: Pull and install the latest EAPD Fiji and Philippines CLEWs handoffs. Use when moving model work to another laptop, updating CLEWs-FJI, CLEWs-PHL, and Model-tools, or unpacking the current recommended Fiji and PHL MUIO archives into MUIOGO.
+description: Bootstrap or pull the official Fiji and Philippines model repositories, safely unzip their current MUIO cases into ignored repository-local working trees, and maintain relative MUIOGO DataStorage symlinks. Use for a pristine MUIOGO setup or an existing two-laptop handoff.
 ---
 
 # Pull Handoff
 
-Fast-forward the three handoff repositories and install clean, runnable MUIO
-cases without discarding local work.
-
-## Which world
-
-This skill installs into ONE world — the installed runtime, reached through the
-pinned launcher `muiogo-ai`. Never bare `muiogo`, and never fall back to it. Take
-the MUIOGO checkout and its model-data directory from `muiogo-ai status`, not from
-a sibling directory you happened to find. Every command prints a `world:` line to
-stderr first: read it, and name that world when you report what you installed.
-Exit code 3 means a refused world crossing — stop, do not sidestep it. Full
-rules: [../WORLD_DISCIPLINE.md](../WORLD_DISCIPLINE.md).
+Pull and unzip. Do not solve, validate, or change model inputs as part of this
+skill.
 
 ## Scope
 
-Resolve sibling repositories by their remotes:
+Resolve MUIOGO by its Git remote and use its parent directory as the local
+workspace. Operate only on the countries the user requests; use both when the
+request says to update the full handoff. The official public remotes are:
 
-- `CLEWs-FJI`
-- `CLEWs-PHL`
-- `Model-tools`
-- target installation `MUIOGO`: take it from `muiogo-ai status` (this world), not
-  by remote resolution
+- `https://github.com/EAPD-DRB/CLEWs-FJI.git`
+- `https://github.com/EAPD-DRB/CLEWs-PHL.git`
 
-Read applicable `AGENTS.md` files before acting.
+Read applicable `AGENTS.md` files after locating or cloning each repository.
 
 ## Workflow
 
-1. For each of the three repositories, fetch `origin` and inspect branch,
-   `HEAD`, upstream relation, and status. Pull only a clean, behind branch with
-   `git pull --ff-only`. Never reset, clean, rebase, or overwrite local
-   changes. Report and skip a dirty or diverged repository.
-2. Select archives from repository documentation, not filename sorting:
-   - Fiji: the current portable case named in
-     `Fiji_v2_CLEWs_calibration/muio/README.md`;
-   - Philippines: the most complete analysis case named in
-     `Philippines_v12_CLEWs_build/muio/README.md`.
-3. Verify the documented SHA-256 when available, run `unzip -t`, and require
-   exactly one safe top-level case folder matching `genData.json`.
-4. Install into this world's model-data directory — the `model data` line of
-   `muiogo-ai status`, never a relative `WebAPP/DataStorage/` path:
-   - if the target is absent, extract it;
-   - if its non-`res/` content matches the archive, keep it;
-   - if it differs, move the whole installed case to a timestamped sibling
-     backup, then extract the new case. Do not copy old results into the new
-     model because they may be stale or mismatched.
-5. Result-free ZIP files omit empty run directories. Address the installed case
-   only by its absolute path in this world:
+1. Locate each requested country repository among MUIOGO's siblings by its
+   `origin` remote, not only by folder name. If it is missing, clone its
+   official remote into the unused sibling path `CLEWs-FJI` or `CLEWs-PHL`.
+   Before cloning, require that the destination does not exist; never clone
+   over a file, directory, symlink, or partial checkout. After cloning, verify
+   the canonical `origin`, checked-out default branch, and clean status. Stop
+   if MUIOGO cannot be identified or an expected path is occupied.
+2. Inspect the branch, upstream relation, and working-tree status of every
+   existing or newly cloned country repository. Pull only a clean, behind
+   branch with `git pull --ff-only`. Stop on local changes, conflicts, or
+   divergence. Never reset, clean, rebase, force-update, or overwrite local
+   work. A fresh clone already at its upstream revision needs no extra pull.
+3. Select the current archive named in each country repository's current-model
+   documentation. Never infer it from filename sorting.
+4. Verify the documented SHA-256 when available, run `unzip -t`, reject unsafe
+   paths, require one top-level case folder containing `genData.json`, and
+   verify its directory name matches `osy-casename`.
+5. Require `/case/` to be ignored by the country repository. Install the
+   archive as `<country-repository>/case/<case-name>`, never as a tracked
+   working tree. Extract to a temporary directory first. If the existing
+   local case differs in non-result content, move the complete old case to
+   `case/.backups/<case-name>-<timestamp>` before installing. If it matches,
+   leave it intact so local results are not discarded.
+6. Maintain `MUIOGO/WebAPP/DataStorage/<case-name>` as a relative symlink to
+   the repository-local case. Leave a correct link unchanged. Before replacing
+   a real directory, broken link, or wrong link, move it recoverably under
+   `case/.backups/`; never delete it. Verify that the final link resolves to
+   the intended case and that `osy-casename` matches its directory name.
+7. If the result-free ZIP omitted empty run directories, recreate the empty
+   `res/<run>/csv` directories declared by `view/resData.json` inside the
+   repository-local case.
 
-   ```bash
-   CASE="$(muiogo-ai case-path --case '<Case>')"
-   ```
+Do not solve, run validation, reconstruct provenance, or edit the model.
 
-   Read `$CASE/view/resData.json` and create `res/<Case>/csv` under `$CASE` for
-   every configured run so MUIO can generate `data.txt`.
-6. Verify the installed directory name and `osy-casename`, record repository
-   `HEAD`s and archive hashes, and confirm no solver results were imported.
-   Do not solve or alter model inputs as part of this skill.
-
-Report the world you installed into, which repositories changed, the installed
-case paths, any backup paths, and any repository skipped for local changes. If
-`Model-tools` changed, tell the user that Codex may need a reload before newly
-installed skills appear.
-
-## Related skills
-
-- `muiogo-provision` — the generic path: import any case archive, not just the EAPD ones.
-- `muiogo-run`, `muiogo-analyze` — solving and reading what you just installed.
-
-These live in the MUIOGO-AI collection; if one is not available to you,
-do the job directly and say which skill would have covered it.
+Report repositories cloned and pulled, repository-local case paths, relative
+symlink targets, archive hashes, backup paths, and any repository skipped
+because of local changes or an occupied clone destination.

@@ -285,10 +285,6 @@ def main() -> int:
         )
     if not y or not l or not t or not f:
         warnings.append("One or more core sets are empty; estimate is incomplete.")
-    warnings.append(
-        "Rows, columns, nonzeros, memory, disk, and runtime depend on the "
-        "installed formulation and generator; treat these as planning ranges."
-    )
 
     report: dict[str, Any] = {
         "inputs": str(inputs),

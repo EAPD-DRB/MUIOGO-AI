@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fix CLEWs Model Structurally"
+  short_description: "Safe structural fixes that cannot change a solved value"
+  default_prompt: "Use $clews-model-fix to remove an unreferenced technology, commodity or emission, fix a placeholder description, or adjust technology groups in a MUIO/OSeMOSYS CLEWs model, proving first that the change cannot alter any solved value."

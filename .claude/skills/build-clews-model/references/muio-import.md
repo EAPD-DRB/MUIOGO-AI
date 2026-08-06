@@ -80,17 +80,6 @@ Use a one-off driver that:
 
 Keep the driver in the country package. Do not retouch `ImportTemplate.py`.
 
-Resolve the created case by absolute path and pass that path to every later
-step:
-
-```bash
-CASE="$(muiogo-ai case-path --case '<case>')"
-```
-
-`case-path` answers for the current world and fails loudly when the case is not
-there. A relative case path resolves against whatever directory you are in and
-can land in the other world.
-
 Use a case description that says `raw` and `uncalibrated`. Preserve the
 workbook and import log.
 
@@ -99,7 +88,7 @@ workbook and import log.
 Some MUIO importer versions assign all imported timeslices to the first season,
 day type, and daily bracket. Repair only the generated country case:
 
-1. back up `$CASE/genData.json` and `$CASE/RYDtb.json`;
+1. back up `genData.json` and `RYDtb.json`;
 2. map each `TIMESLICE` to the unique active `SEASON` in
    `Conversionls.csv`;
 3. map each `TIMESLICE` to the unique active `DAYTYPE` in

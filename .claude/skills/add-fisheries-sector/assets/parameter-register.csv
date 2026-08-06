@@ -1,1 +1,1 @@
-parameter_record_id,model_file,parameter,entity,secondary_entity,mode,scenario,year_start,year_end,value_expression,model_unit,evidence_type,source_ids,calculation_id,assumption_ids,uncertainty,confidence,notes
+parameter_record_id,model_file,parameter,entity,secondary_entity,mode,scenario,year_start,year_end,value_expression,model_unit,evidence_type,source_ids,calculation_id,assumption_ids,uncertainty,confidence,superseded_by,notes

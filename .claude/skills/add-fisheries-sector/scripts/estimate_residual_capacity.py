@@ -187,6 +187,8 @@ def estimate(input_path: Path, precision: int) -> tuple[list[dict[str, str]], di
             }
         )
 
+    # Recorded so the output can be traced to the exact input it came from.
+    # This is lineage, not a gate: nothing here verifies it.
     digest = hashlib.sha256(input_path.read_bytes()).hexdigest()
     summary: dict[str, object] = {
         "status": "pass",

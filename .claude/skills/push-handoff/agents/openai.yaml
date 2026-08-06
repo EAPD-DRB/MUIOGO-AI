@@ -1,4 +1,4 @@
 interface:
   display_name: "Push Handoff"
-  short_description: "Package and push Fiji and Philippines handoffs"
-  default_prompt: "Use $push-handoff to package and push the latest Fiji and Philippines model handoffs."
+  short_description: "Zip and push linked CLEWs working cases"
+  default_prompt: "Use $push-handoff to verify the repository-local Fiji and Philippines cases and their MUIOGO symlinks, then zip them without results and push the intended changes."

@@ -4,10 +4,13 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import shutil
 from datetime import date
 from pathlib import Path
+
+from provenance import LEDGER_TABLES, REQUIRED_COLUMNS
 
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
@@ -30,7 +33,9 @@ PACKAGE_SCRIPTS = (
     "audit_no_forcing.py",
     "estimate_resources.py",
     "freeze_raw_baseline.py",
+    "provenance.py",
     "validate_delivery.py",
+    "validate_package.py",
     "validate_provenance.py",
 )
 
@@ -88,6 +93,16 @@ def main() -> int:
             template.read_text(encoding="utf-8"), args.country.strip(), iso3
         )
         destination.write_text(rendered, encoding="utf-8")
+        created.append(destination.relative_to(root).as_posix())
+
+    for table in LEDGER_TABLES:
+        destination = root / "data_sources" / table
+        if destination.exists():
+            skipped.append(destination.relative_to(root).as_posix())
+            continue
+        with destination.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.writer(handle, lineterminator="\n")
+            writer.writerow(REQUIRED_COLUMNS[table])
         created.append(destination.relative_to(root).as_posix())
 
     for script_name in PACKAGE_SCRIPTS:

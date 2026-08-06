@@ -51,8 +51,8 @@ any folder from `.agents/skills/` into your assistant's skills directory
 | Skill | What it does |
 |---|---|
 | `muiogo-provision` | Installs an OG country model, imports a case archive or Excel workbook, exports a shareable zip, and validates inputs before a long solve. |
-| `pull-handoff` | Pulls the CLEWs country repos and installs their recommended MUIO cases, with checksum checks and a backup of anything replaced. |
-| `push-handoff` | Packages local cases back out with `SHA256SUMS` and a dated handoff note, for laptop-to-laptop transfer or publishing. |
+| `pull-handoff` | Clones or fast-forwards the CLEWs country repos, unzips their current MUIO cases into repository-local working trees, and maintains the MUIOGO DataStorage symlinks. |
+| `push-handoff` | Zips the repository-local cases without solver results, checks their symlinks and SHA-256, then commits and pushes the intended country-repo changes. |
 
 ## MUIOGO — running models and analysing results
 
@@ -68,7 +68,9 @@ any folder from `.agents/skills/` into your assistant's skills directory
 |---|---|
 | `build-clews-model` | Builds a whole-country CLEWs model from scratch with the upstream CLEWs Global workflow, then imports it into MUIO as a solved, portable case. |
 | `assess-clews-calibration` | Judges how well a model is calibrated to its country, grades it, and says what to fix first. |
+| `calibrate-clews-model` | Implements the calibration: stocks, lifetimes, demand, costs, efficiencies, and historical pins, changed equation-first and against sources. |
 | `clews-model-review` | Checks a model's structure and data consistency against a reference model — orphaned IDs, unit slips, missing sectors. |
+| `clews-model-fix` | Makes structural repairs that cannot move a solved number — unreferenced objects, placeholder descriptions, technology groups. |
 | `add-fisheries-sector` | Adds a complete, source-traceable fisheries sector to a solved model without distorting existing results. |
 | `add-environmental-accounting` | Adds water and land environmental accounting to a CLEWS model and quantifies what changed. |
 
@@ -124,9 +126,10 @@ Canonical homes differ, so update in the right place — and both repos are
 ours, so a shared skill gets fixed at its source rather than patched here.
 
 **Canonical in [Model-tools](https://github.com/EAPD-DRB/Model-tools)**, mirrored
-here byte-identically (edit there, then re-copy): the five CLEWs skills
-(`build-clews-model`, `assess-clews-calibration`, `clews-model-review`,
-`add-fisheries-sector`, `add-environmental-accounting`), the three
+here byte-identically (edit there, then re-copy): the seven CLEWs skills
+(`build-clews-model`, `assess-clews-calibration`, `calibrate-clews-model`,
+`clews-model-review`, `clews-model-fix`, `add-fisheries-sector`,
+`add-environmental-accounting`), the three
 general-audience OG skills (`og-country-calibration`, `og-scenario-report`,
 `og-analysis-studio`), and both handoff skills (`pull-handoff`,
 `push-handoff`).

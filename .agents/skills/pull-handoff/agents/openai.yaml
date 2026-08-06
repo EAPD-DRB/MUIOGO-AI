@@ -1,4 +1,4 @@
 interface:
   display_name: "Pull Handoff"
-  short_description: "Pull and install the latest CLEWs handoffs"
-  default_prompt: "Use $pull-handoff to update the three model repositories and install the latest Fiji and Philippines cases in MUIO."
+  short_description: "Clone or pull CLEWs cases and link MUIOGO"
+  default_prompt: "Use $pull-handoff to clone any missing requested Fiji or Philippines repository beside MUIOGO, pull it safely, install its current case locally, and maintain the relative DataStorage symlink."

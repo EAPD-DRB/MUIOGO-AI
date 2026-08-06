@@ -11,15 +11,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-try:
-    import yaml
-except ImportError as exc:
-    raise SystemExit(
-        "PyYAML is required. Run this script inside the CLEWs Global "
-        "environment."
-    ) from exc
-
-
 HARD_FORCING_CONFIG_KEYS = {
     "historical_generation_shares",
     "historical_availability_factors",
@@ -167,6 +158,21 @@ def locate_configs(root: Path) -> list[Path]:
     return [path for path in candidates if path.is_file()]
 
 
+def load_config(path: Path) -> Any:
+    """Parse a YAML config, importing PyYAML only where it is actually needed.
+
+    PyYAML is the one third-party dependency in this skill, and it is reached
+    from this single call. Importing it at module scope made even ``--help``
+    fail, and took the stdlib-only input checks down with it. Raises
+    ``ImportError`` for the caller to turn into a failure finding — an unread
+    config must never be reported as a clean one.
+    """
+    import yaml
+
+    with path.open(encoding="utf-8") as handle:
+        return yaml.safe_load(handle) or {}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Audit a raw CLEWs model for historical forcing."
@@ -206,8 +212,23 @@ def main() -> int:
         )
 
     for config_path in configs:
-        with config_path.open(encoding="utf-8") as handle:
-            config = yaml.safe_load(handle) or {}
+        try:
+            config = load_config(config_path)
+        except ImportError:
+            finding(
+                "failure",
+                "config-unreadable",
+                config_path,
+                (
+                    "PyYAML is not installed for this interpreter, so the "
+                    "configuration was not audited for forcing. Install it "
+                    "(python3 -m pip install pyyaml) or re-run with an "
+                    "interpreter that has it; the input-file checks still ran. "
+                    "This is a failure, not a warning: an unaudited config "
+                    "cannot clear the non-forcing gate."
+                ),
+            )
+            continue
         for key_path, value in walk_mapping(config):
             key = key_path[-1]
             dotted = ".".join(key_path)
@@ -272,6 +293,21 @@ def main() -> int:
                         "equal-lower-upper-bound",
                         input_directory,
                         f"{label} at index {key} equals {lower_value}.",
+                    )
+            # Upper limits are guarded `<> -1` upstream, so 0 is a live bound that
+            # pins the variable to zero on its own - no matching lower bound needed,
+            # which is why the pair check above cannot see it. Warned rather than
+            # failed: a zero cap is legitimate when a technology genuinely is not
+            # available, and forcing only when it was chosen to match an idle history.
+            for key, upper_value in sorted(upper.items()):
+                if upper_value == 0:
+                    finding(
+                        "warning",
+                        "zero-upper-bound",
+                        input_directory,
+                        f"{label} upper bound at index {key} is an active zero, "
+                        "switching the object off; confirm this is a structural "
+                        "availability limit and not a historical outcome.",
                     )
 
         if args.reference_inputs:

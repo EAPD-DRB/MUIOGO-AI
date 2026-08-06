@@ -1,97 +1,47 @@
 ---
 name: push-handoff
-description: Prepare and push laptop-to-laptop handoffs for the EAPD Fiji and Philippines CLEWs models. Use when asked to publish, package, transfer, or hand off newer local Fiji/PHL MUIO cases, create a HANDOFF note, or commit changed skills in Model-tools.
+description: Zip the repository-local Fiji and Philippines MUIO working cases without solver results, verify their MUIOGO symlinks and archives, and commit and push the intended country-repository changes.
 ---
 
 # Push Handoff
 
-Package reproducible Fiji and Philippines work, preserve its audit trail, and
-push only reviewed changes.
-
-## Which world
-
-This skill packages cases from ONE world — the installed runtime, reached through
-the pinned launcher `muiogo-ai`. Never bare `muiogo`, and never fall back to it.
-Every command prints a `world:` line to stderr first: read it, and name that world
-when you report what you packaged, because a same-named case in the other world is
-different work. Locate every case with `muiogo-ai case-path`; an exporter script
-you run yourself inherits nothing, so the absolute path is what carries the world
-into it. Exit code 3 means a refused world crossing — stop, do not sidestep it.
-Full rules: [../WORLD_DISCIPLINE.md](../WORLD_DISCIPLINE.md).
+Zip and push. Do not rebuild, validate, solve, or redesign a model as part of
+this skill.
 
 ## Scope
 
-Resolve these sibling repositories from their Git remotes rather than assuming
-a fixed home path:
-
-- `MUIOGO`: this world's installed cases, each located with `muiogo-ai case-path`
-  (they sit under `WebAPP/DataStorage/` inside that checkout — a layout
-  description, not a path to type)
-- `CLEWs-FJI`: active case `Fiji_v2`
-- `CLEWs-PHL`: active analysis case
-  `Philippines_v12_ENV_LAND_WATER_DIAGNOSTIC`
-- `Model-tools`: shared skills
-
-Read every applicable `AGENTS.md` before acting.
+Resolve the sibling `MUIOGO`, `CLEWs-FJI`, and `CLEWs-PHL` repositories by
+their Git remotes. Read applicable `AGENTS.md` files before acting.
 
 ## Workflow
 
-1. Fetch each repository and print its branch, `HEAD`, upstream relation, and
-   working-tree status. Never reset, force-push, move tags, or overwrite a
-   published release archive. Stop on a behind/diverged branch or unresolved
-   conflict.
-2. Compare installed cases with the repository archive and packaged source by
-   content, not modification time. Exclude `res/`, solver CSVs/logs,
-   `data.txt`, `data_processed.txt`, LP files, and other regenerated outputs.
-   A generated-file-only difference is not a model change.
-3. If neither source inputs nor documentation changed, skip repackaging that
-   model and report it unchanged.
-4. For a changed model, confirm permanent parameter edits are in the source
-   JSON and structural edits passed through `genData.json` plus `UpdateCase`.
-   Run the repository's documented validation chain. If validation is
-   incomplete, label the package as work in progress and do not replace the
-   current recommended archive.
-5. Update the audit trail before packaging:
-   - the case's `MODEL_FIXES*.md`;
-   - package `documentation/HISTORY.md`;
-   - `CURRENT_MODEL.md`, `KNOWN_LIMITATIONS.md`, model/source maps, and
-     calculation or assumption registers when affected;
-   - `muio/README.md` and `SHA256SUMS`.
-6. Create or refresh `HANDOFF-YYYY-MM-DD.md` in each changed model package.
-   Record the branch and commit, case/archive version and SHA-256, changes
-   since upstream, validation status, incomplete checks, exact continuation
-   commands, artifact locations, and immutable baselines. Never call an
-   imposed or stale result validated.
-7. Use a new versioned archive name. Use the repository-native exporter:
+1. Inspect the branch, upstream relation, and working-tree status of each
+   country repository. Stop on conflicts or a behind/diverged branch. Never
+   reset, rebase, force-push, or overwrite a published release.
+2. Determine the current case name and destination archive from the
+   country repository's current-model documentation, unless the user names
+   them explicitly. Never infer the current archive from filename sorting.
+3. Require the live working case at `<country-repository>/case/<case-name>`.
+   Require `MUIOGO/WebAPP/DataStorage/<case-name>` to be a symlink that
+   resolves exactly to that directory. Stop on a missing case, real
+   DataStorage directory, broken link, or link to another target; do not
+   silently choose a second source of truth.
+4. Export the repository-local case as one ZIP with one top-level case folder.
+   Use an exclusion list: include every case file
+   except `res/`, solver CSVs and logs, `data.txt`, `data_processed.txt`, LP
+   files, caches, and other generated results. This preserves every editable
+   parameter JSON, case-local documentation or manifest, and required `view/`
+   metadata without having to predict future MUIO file types.
+5. Run `unzip -t`, reject unsafe paths or excluded results, verify
+   `genData.json` and `osy-casename`, and calculate SHA-256. Update only the
+   checksum and current-archive pointer needed to identify this ZIP.
+6. Review the diff, stage only the intended country-model files and archive,
+   commit them, fetch once more, and push normally. Preserve unrelated local
+   work.
 
-   ```bash
-   FJI_CASE="$(muiogo-ai case-path --case 'Fiji_v2')"
-   PHL_CASE="$(muiogo-ai case-path --case 'Philippines_v12_ENV_LAND_WATER_DIAGNOSTIC')"
+Do not create a HANDOFF note, reconstruct provenance, run model validation,
+or change model inputs. Those are separate modelling tasks and must be
+requested separately.
 
-   python CLEWs-FJI/Fiji_v2_CLEWs_calibration/scripts/export_muiogo_case.py \
-     "$FJI_CASE" <fiji-output.zip> --exclude-results
-
-   python CLEWs-PHL/Philippines_v12_CLEWs_build/scripts/export_muiogo_case.py \
-     "$PHL_CASE" <phl-output.zip>
-   ```
-
-8. Run `unzip -t`, verify the archive has one expected top-level case folder,
-   and reject any `res/`, `data.txt`, `data_processed.txt`, LP, solver CSV, or
-   solver-log entry. Keep required `view/` metadata. Recompute SHA-256 and
-   reconcile every documented hash.
-9. Review the diff, commit only the relevant model-package files, fetch once
-   more, and push the tracked branch normally.
-10. In `Model-tools`, commit and push changes under `skills/` when present.
-    Stage only skill-related files and preserve unrelated work.
-
-Report the world the packaged cases came from, each repository as unchanged,
-committed, pushed, or blocked; list every archive and hash; and state exactly
-which validation checks ran.
-
-## Related skills
-
-- `muiogo-provision` — the generic path: export any case as a shareable zip.
-- `muiogo-run` — every run also records a RUN.json provenance stamp worth shipping.
-
-These live in the MUIOGO-AI collection; if one is not available to you,
-do the job directly and say which skill would have covered it.
+Report the live case and verified symlink, archive path and SHA-256, commit,
+pushed branch, and any repository skipped because it was unsafe to update.

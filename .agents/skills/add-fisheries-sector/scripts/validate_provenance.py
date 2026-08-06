@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -101,10 +102,65 @@ ALLOWED_EVIDENCE = {"direct", "derived", "proxy", "estimated"}
 ALLOWED_COMPLETENESS = ALLOWED_EVIDENCE | {"data_gap", "not_applicable"}
 ALLOWED_GRADES = {"A", "B", "C", "D"}
 YES_NO = {"yes", "no"}
+HEX_DIGITS = set("0123456789abcdefABCDEF")
 
 
 def split_ids(value: str | None) -> list[str]:
     return [item.strip() for item in (value or "").split(";") if item.strip()]
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def verify_retained_copy(
+    row: dict[str, str], base_dir: Path, errors: list[str]
+) -> None:
+    """Recompute the digest of a retained local source copy and compare it."""
+    source_id = row.get("source_id", "<no id>")
+    checksum = row.get("sha256", "").strip()
+    # Cheap pre-filter: a value that cannot be a digest is rejected before I/O.
+    if checksum and (
+        len(checksum) != 64 or any(char not in HEX_DIGITS for char in checksum)
+    ):
+        errors.append(
+            f"sources:{source_id}: sha256 must contain 64 hexadecimal characters"
+        )
+        return
+    local_file = row.get("local_file", "").strip()
+    if not local_file:
+        return
+    relative = Path(local_file)
+    if relative.is_absolute() or ".." in relative.parts:
+        errors.append(
+            f"sources:{source_id}: local_file must be a path relative to the register"
+        )
+        return
+    if not checksum:
+        errors.append(
+            f"sources:{source_id}: a retained local_file requires a sha256 digest"
+        )
+        return
+    candidate = base_dir / relative
+    if not candidate.is_file():
+        errors.append(
+            f"sources:{source_id}: local_file is missing beside the register: {local_file}"
+        )
+        return
+    try:
+        actual = sha256_file(candidate)
+    except OSError as exc:
+        errors.append(f"sources:{source_id}: cannot read local_file {local_file}: {exc}")
+        return
+    if actual != checksum.lower():
+        errors.append(
+            f"sources:{source_id}: sha256 does not match {local_file}: "
+            f"recorded {checksum.lower()}, actual {actual}"
+        )
 
 
 def load_register(path: Path, name: str) -> tuple[list[dict[str, str]], set[str], list[str]]:
@@ -182,6 +238,7 @@ def validate(args: argparse.Namespace) -> dict[str, object]:
         rows[name], ids[name], register_errors = load_register(path, name)
         errors.extend(register_errors)
 
+    sources_dir = paths["sources"].expanduser().resolve().parent
     for row in rows["sources"]:
         source_id = row.get("source_id", "<no id>")
         grade = row.get("quality_grade", "").upper()
@@ -192,9 +249,7 @@ def validate(args: argparse.Namespace) -> dict[str, object]:
             warnings.append(
                 f"sources:{source_id}: URL has no scheme; document whether it is public or restricted"
             )
-        checksum = row.get("sha256", "")
-        if checksum and (len(checksum) != 64 or any(c not in "0123456789abcdefABCDEF" for c in checksum)):
-            errors.append(f"sources:{source_id}: sha256 must contain 64 hexadecimal characters")
+        verify_retained_copy(row, sources_dir, errors)
 
     for row in rows["assumptions"]:
         assumption_id = row.get("assumption_id", "<no id>")

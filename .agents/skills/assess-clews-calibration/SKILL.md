@@ -1,6 +1,6 @@
 ---
 name: assess-clews-calibration
-description: Evaluate how well an OSeMOSYS or full CLEWs model is calibrated to a country, identify strong and weak points, classify it as Not assessable, Unacceptable, Acceptable, Good, or Excellent, and judge fitness for a stated use. Use when auditing a country model, reviewing a historical/base-year calibration, checking whether results are reproduced independently rather than forced, comparing modeled values with observations, or assessing a MUIOGO model folder. This grades CALIBRATION QUALITY: for structural and referential defects use clews-model-review, and to describe a model and its calibration to someone rather than grade it use muiogo-explain.
+description: Grade how well an OSeMOSYS/CLEWs country model is calibrated (Not assessable to Excellent) and judge fitness for a stated use. For structural defects use clews-model-review; to implement changes, calibrate-clews-model.
 ---
 
 # Assess CLEWs Calibration
@@ -13,26 +13,14 @@ Evaluate calibration as an evidence-based claim, not as visual plausibility. Kee
 
 A model matching a historical year is not necessarily calibrated when demands, capacities, activity, or shares were fixed to those same observations. Forced matches must not earn the same credit as endogenous reproduction.
 
-## Which world
-
-You grade the model of ONE world, and the same case name can exist in both.
-Use the pinned launcher `muiogo-ai` (the installed runtime), or `muiogo-live` only
-when the user explicitly asked for their own checkouts; never bare `muiogo`, and
-never fall back to it. Every command prints a `world:` line to stderr — read it,
-and name that world in the grade you report. Resolve the case with
-`muiogo-ai case-path`, never a relative `WebAPP/DataStorage/...` path. Exit code 3
-is a refused world crossing: stop. Full rules:
-[../WORLD_DISCIPLINE.md](../WORLD_DISCIPLINE.md).
-
 ## Required workflow
 
 1. Establish the claimed scope, country, calibration period, held-out validation period, and intended use. If these are not documented, record the gap; do not invent them.
 2. Read [references/assessment-protocol.md](references/assessment-protocol.md), [references/calibration-rubric.md](references/calibration-rubric.md), and [references/forcing-classification.md](references/forcing-classification.md).
-3. If reviewing MUIOGO data, also read [references/muiogo-data-format.md](references/muiogo-data-format.md). Resolve the case through the launcher, so the folder you audit is the one in this world, then run:
+3. If reviewing MUIOGO data, also read [references/muiogo-data-format.md](references/muiogo-data-format.md). Run:
 
    ```bash
-   CASE="$(muiogo-ai case-path --case '<case>')"
-   python scripts/audit_muiogo_model.py "$CASE" --output <inventory.json>
+   python scripts/audit_muiogo_model.py <model-folder> --output <inventory.json>
    ```
 
 4. Build a historical-comparison CSV using [references/evidence-schema.md](references/evidence-schema.md). Use observed data from traceable sources and retain units, geography, period, and uncertainty. Run:
@@ -78,11 +66,13 @@ Lead with a decision-ready summary:
 - **Fitness for stated use:** suitable / conditionally suitable / unsuitable
 - **Required improvements:** ordered by which change could alter the grade
 
-Include the score as supporting information, not as a substitute for the grade rationale. Say which world the assessed case came from — a grade without it can be read against the wrong installation.
+Include the score as supporting information, not as a substitute for the grade rationale.
 
 ## Related skills
 
 - `clews-model-review` — structural and referential integrity.
+- `calibrate-clews-model` — implementing improvements identified by the
+  assessment.
 - `muiogo-explain` — describing the model and its calibration to a person.
 - `build-clews-model` — building the model in the first place.
 

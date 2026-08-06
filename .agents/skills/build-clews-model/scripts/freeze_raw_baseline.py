@@ -4,44 +4,19 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import zipfile
 from datetime import date
-from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
 
+from validate_package import (
+    selected_tree_hash,
+    sha256_file,
+    source_package_excluded,
+    tree_hash,
+)
 from validate_provenance import validate as validate_provenance
-
-
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def tree_hash(root: Path) -> dict[str, Any]:
-    digest = hashlib.sha256()
-    files = sorted(path for path in root.rglob("*") if path.is_file())
-    for path in files:
-        relative = path.relative_to(root).as_posix()
-        digest.update(relative.encode("utf-8"))
-        digest.update(b"\0")
-        digest.update(bytes.fromhex(sha256_file(path)))
-    return {"sha256": digest.hexdigest(), "file_count": len(files)}
-
-
-def selected_tree_hash(root: Path, files: list[Path]) -> dict[str, Any]:
-    digest = hashlib.sha256()
-    for path in sorted(files):
-        relative = path.relative_to(root).as_posix()
-        digest.update(relative.encode("utf-8"))
-        digest.update(b"\0")
-        digest.update(bytes.fromhex(sha256_file(path)))
-    return {"sha256": digest.hexdigest(), "file_count": len(files)}
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -49,21 +24,6 @@ def read_json(path: Path) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError(f"Expected a JSON object: {path}")
     return value
-
-
-def should_exclude(relative: Path, extra_patterns: list[str]) -> bool:
-    text = relative.as_posix()
-    if relative.parts and relative.parts[0] == "backups":
-        return True
-    if "__pycache__" in relative.parts or relative.name == ".DS_Store":
-        return True
-    if relative.suffix.lower() in {".pyc", ".lp", ".mps"}:
-        return True
-    if text == "config/baseline_manifest.json":
-        return True
-    if relative.parts and relative.parts[0] == "muio" and relative.suffix == ".zip":
-        return True
-    return any(fnmatch(text, pattern) for pattern in extra_patterns)
 
 
 def main() -> int:
@@ -127,7 +87,7 @@ def main() -> int:
     included = [
         path
         for path in package_files
-        if not should_exclude(path.relative_to(root), args.exclude_glob)
+        if not source_package_excluded(path.relative_to(root), args.exclude_glob)
     ]
     with zipfile.ZipFile(
         source_archive, "x", compression=zipfile.ZIP_DEFLATED, compresslevel=9
@@ -146,6 +106,10 @@ def main() -> int:
         "created": date.today().isoformat(),
         "source_package": {
             "path": source_archive.relative_to(root).as_posix(),
+            # Identity of the archive just written, so later runs can detect
+            # that it was altered. ZIP members embed mtimes, so this digest
+            # cannot be reproduced by rebuilding the archive; the reproducible
+            # content check is tree_hashes.source_package_contents below.
             "sha256": sha256_file(source_archive),
             "size_bytes": source_archive.stat().st_size,
             "included_file_count": len(included),
@@ -169,17 +133,6 @@ def main() -> int:
             "source_package_contents": selected_tree_hash(root, included),
             "model_inputs": tree_hash(root / "model" / "inputs"),
             "model_results": tree_hash(root / "model" / "results"),
-        },
-        "records": {
-            "upstream_versions_sha256": sha256_file(
-                root / "config" / "upstream_versions.json"
-            ),
-            "no_forcing_audit_sha256": sha256_file(
-                root / "diagnostics" / "no_forcing_audit.json"
-            ),
-            "validation_summary_sha256": sha256_file(
-                root / "diagnostics" / "validation_summary.json"
-            ),
         },
     }
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

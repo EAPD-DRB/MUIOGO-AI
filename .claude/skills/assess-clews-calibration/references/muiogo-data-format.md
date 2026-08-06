@@ -1,6 +1,6 @@
 # MUIOGO model data
 
-Inside a MUIOGO installation, cases are laid out as `WebAPP/DataStorage/<model>/`. That is a layout description, not a path to type: a machine can carry more than one installation, so ask the launcher for the folder — `CASE="$(muiogo-ai case-path --case '<case>')"` returns the absolute path inside the current world and fails loudly if the case is not there.
+MUIOGO cases normally live in `WebAPP/DataStorage/<model>/`.
 
 ## Main files
 
@@ -9,7 +9,7 @@ Inside a MUIOGO installation, cases are laid out as `WebAPP/DataStorage/<model>/
 - Their general shape is `{parameter_id: {scenario_id: [records]}}`.
 - `SC_0` is normally the base scenario. Other scenarios may use `null` values to inherit base values.
 - `res/<label>/results.txt` stores a solve result; an `Optimal` first line supports the executable-case gate but does not prove calibration.
-- `Parameters.json` maps parameter IDs to names, dimensions, defaults, and units. It sits beside the case folders — reach it as `"$(dirname "$CASE")/Parameters.json"`.
+- `WebAPP/DataStorage/Parameters.json` maps parameter IDs to names, dimensions, defaults, and units.
 
 ## Calibration-relevant parameters
 

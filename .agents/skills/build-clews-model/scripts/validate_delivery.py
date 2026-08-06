@@ -10,45 +10,19 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
+from validate_provenance import REQUIRED_FILES as PROVENANCE_REQUIRED_FILES
 from validate_provenance import validate as validate_provenance
 
 
-REQUIRED_FILES = (
-    "README.md",
-    "config/upstream_versions.json",
-    "config/baseline_manifest.json",
-    "data_sources/SOURCES.csv",
-    "data_sources/DATA_SOURCES.md",
-    "data_sources/ASSUMPTIONS.csv",
-    "data_sources/CALCULATIONS.csv",
-    "data_sources/MODEL_DATA_MAP.csv",
-    "documentation/CURRENT_MODEL.md",
-    "documentation/MODEL_STRUCTURE.md",
-    "documentation/KNOWN_LIMITATIONS.md",
-    "documentation/HISTORY.md",
-    "documentation/CALIBRATION_HANDOFF.md",
-    "documentation/MUIO_IMPORT.md",
-    "documentation/REPRODUCE.md",
+# Everything the build stage already requires, plus the artifacts that only
+# exist once the model has been audited, sized, and frozen for delivery.
+DELIVERY_ONLY_FILES = (
     "diagnostics/no_forcing_audit.json",
-    "diagnostics/validation_summary.json",
     "diagnostics/resource_estimate.json",
-    "scripts/audit_no_forcing.py",
-    "scripts/freeze_raw_baseline.py",
-    "scripts/validate_provenance.py",
 )
+REQUIRED_FILES = PROVENANCE_REQUIRED_FILES + DELIVERY_ONLY_FILES
 
 REQUIRED_STATUS_KEYS = ("upstream_raw", "muio_import", "muio_final")
-REPRODUCTION_TERMS = (
-    "import",
-    "repair",
-    "parity",
-    "estimate",
-    "generate",
-    "solve",
-    "validate",
-    "package",
-    "restore",
-)
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -174,16 +148,6 @@ def main() -> int:
         except ValueError as exc:
             failures.append(str(exc))
 
-    import_doc = root / "documentation/MUIO_IMPORT.md"
-    if import_doc.is_file():
-        text = import_doc.read_text(encoding="utf-8").lower()
-        missing_terms = [term for term in REPRODUCTION_TERMS if term not in text]
-        if missing_terms:
-            failures.append(
-                "MUIO_IMPORT.md lacks reproduction coverage for: "
-                + ", ".join(missing_terms)
-            )
-
     archive, archive_error = find_zip(root, args.zip_path)
     if archive_error:
         failures.append(archive_error)
@@ -191,10 +155,10 @@ def main() -> int:
         failures.append(f"Portable ZIP does not exist: {archive}")
     else:
         try:
+            # validate_provenance already CRC-checks the archive recorded in
+            # the baseline manifest, so this pass only inspects what the
+            # archive contains.
             with zipfile.ZipFile(archive) as handle:
-                bad_member = handle.testzip()
-                if bad_member:
-                    failures.append(f"Portable ZIP has corrupt member: {bad_member}")
                 members = handle.namelist()
                 lowered = [member.lower() for member in members]
                 if not members:

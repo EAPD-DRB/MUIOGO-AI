@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review CLEWs Model"
+  short_description: "Audit MUIOGO CLEWs model structure and data consistency"
+  default_prompt: "Use $clews-model-review to audit a MUIOGO CLEWs model under WebAPP/DataStorage/ for referential integrity, orphaned IDs, dangling technologies, unit discipline, sector coverage and solve status, or to gate whether an object is safe to delete."

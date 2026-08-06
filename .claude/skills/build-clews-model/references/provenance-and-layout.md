@@ -15,10 +15,12 @@ the model is solved.
 │   └── baseline_manifest.json
 ├── data_sources/
 │   ├── SOURCES.csv
-│   ├── DATA_SOURCES.md
-│   ├── ASSUMPTIONS.csv
 │   ├── CALCULATIONS.csv
-│   ├── MODEL_DATA_MAP.csv
+│   ├── ASSUMPTIONS.csv
+│   ├── MODEL_MAP.csv
+│   ├── GAPS.csv
+│   ├── CHANGES.csv
+│   ├── DATA_SOURCES.md
 │   ├── evidence/
 │   └── calculation_notes/
 ├── diagnostics/
@@ -50,8 +52,8 @@ python scripts/init_country_package.py PACKAGE_ROOT \
   --country "Country name" --iso3 ISO
 ```
 
-The command refuses to overwrite an existing package. Use `--allow-existing`
-only to add missing scaffold files; it never replaces existing files.
+The command refuses to overwrite an existing package. `--allow-existing`
+creates only missing files and never edits an existing CSV or document.
 
 The active MUIO runtime case may contain a short README that points back to this
 canonical package. Do not duplicate the canonical ledgers inside the runtime
@@ -59,99 +61,65 @@ case.
 
 ## Canonical ledgers
 
-`SOURCES.csv` is the machine-readable source catalogue. `DATA_SOURCES.md`
-provides narrative, conflicts, government-review questions, and context; it is
-not the canonical identifier store.
+[SCHEMA.md](SCHEMA.md) defines the only ledger schemas. The scaffold creates
+its six header-only CSVs directly from the same vendored Python schema used by
+the validator, so the templates and checks cannot drift.
 
-Use stable IDs:
+The invariant is:
 
-- sources: `DS-...`;
-- assumptions: `A-...`;
-- calculations: `C-...`;
-- model-map rows: `M-...`.
+> Every populated model value resolves to one active `MODEL_MAP.csv` row; every
+> map row names source, calculation or assumption evidence; every referenced
+> record resolves; every retained evidence file matches its recorded digest.
 
-Separate multiple IDs or coverage patterns with semicolons.
+Use `DATA_SOURCES.md` only for source conflicts, access restrictions,
+government-review questions and narrative context. It is not a seventh ledger.
 
-### `SOURCES.csv`
+`MODEL_MAP.model_file` names one exact package-relative file, never a glob. Map
+`config/config.yaml` as well as every populated `model/inputs/*.csv`. Split a
+map row when the source, calculation, assumption, model unit, scenario, mode or
+value expression changes. Preserve retired rows with `superseded_by`; never
+delete earlier lineage.
 
-Use one row per externally sourced variable or coherent product slice. Record:
+Put unavailable lineage in `GAPS.csv`. A gap is not evidence for an active
+value: use a documented assumption when the model must carry a value, or leave
+the value out when no defensible assumption exists.
 
-```text
-source_id,provider,product,edition,reference_period,variable,source_unit,
-geography,model_use,selection,transformation,quality,proxy,official_url,
-license,national_alternative,review_owner,local_evidence_path,sha256,status,
-notes
-```
+### Successor model versions
 
-Use `status=active` when the source affects the raw model. Use `diagnostic`,
-`calibration_candidate`, or `scenario_context` when it does not. Use
-`documentation_gap` only when lineage is genuinely unavailable; explain the
-gap in `notes`.
+For a new version of an existing model, copy the complete current canonical
+ledger and retained evidence into the new package before adding or changing
+records. Carry unchanged records forward, add new records, and update or
+supersede changed records. Do not replace inherited records with a source row
+or note that merely points to the previous version. Previous-version references
+are supplementary chronology only; the new ledger must stand on its own.
 
-When `local_evidence_path` names a retained file, record its SHA-256. Do not
-redistribute restricted or copyrighted source files merely to fill the folder.
-For restricted evidence, record exact metadata, access conditions, extraction
-instructions, and the checksum held by the authorized team.
+This rule applies to every country and model family.
 
-### `ASSUMPTIONS.csv`
-
-Record modeller choices separately from published facts:
-
-```text
-assumption_id,sector,description,used_for,status,source_or_reason,review_need
-```
-
-Every `active` assumption must be referenced from `MODEL_DATA_MAP.csv`.
-
-### `CALCULATIONS.csv`
-
-Record transformations that actually determine model values:
-
-```text
-calculation_id,sector,question,formula,inputs,output,units,model_location,
-source_ids,assumption_ids,status,notes
-```
-
-Every `active` calculation must be referenced from `MODEL_DATA_MAP.csv`.
-Place longer derivations in `calculation_notes/`.
-
-### `MODEL_DATA_MAP.csv`
-
-Connect the active model to its lineage:
-
-```text
-map_id,sector,model_entity,parameter_or_file,coverage_patterns,modes,years,
-meaning,source_ids,assumption_ids,calculation_ids,representation_status,notes
-```
-
-`coverage_patterns` contains package-relative exact paths or glob patterns.
-At delivery, every populated `model/inputs/*.csv` and `config/config.yaml` must
-match at least one active map row. Prefer exact files or coherent families over
-one catch-all pattern. A source ID may identify an upstream database when
-row-level original lineage is unavailable, but mark that limitation explicitly.
-
-## What validation proves
+## Validation
 
 Run:
 
 ```bash
+python scripts/validate_provenance.py PACKAGE_ROOT --stage scaffold
 python scripts/validate_provenance.py PACKAGE_ROOT --stage build
 python scripts/validate_provenance.py PACKAGE_ROOT --stage delivery
 ```
 
-The validator proves:
+The command combines two independent checks:
 
-- required files and schemas exist;
-- identifiers are unique and references resolve;
-- active sources, assumptions, and calculations are mapped;
-- populated raw input files are covered;
-- retained evidence checksums match;
-- repositories are pinned to full commits;
-- the final raw baseline artifacts match their manifest.
+- `provenance.py` validates the canonical six ledgers, references,
+  calculation dependencies, evidence files and populated input coverage;
+- `validate_package.py` validates the country-package layout, repository pins,
+  active configuration and frozen baseline.
 
-It does not prove that a cited source is true, unbiased, or suitable for the
-model boundary. Record source conflicts and quality limitations rather than
-silently resolving them.
+Both scripts are vendored inside the installed skill and copied into each
+country package. They use only the Python standard library, so a single copied
+`build-clews-model` folder works in Claude and Codex without the repository's
+`skills/shared/` directory.
+
+Validation proves mechanical lineage and artifact integrity. It does not prove
+that a source is true, unbiased or appropriate for the model boundary. Record
+conflicts and quality limitations rather than silently resolving them.
 
 ## Frozen raw baseline
 

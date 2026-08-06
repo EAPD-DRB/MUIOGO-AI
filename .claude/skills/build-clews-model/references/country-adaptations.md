@@ -134,5 +134,7 @@ For each adaptation, provide:
 | Sensitivity candidate | Alternative to test later |
 | Historical fit used? | Must be `No` |
 
-Also complete the exact source and government-review fields required by
-`source-and-government-review.md`.
+Also complete the source fields required by
+[SCHEMA.md](SCHEMA.md), and name the
+choice in the government-review table in
+[provenance-and-layout.md](provenance-and-layout.md).
