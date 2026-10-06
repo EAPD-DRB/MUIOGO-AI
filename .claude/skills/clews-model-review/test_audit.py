@@ -266,9 +266,13 @@ class MergedCheckTest(unittest.TestCase):
         shim = importlib.util.module_from_spec(spec)
         assert spec.loader is not None
         spec.loader.exec_module(shim)
-        self.assertEqual(
-            Path(shim.audit_module().__file__).resolve(), AUDIT_PATH.resolve()
-        )
+        # The shim loads the generated copy of this audit shipped beside it, so the
+        # skill works when installed alone; that copy must match this file.
+        banner = ("# GENERATED FILE", "# Source:", "# Regenerate:", "# This local copy")
+        def body(path: Path) -> list[str]:
+            lines = path.read_text(encoding="utf-8").splitlines()
+            return [line for line in lines if not line.startswith(banner)]
+        self.assertEqual(body(Path(shim.audit_module().__file__)), body(AUDIT_PATH))
         with tempfile.TemporaryDirectory() as tmp:
             model = make_model(Path(tmp))
             output = Path(tmp) / "inventory.json"

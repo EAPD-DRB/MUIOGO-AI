@@ -1,5 +1,18 @@
 # CLEWs Global to MUIO import
 
+## Contents
+
+- [1. Inspect version-specific compatibility](#1-inspect-version-specific-compatibility)
+- [2. Convert the CLEWs CSVs](#2-convert-the-clews-csvs)
+- [3. Prepare a MUIO workbook](#3-prepare-a-muio-workbook)
+- [4. Run the unmodified importer](#4-run-the-unmodified-importer)
+- [5. Repair temporal mappings](#5-repair-temporal-mappings)
+- [6. Generate and solve a pre-workaround run](#6-generate-and-solve-a-pre-workaround-run)
+- [7. Check input parity](#7-check-input-parity)
+- [8. Check result parity](#8-check-result-parity)
+- [9. Package for another laptop](#9-package-for-another-laptop)
+- [Required handoff warning](#required-handoff-warning)
+
 Use this workflow after the upstream raw CLEWs Global model solves. Keep all
 country-specific helpers and artifacts inside the country package. Do not
 modify shared MUIO code for a one-country import.

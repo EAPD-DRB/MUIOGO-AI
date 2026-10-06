@@ -1,6 +1,6 @@
 ---
 name: clews-model-review
-description: Audit a MUIOGO CLEWs model under WebAPP/DataStorage/ for structural and data consistency against the NamibiaCLEWs benchmark. Also gates whether an object is safe to delete (--removable). For calibration quality use assess-clews-calibration.
+description: "Audits a MUIOGO CLEWs model folder for structure and data consistency against the NamibiaCLEWs benchmark, and gates whether an object is safe to delete. Use when asked to review, audit or judge whether a CLEWs model is well-structured, or to flag data inconsistencies in one. Calibration quality is assess-clews-calibration; MUIOGO's input checks before a solve are muiogo-provision."
 ---
 
 # CLEWs Model Review
@@ -18,13 +18,21 @@ Match the argument to the actual folder name (resolve fuzzy input like "Namibia"
 
 ## How to run
 
-1. Run the bundled checker (auto-discovers models, or name specific ones):
+1. Run the bundled checker, `audit.py` in this skill's folder (its path depends on where the
+   skill is installed). Pass `--datastorage` every time unless the skill sits inside a MUIOGO
+   checkout; without it the checker guesses `../../../WebAPP/DataStorage` from its own location.
    ```bash
-   python .claude/skills/clews-model-review/audit.py                    # all models
-   python .claude/skills/clews-model-review/audit.py NamibiaCLEWs       # one or more
-   python .claude/skills/clews-model-review/audit.py --datastorage <path> <model>
+   python <this skill>/audit.py --datastorage <MUIOGO>/WebAPP/DataStorage             # all models
+   python <this skill>/audit.py --datastorage <MUIOGO>/WebAPP/DataStorage NamibiaCLEWs  # one or more
    ```
-   It prints per-model findings tagged `FAIL` / `WARN` / `INFO`, plus a summary. Exit code is non-zero if any `FAIL` is present (usable in CI).
+   It prints per-model findings tagged `FAIL` / `WARN` / `INFO`, plus a summary. Exit code is non-zero if any `FAIL` is present (usable in CI). One machine can hold two MUIOGO installations with the same case names, so give an absolute `--datastorage` and name the installation in the report.
+
+   **Deletion gate.** `--removable ID [ID ...]` checks one model and exits 0 only if every
+   `TEC_`/`COM_`/`EMI_` ID given is defined in `genData.json` and referenced nowhere else; 1 if
+   any is still referenced (it names the files); 2 for a malformed ID. `--json PATH` also writes
+   the verdicts. `clews-model-fix` runs this gate before any deletion.
+   The JSON structural inventory that `assess-clews-calibration` uses is the same code, reached
+   through that skill's `scripts/audit_muiogo_model.py`.
 2. Interpret the output against the rubric below and write the verdict as a short scorecard (see Output).
 3. For anything the script flags, spot-check the underlying data before reporting it as real (e.g. confirm a "wrong unit" isn't compensated by the activity ratio — see the DESWAT note below).
 
@@ -80,8 +88,8 @@ Add or adjust checks by editing this file and `audit.py`. When you learn a new d
 
 ## Related skills
 
-- `calibrate-clews-model` — implementing an equation-led, non-forcing
-  calibration change.
+- `calibrate-clews-model` — replacing generic country inputs and repairing physical
+  connections with complete provenance.
 - `assess-clews-calibration` — whether the model is calibrated well enough for a question.
 - `muiogo-provision` — MUIOGO's ten input-consistency checks, before a long solve.
 - `muiogo-run` — solving a case; `muiogo-analyze` — comparing and charting the results.

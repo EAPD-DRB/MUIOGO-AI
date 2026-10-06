@@ -1,5 +1,16 @@
 # Permitted country adaptations
 
+## Contents
+
+- [Country identity and horizon](#country-identity-and-horizon)
+- [Energy geography and topology](#energy-geography-and-topology)
+- [Temporal structure](#temporal-structure)
+- [Geospatial structure](#geospatial-structure)
+- [Climate representation](#climate-representation)
+- [Crops, land, and water](#crops-land-and-water)
+- [Baseline scenario settings](#baseline-scenario-settings)
+- [Documentation table](#documentation-table)
+
 Country adaptations define the modelled system. They must be evidence-based,
 documented, and chosen independently of historical model-output error.
 
@@ -135,6 +146,5 @@ For each adaptation, provide:
 | Historical fit used? | Must be `No` |
 
 Also complete the source fields required by
-[SCHEMA.md](SCHEMA.md), and name the
-choice in the government-review table in
-[provenance-and-layout.md](provenance-and-layout.md).
+[SCHEMA.md](SCHEMA.md), and name the choice in the government-review table
+described in [source-and-government-review.md](source-and-government-review.md).

@@ -1,5 +1,12 @@
 # Country package and provenance contract
 
+## Contents
+
+- [Required package layout](#required-package-layout)
+- [Canonical ledgers](#canonical-ledgers)
+- [Validation](#validation)
+- [Frozen raw baseline](#frozen-raw-baseline)
+
 Use this contract from the first build step. Do not retrofit provenance after
 the model is solved.
 
@@ -73,6 +80,8 @@ The invariant is:
 
 Use `DATA_SOURCES.md` only for source conflicts, access restrictions,
 government-review questions and narrative context. It is not a seventh ledger.
+The government-review table and the source-field guidance are in
+[source-and-government-review.md](source-and-government-review.md).
 
 `MODEL_MAP.model_file` names one exact package-relative file, never a glob. Map
 `config/config.yaml` as well as every populated `model/inputs/*.csv`. Split a
@@ -137,8 +146,9 @@ artifacts are not duplicated. The command refuses to overwrite an existing
 archive or a completed manifest.
 
 `baseline_manifest.json` records artifact paths, byte sizes, SHA-256 values,
-the complete archived-package content tree, and separate raw input/result tree
-hashes. “Frozen” is a process rule: never edit or overwrite a registered
+the complete archived-package content tree, separate raw input/result tree
+hashes, and checksums of `upstream_versions.json`, `no_forcing_audit.json` and
+`validation_summary.json`. The delivery checkpoint re-checks all of them. “Frozen” is a process rule: never edit or overwrite a registered
 baseline. Create a new dated milestone instead.
 
 Pinning code removes the need to archive whole upstream Git checkouts. Pinning

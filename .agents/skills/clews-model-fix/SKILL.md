@@ -1,6 +1,6 @@
 ---
 name: clews-model-fix
-description: Make a structural fix to a MUIO/OSeMOSYS CLEWs model that cannot change any solved value — remove unreferenced technologies, commodities or emissions, fix placeholder descriptions, adjust technology groups. Refuses anything that alters a parameter value.
+description: Makes structural fixes to a MUIO/OSeMOSYS CLEWs model that cannot change any solved value - removes unreferenced technologies, commodities or emissions, replaces placeholder descriptions, adjusts technology groups - and refuses anything that alters a parameter value. Use when clews-model-review flags such defects or the user asks for that kind of cleanup; value changes go to calibrate-clews-model.
 ---
 
 # Fix a CLEWs model structurally
@@ -13,20 +13,16 @@ If the change is not in scope below, stop and hand off. Do not widen this skill.
 
 ## Triage first
 
-| Class | Test | Skill |
-|---|---|---|
-| **A — structural** | No parameter value changes and no source data changes | **this skill** |
-| **B — sourced parameter change** | A number changes, chosen *without* reference to an observed outcome | `calibrate-clews-model`, with provenance |
-| **C — calibration** | A value chosen *with reference to* an observed outcome | `calibrate-clews-model`, full plan |
-
-The discriminator is the counterfactual test: *would this exact change still be made if no
-historical outcome were known?* For a Class A fix the answer is trivially yes. Full rules in
-[references/non-forcing.md](references/non-forcing.md).
+Use this skill only when no parameter value or source data changes. Route any evidence-based
+country-data or physical-model refinement to `calibrate-clews-model`. Reject any value chosen
+merely to reproduce an observed outcome under
+[references/non-forcing.md](references/non-forcing.md); do not route outcome fitting to a
+heavier calibration plan.
 
 ## In scope
 
 - Delete an unreferenced `TEC_`, `COM_` or `EMI_`.
-- Delete an orphaned or stranded commodity.
+- Delete an orphaned commodity: defined, but referenced nowhere else.
 - Replace a placeholder description (`TBD`, `xxx`, a repeated stub).
 - Add or change a `TECHGROUP` assignment. Grouping is interface metadata and must not alter
   parameters.
@@ -35,23 +31,30 @@ historical outcome were known?* For a Class A fix the answer is trivially yes. F
 
 ## Out of scope — stop and say which skill applies
 
-- **Any change to a numeric parameter value** → Class B.
-- **Deleting an object that is still referenced** → the solution changes. Class B/C.
-- **A unit correction that implies a conversion** → that is a calculation. Class B.
-- **Anything chosen by looking at a historical outcome** → Class C.
-- A description that encodes a modelling claim rather than a label → treat as Class B.
+- **Any evidence-based change to a numeric parameter value** → `calibrate-clews-model`.
+- **Deleting an object that is still referenced** → the solution can change; use
+  `calibrate-clews-model` or the relevant sector skill. This includes a stranded
+  commodity (produced by some technology but consumed by nothing): its output rows
+  still reference it, so removing it is calibrate's inactive-branch retirement
+  procedure, not a fix here.
+- **A unit correction that implies a conversion** → `calibrate-clews-model`; it requires a
+  calculation and provenance.
+- **Anything chosen merely to reproduce an observed outcome** → reject and record a gap.
+- A description that encodes a modelling claim rather than a label → treat as a sourced
+  model refinement.
 
 ## Procedure
 
 1. **Gate.** Prove the object is referenced nowhere but its own definition:
 
    ```bash
-   python audit.py MODEL_DIR --removable TEC_x --json diagnostics/removable.json
+   python <this skill>/audit.py MODEL_DIR --removable TEC_x --json diagnostics/removable.json
    ```
 
    Exit 0 means removable. Exit non-zero names the files that still reference it — read
-   them. If a reference is itself dead, that is a second Class A change: clear it first,
-   re-run the gate, and record both.
+   them. If the reference is another definition-only object, clear that one first (it is
+   a second change of the same kind), re-run the gate, and record both. If clearing it
+   would mean editing a parameter row, stop: that is out of scope here.
 
    `audit.py` ships in this skill's directory — a synced copy of the one
    `clews-model-review` owns — so the gate runs whether or not that skill is installed.
@@ -64,7 +67,7 @@ historical outcome were known?* For a Class A fix the answer is trivially yes. F
 2. **Back up**, then make the edit in the case JSON. Never hand-edit `data.txt`, processed
    data, LP/MPS files, solver output, result CSVs or Pivot output.
 
-3. **Confirm.** Re-run `python audit.py MODEL_DIR`. Require: the ID is gone, no new
+3. **Confirm.** Re-run `python <this skill>/audit.py MODEL_DIR`. Require: the ID is gone, no new
    findings, and no finding that was absent before.
 
 4. **Record.** One row in `CHANGES.csv`
@@ -102,5 +105,5 @@ gap — there is no lineage to record, because no data entered the model.
 ## Related
 
 - `clews-model-review` — find what needs fixing (`audit.py` without `--removable`).
-- `calibrate-clews-model` — Class B and C changes.
+- `calibrate-clews-model` — evidence-based country-data and physical-model refinements.
 - `assess-clews-calibration` — grade a calibration.

@@ -1,19 +1,12 @@
 ---
 name: calibration-provenance
-description: >-
-  Trace any calibrated parameter in an OG-Core country repo (OG-USA/PHL/ZAF/IDN/BRA/ETH) back to
-  its authoritative source — through ~/Projects/notebooks, intermediate CSV/XLSX files, R/Stata
-  pipelines, live APIs, or cited papers — and record the chain in the repo. Use when asked "where
-  does this number come from?", "is this value still right?", "what's the source for gamma /
-  zeta_K / r_gov_shift / the e-matrix?", when auditing a calibration for undocumented
-  placeholders, or before recalibrating a parameter whose derivation is unclear. Complements
-  og-country-calibration, which sets values; this skill reconstructs and documents where existing
-  values came from.
+description: "Traces a calibrated parameter in an OG-Core country repo back to its source (notebooks, intermediate files, R/Stata pipelines, live APIs or cited papers) and records the chain in the repo. Use when asked where a number comes from, whether a value is still right, or what the source of gamma, zeta_K, r_gov_shift or the e-matrix is, and before recalibrating a parameter of unclear origin. og-country-calibration sets values; this skill documents where existing ones came from."
 ---
 
 # Calibration provenance
 
-24+ loose notebooks in `~/Projects/notebooks` derive parameters that get hard-coded into country
+24+ loose notebooks in the user's notebooks directory (`~/Projects/notebooks` on the machine
+the map was surveyed on) derive parameters that get hard-coded into country
 repos with no trace back — and the notebooks dir has no README. This skill is the tracing
 protocol plus the map of what's already known (`references/notebook-map.md` — read it before
 searching blind; it lists which notebook derives which parameter, the intermediate-file
@@ -55,12 +48,21 @@ The same parameter shows different traceability across sibling repos — verifie
    arrays put values on their own line, so grep the bare float (`grep -rn "0.24484763593657788"`),
    not the `"key": [...]` pattern (verified: the compact pattern misses). A float appearing
    byte-identical in two country repos means a country-independent constant (paper regression,
-   copied default) — that reshapes the search.
+   copied default) — that reshapes the search. Then walk the value's history: it often tells the
+   story fastest.
+
+   ```bash
+   for c in $(git log --format=%h -- <path/to/params.json>); do
+     echo "$c $(git show $c:<path/to/params.json> | python3 -c 'import json,sys; print(json.load(sys.stdin).get("<param>"))')"
+   done
+   ```
 2. **Find the writer.** In-repo first: `macro_params.py`, `calibrate.py`, `income.py`, builder
    scripts; check whether the live-API path can *overwrite* the value (the gamma-clobber bug
-   class). Then outward: `~/Projects/notebooks` (use the map), `archive/macro_params.py` (the
+   class). Then outward: the notebooks directory (use the map), `archive/macro_params.py` (the
    notebooks' consolidation point), R pipelines (`factor_j/`, `e_adj_factors/`), Stata `.do`
-   files, `git log -S` on the JSON.
+   files, `git log -S` on the JSON. The notebook map is a dated survey: where the repo's own code
+   has since moved to a live API (ZAF's `alpha_T`/`alpha_G` after the 2026 SDMX rewrite), check
+   `git log -S` on the repo's writer before following the map's older notebook chain.
 3. **Walk to the ultimate source.** Intermediate CSVs are links, not sources — find who wrote
    them (several are manual downloads with the URL only in a notebook comment; some have *no
    identified producer* — record that honestly). Sources bottom out at: an official
@@ -76,6 +78,12 @@ The same parameter shows different traceability across sibling repos — verifie
    - **Vintage traps**: API revisions and GDP rebasing move ratios with no real change; record
      the vintage next to the value (the Gini-concept and GDP-vintage rules in
      `og-country-calibration` apply here verbatim).
+   - **Series that stopped reporting**: a series can be zero-filled, blank, or last reported
+     years before the target year, and a "latest available year" fallback then silently returns
+     an old value (ETH's IMF social-benefits series has data only for 2002). Check the series has
+     data near the target year; a silent fall back to an old year is a provenance break.
+   - **Concept**: record whether the series matches the concept the model needs (for `alpha_T`,
+     cash transfers only; see `og-country-calibration`).
    - **Secrets**: notebooks in the tracing path contain live bearer tokens in cells and
      `un_api_token.txt` files. Never quote, copy, or commit them; flag them for rotation when
      encountered.
@@ -100,7 +108,8 @@ family practice (see og-country-calibration → Validation). If the trace ends a
 found", the honest record is `PLACEHOLDER — undocumented, needs recalibration`, which is exactly
 the state og-country-calibration exists to fix.
 
-Scope of action: drafting the provenance record and committing it locally is this skill's job;
+Scope of action: drafting the provenance record and committing it locally is this skill's job
+(if an open branch or PR already rewrites the same doc section, ask which branch first);
 pushing it or opening a PR against a country repo is the user's call, asked separately
-(the approval gates in SKILLS.md). Never re-run a calibration or launch a solve to
+(long computations, pushes and PRs each need the user's explicit go). Never re-run a calibration or launch a solve to
 "re-verify" a chain — propose it.

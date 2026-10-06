@@ -8,22 +8,42 @@
 
 Six CSV tables, one validator. Every CLEWs skill points here; none redefines the schema.
 
+## Contents
+- The invariants and how to validate
+- ID conventions
+- SOURCES.csv, CALCULATIONS.csv, ASSUMPTIONS.csv, MODEL_MAP.csv, GAPS.csv, CHANGES.csv
+- What this validator deliberately does not do
+
 **The invariant:** every populated model value resolves to exactly one `MODEL_MAP` row; every
 `MODEL_MAP` row carries at least one evidence ID; every referenced ID resolves; every retained
 evidence file matches its `sha256`.
 
-Worked examples live in `templates/`. Validate with:
+**The version-inheritance invariant:** begin every new model version with a complete copy of the
+current canonical ledger and all retained evidence. Carry unchanged records forward, add new
+records, and supersede changed mappings without deleting their lineage. A previous-version name
+may document chronology, but the new version must be independently interpretable and must never
+depend on an earlier package or installed case to supply its sources, calculations, assumptions,
+mappings, gaps, or evidence files.
+
+Worked examples are in the Model-tools repository, `skills/shared/provenance/templates/`; they
+are not shipped inside each skill. Validate with:
 
 ```
-python provenance.py LEDGER_DIR [--stage scaffold|build|delivery] [--model-inputs DIR] [--json REPORT]
+python provenance.py LEDGER_DIR [--stage scaffold|build|delivery] [--model-inputs DIR]
+    [--required-input FILE ...] [--allow-inherited-coverage-gaps] [--json REPORT]
 ```
 
 Exit 0 passes, exit 1 fails. `scaffold` checks only that the six files exist with the right
 columns. `build` adds every row, reference and digest check. Input coverage — proving every
 populated input file is mapped — runs at any stage once `--model-inputs` is given, and
 `delivery` additionally requires it. So a wrapper that knows where inputs live, as the
-packaged `validate_provenance.py` does, proves coverage from `build` onwards; expect
-unmapped-input failures there rather than only at `delivery`.
+`validate_provenance.py` wrapper in `build-clews-model` does, proves coverage from `build`
+onwards; expect unmapped-input failures there rather than only at `delivery`.
+
+Naming the touched scope with `--required-input` (repeat it per file) keeps those inputs
+strict at every stage. Inherited inputs outside that scope then fail on their own line,
+and `--allow-inherited-coverage-gaps` lowers that failure to a warning before `delivery`
+only. With no `--required-input`, every unmapped input fails, as above.
 
 ## ID conventions
 
@@ -104,7 +124,7 @@ their lineage — never delete a row — but they no longer provide input covera
 |---|---|
 | `change_id` | `CHG_…` |
 | `date` | ISO `YYYY-MM-DD` |
-| `class` | `A` structural cleanup, `B` sourced parameter change, `C` calibration |
+| `class` | Administrative chronology: `A` structural cleanup, `B` evidence-based parameter/model refinement, `C` outcome-referenced calibration record |
 | `description`, `model_objects` | what changed and to what |
 | `evidence_path` | the artifact proving the change was sound; **required for class A** |
 | `map_rows_affected` | `MAP_` IDs |
@@ -114,6 +134,10 @@ their lineage — never delete a row — but they no longer provide input covera
 A class A change asserts no model value moved, so it may not touch a live mapping: every
 `MAP_` row it names must already carry `superseded_by`. That is what makes the fast path
 auditable rather than merely fast.
+
+The class is metadata, not a workflow router or an evidence waiver. It must not downgrade a
+coupled evidence-based country refinement to a token check, and it never authorizes fitting a
+parameter to an observed outcome contrary to the non-forcing rule.
 
 ## What this validator deliberately does not do
 
