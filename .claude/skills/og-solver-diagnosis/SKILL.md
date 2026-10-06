@@ -128,8 +128,9 @@ Only after the class is identified:
 1. **Fix the cause** (calibration value, fiscal balance, code bug, stale fixture) — always
    preferred. Add the cheapest regression guard that would have caught it (a value-pinning test, a
    drift check).
-2. **Oscillation/stall knobs** (treat oscillation, never runaway): heavier damping `TPI_NU`
-   0.4 → 0.3 → 0.2; Anderson acceleration (`TPI_outer_method="anderson"`, ogcore ≥ 0.16.4);
+2. **Oscillation/stall knobs** (treat oscillation, never runaway): first confirm the owner's
+   standing settings, Anderson (`TPI_outer_method="anderson"`, ogcore ≥ 0.16.4) with `nu` 0.2 or
+   lower; then heavier damping, lowering `nu` further;
    for a multi-industry cold start, the continuation solve (flat anchor → morph gamma/Z; see the
    `og-country-calibration` skill).
 3. **Convergence-criteria honesty**: loosening `mindist` or raising `maxiter` is masking, not

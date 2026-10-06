@@ -17,7 +17,7 @@ The model owner's run rules (2026-08-12), which win over anything older:
   Nothing bespoke.
 - Always run in parallel.
 - Use the **Anderson** solver every time (`TPI_outer_method="anderson"`, available since
-  ogcore 0.17.0), with a low `nu` (0.2 or lower). OG-Core's default is still damped iteration
+  ogcore 0.16.4), with a low `nu` (0.2 or lower). OG-Core's default is still damped iteration
   (`"picard"`, `nu` 0.4), and the shipped examples do not change it.
 
 The repos' AGENTS.md files still say a full example run takes "~35 min – 2 hr"; that figure
@@ -82,9 +82,11 @@ pool. The paths are built from the script's own location, so they do not depend 
 working directory. Each stage writes `SS/SS_vars.pkl`, `TPI/TPI_vars.pkl` and
 `model_params.pkl` under its output directory.
 
-Set the solver the way the owner's rules require: if the repo's own parameters do not
-already set `TPI_outer_method="anderson"` and a `nu` of 0.2 or lower, add them to the
-parameter update in a copy of the example (below), and say that you did.
+Set the solver the way the owner's rules require: `TPI_outer_method="anderson"` and a `nu` of
+0.2 or lower belong in the repo's packaged parameters, not in a one-off script
+(`og-country-calibration` covers this). If the repo does not set them yet, say so and ask
+whether to propose that change first; running with a copy of the example that sets them is
+the fallback, and say that you did it.
 
 Propose the run with its expected duration (under ten minutes for a healthy baseline, the
 reform about the same) and let the user launch it. There is no cheap smoke version: the

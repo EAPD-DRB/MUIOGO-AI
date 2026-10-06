@@ -48,7 +48,7 @@ strings to grep for. When you hit a class not listed here, add it.
 - **Cause**: outer-loop damping too aggressive for the stiffness of the problem (multi-industry
   especially).
 - **Remedy**: the model owner's standing rule is Anderson (`TPI_outer_method="anderson"`, ogcore
-  ≥ 0.17.0) with `nu` 0.2 or lower on every run, so check those are set before anything else.
+  ≥ 0.16.4) with `nu` 0.2 or lower on every run, so check those are set before anything else.
   Then lower `nu` further (0.4 → 0.3 → 0.2 → lower); continuation solve for multi-industry cold
   starts. Watch the distance series on the first Anderson run and fall back to damped iteration
   if it oscillates. These treat oscillation only — never class A.
