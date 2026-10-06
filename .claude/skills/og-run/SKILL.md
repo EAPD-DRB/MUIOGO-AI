@@ -59,7 +59,7 @@ Country models ship example scripts that define the baseline and the reform:
 cd <og-models>/OG-PHL
 ls examples/
 #   run_og_phl.py                   single-industry baseline + reform
-#   run_og_phl_multi_industry.py    multi-industry calibration
+#   run_og_phl_multi_industry*.py   multi-industry: a demo or a calibration, by branch
 ```
 
 They take no arguments; the reform is expressed inside the script as parameter
@@ -142,17 +142,19 @@ change and the traps in each block.
 
 A freshly installed country model is single-industry. Coupled OG-CLEWS work needs
 multi-industry, because a single-industry model has no electricity industry for an
-energy price to act on — the link reports this as `couplable=0`. Build it with the
-multi-industry example:
+energy price to act on — the link reports this as `couplable=0`.
 
-```bash
-cd <og-models>/OG-PHL
-uv run python examples/run_og_phl_multi_industry.py
-```
+Which multi-industry script you have depends on the repo and branch. The calibrated
+work lives on each repo's multi-industry branch; the default branch may carry only a
+demo or an upstream placeholder under a similar name (OG-PHL's main has a hand-coded
+two-industry demo). Check what the script loads before running it, and use
+`og-multi-industry-calibration` to judge whether a calibration is real and to build one.
 
-Same rules: long, propose before launching, monitor by log. Afterwards register
-it with the link and confirm the calibration is recognised (see
-`og-clews-linked-run`).
+Running the calibrated example follows the same rules, with two differences: it may
+first solve its steady state by continuation (a couple of minutes), and the baseline
+plus reform take tens of minutes rather than ten. Propose before launching, monitor by
+log. Afterwards register it with the link and confirm the calibration is recognised
+(see `og-clews-linked-run`).
 
 ## Collecting the results
 

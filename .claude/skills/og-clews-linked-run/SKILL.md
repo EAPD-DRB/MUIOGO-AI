@@ -75,9 +75,10 @@ If it really is `couplable=0`, say so plainly rather than running anyway:
 
 > The installed OG-PHL is a single-industry calibration, so the energy channels
 > would silently skip. A coupled energy-price run needs the multi-industry
-> calibration, which is a multi-hour solve. Shall I set that up?
+> calibration. Shall I check whether one exists on a branch, or set one up?
 
-Building it is `examples/run_og_<xxx>_multi_industry.py` — see `og-run`.
+Whether a real multi-industry calibration exists, and how to build one, is
+`og-multi-industry-calibration`; running it is `og-run`.
 
 ## What you can run
 
@@ -200,8 +201,8 @@ figure deck. When interpreting:
 - Solving the CLEWs runs the link needs → `muiogo-run`.
 - Building the CLEWs scenarios first → `muiogo-scenarios`.
 - Interpreting the CLEWs half → `muiogo-analyze`.
-- Building or checking an OG calibration → `og-country-calibration`,
-  and `og-run` to produce the multi-industry calibration.
+- Building or checking an OG calibration → `og-country-calibration` (single-industry)
+  and `og-multi-industry-calibration` (multi-industry); `og-run` to run either.
 - An OG solve that will not converge → `og-solver-diagnosis`.
 - Explaining what the linkage means conceptually → `muiogo-explain`.
 
@@ -216,8 +217,8 @@ Copy this and work through it:
 
 ```
 - [ ] Link installed; `models list` run from the link's directory shows the OG model.
-- [ ] couplable=1, and its qualifiers read. If couplable=0: build the multi-industry
-      calibration (og-run), then register and check again.
+- [ ] couplable=1, and its qualifiers read. If couplable=0: find or build the multi-industry
+      calibration (og-multi-industry-calibration), then register and check again.
 - [ ] Both CLEWs runs solved and holding results. If not: muiogo-run, then check again.
 - [ ] og-run-preflight reports GO for the link and the OG side. If NO-GO: fix, run it again.
 - [ ] Proposed to the user: command, expected duration. Launch only after the explicit go.
