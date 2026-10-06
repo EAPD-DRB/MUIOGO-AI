@@ -9,27 +9,13 @@ An OG solve is a different animal from a CLEWs solve: minutes rather than second
 worker processes, and a two-stage structure (steady state, then transition path). Treat
 launching one as a decision the user makes.
 
-The model owner's run rules (2026-08-12), which win over anything older:
-
-- A healthy baseline solve takes **under ten minutes**: the steady state in seconds to a
-  minute or two, the transition path in about 5–7 minutes. Much longer means something is
-  wrong (the worker pool, the solver settings, a stale ogcore, or the calibration), not that
-  the model is slow.
-- Run from the country repo's own environment, **the way the example scripts do it**, with
-  everything as parallel as possible. Use the environment the repo's own AGENTS.md describes
-  (current repos use uv and `.venv`; older checkouts used conda environments).
-  Nothing bespoke.
-- Always run in parallel.
-- Use the **Anderson** solver every time (`TPI_outer_method="anderson"`, available since
-  ogcore 0.16.4), with a low `nu` (0.2 or lower). OG-Core's default is still damped iteration
-  (`"picard"`, `nu` 0.4). Repos differ: some packaged parameters already set Anderson, often
-  with `nu` still at 0.4, so check both values. `nu` still matters under Anderson: its trust
-  region is anchored to the damped step, so `nu` limits how far each accelerated step may go.
-  Before setting either, check the installed ogcore has the field
-  (`hasattr(Specifications(), "TPI_outer_method")`); an older lock fails with "Unknown field".
-
-The repos' AGENTS.md files still say a full example run takes "~35 min – 2 hr"; that figure
-predates these rules.
+The model owner's run rules are in `../OG_RUN_RULES.md` and win over anything older,
+including the AGENTS.md estimate of "~35 min – 2 hr" for a full example run. In short: a healthy
+baseline takes **under ten minutes** (steady state in seconds to a minute or two, transition path
+about 5–7 minutes); run **the way the example scripts do**, from the repo's own environment;
+**always parallel**; the **Anderson** solver with `nu` 0.2 or lower, checking both values, since
+some repos set Anderson but leave `nu` at 0.4; validation runs offline; launch only on the user's
+explicit go.
 
 ## Which world
 
@@ -139,10 +125,10 @@ being asked:
   your own check command, or you will read your own `pgrep` as the run.
 - **Healthy?** Add up the CPU of all the worker processes, not just the main Python
   process. During the transition path they should keep the machine close to fully busy; a
-  third of the machine there means too few workers or a serial run. During the steady state
-  on ogcore before 0.20.1, the main process is the bottleneck and idle workers are expected
-  (each evaluation re-sends the parameters to the workers); a slow steady state there points
-  to the ogcore version or a cold start, not the worker count.
+  third of the machine there means too few workers or a serial run. On older ogcore the main
+  process is the bottleneck during the steady state and idle workers are expected (each
+  evaluation re-sent the parameters to the workers); a slow steady state there points to the
+  ogcore version or a cold start, not the worker count.
 - **On time?** Past about ten minutes for a baseline, check the setup before waiting longer.
 
 To change what is solved, do not edit the shipped example in place. Copy it and change

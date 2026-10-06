@@ -83,7 +83,7 @@ Before any bisection, eliminate the two causes that mimic solver failure and tha
    `r_gov_DY2 > 0`. Neither damping nor Anderson fixes this. Also check the premium is centred
    at `debt_ratio_ss` (taxonomy class A). See the fiscal-consistency reference of the
    `og-country-calibration` skill for the identity and the audit-by-instrument procedure.
-   Setting the owner's standing solver settings (Anderson, `nu` 0.2 or lower) is fine at any
+   Setting the owner's standing solver settings (Anderson, `nu` 0.2 or lower; `../OG_RUN_RULES.md`) is fine at any
    time; expecting them to fix a runaway is not.
 2. **Calibration placeholders binding constraints**: `zeta_K = 0.9`-style placeholders drive
    `K_d = B − D_d` negative and break the transition; the `K_d has negative elements` guard is the
@@ -134,8 +134,7 @@ the repo's open PRs. A fix that already landed, or is waiting in a PR, changes t
    preferred. Add the cheapest regression guard that would have caught it (a value-pinning test, a
    drift check).
 2. **Oscillation/stall knobs** (treat oscillation, never runaway): first confirm the owner's
-   standing settings, Anderson (`TPI_outer_method="anderson"`, ogcore ≥ 0.16.4) with `nu` 0.2 or
-   lower; then heavier damping, lowering `nu` further;
+   standing settings, Anderson (`TPI_outer_method="anderson"`) with `nu` 0.2 or lower; then heavier damping, lowering `nu` further;
    for a multi-industry cold start, the continuation solve (flat anchor → morph gamma/Z; see the
    `og-country-calibration` skill).
 3. **Convergence-criteria honesty**: loosening `mindist` or raising `maxiter` is masking, not

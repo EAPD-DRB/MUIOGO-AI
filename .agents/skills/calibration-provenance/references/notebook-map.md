@@ -63,12 +63,11 @@ country-independent constant).
   `-0.03376625043803518` (the raw, un-centered LMWW value).
 - ETH: frozen via documented `estimate_r_gov(debt_ratio_ss=0.30, r_gov_DY2=0.04)`;
   `shift = base − r_gov_DY2·D̄² = -0.03376625... − 0.04·0.09 = -0.03736625043803518` —
-  **arithmetic verified exact** against the shipped JSON (2026-07-27).
+  the arithmetic matches the shipped JSON exactly.
 - PHL: frozen with a comment only (`r_gov_shift = -0.04816625043803517`, "recentered documented
   values") — no derivation function; re-deriving it needs the ETH formula with PHL's anchor.
-  Re-anchored since: the `calib/remittances` branch of OG-PHL sets `r_gov_shift = -0.019`, from
-  the treasury-effective re-anchor in `og-country-calibration`; `main` still ships the old value
-  (both checked 2026-10-05). Check which branch the run uses before tracing this number.
+  Working branches may carry a re-anchored value (the treasury-effective rate in
+  `og-country-calibration`), so check which branch the run uses before tracing this number.
 
 ## Secrets in the tracing path (flag, never quote/copy)
 

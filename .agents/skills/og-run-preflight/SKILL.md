@@ -5,8 +5,8 @@ description: "Checks, before any OG-Core or OG-CLEWS computation is launched (a 
 
 # OG run preflight
 
-A battery once silently ran a whole night on stale code from another worktree (2026-07-07,
-contaminated golden records). The cause was import shadowing — invisible at launch, expensive to
+A battery once silently ran a whole night on stale code from another worktree, contaminating
+golden records. The cause was import shadowing — invisible at launch, expensive to
 discover. This skill exists so that never recurs: **no solve, battery, or long computation gets
 launched without a GO from the preflight script.** "It looks right" is not a check.
 
@@ -105,7 +105,7 @@ loud before launching: "running with N uncommitted changes in <repo>."
   passes under some ad-hoc invocation, the environment is wrong, not the preflight.
 - **A GO is a precondition, not an authorization.** This skill never launches the run itself.
   A healthy baseline solve takes under ten minutes when run the way the example scripts run
-  it, in parallel, with the Anderson solver (the model owner's rule, 2026-08-12); batteries are
+  it, in parallel, with the Anderson solver (the model owner's rules, `../OG_RUN_RULES.md`); batteries are
   much longer, and every run is invisible while it runs. After a GO, propose the exact launch
   command with its expected duration and wait for the user's explicit go: long computations
   are never launched without one.

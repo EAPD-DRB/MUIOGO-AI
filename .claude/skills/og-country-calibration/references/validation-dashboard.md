@@ -1,10 +1,9 @@
 # Validation dashboard
 
-The near-term fiscal path panel is in fiscal-consistency.md; build it together with this one. The
-completeness rules (every tuned dial scored, no residual-closing dials, every resource-constraint
-component scored) are in SKILL.md.
+The near-term fiscal path panel is in fiscal-consistency.md; build it together with this one.
 
 Contents
+- Completeness: an unscored moment cannot pull its parameter
 - The steady-state dashboard
 - Moments most often tuned for but never scored
 - Two traps when adding rows
@@ -22,6 +21,27 @@ Contents
 - Verify both tails of every path
 - Fast value-pinning test
 - Prevent doc/JSON drift with glue
+
+## Completeness: an unscored moment cannot pull its parameter
+
+The general form of the `zeta_K` failure (SKILL.md, finding every lever): it sat at a placeholder because `K_f/K` was not a
+row on the dashboard, and the loop optimised what it could see. Four rules, all checkable:
+
+1. **Every tuned parameter's identifying moment must be on the dashboard.** Grep the tuned dials,
+   grep the dashboard rows, and require a one-to-one match. A dial with no scored moment drifts
+   silently.
+2. **A dial moved to close a residual is a free parameter, not a calibration.** OG-JPN's `p_wealth`
+   and `tau_bq` were nominally tuned to property and inheritance tax but in practice scaled to close
+   total revenue, so they absorbed every other line's error. Tune each dial to its own moment; total
+   revenue is the check that the parts add up, never the thing you steer.
+3. **Score every component of the resource constraint,** not just the residual. Put `I/Y`, `I_g/Y`,
+   `G/Y` and `NX/Y` next to `C/Y`.
+4. **Score the first-tier moments early in the transition too,** not only at the steady state.
+   Report each at t=0–10 as well: a steady state can land close while the first years miss badly
+   (OG-JPN's consumption share in 2025, from a mis-set initial wealth). **[JPN]**
+
+The moments most often tuned for but never scored, and the traps when adding rows, follow.
+**[net-new: JPN]**
 
 ## The steady-state dashboard
 
@@ -116,12 +136,8 @@ paths come from `TPI_vars.pkl`, parameters from `model_params.pkl`.
 
 ## Structural validation (multi-industry)
 
-Check the SAM reproduces the national accounts before trusting it. Its value-added shares by broad
-sector should track the statistics office's GDP by industry (a 2019 SA SAM matched Stats SA to
-~0.5pp on primary/secondary/tertiary); employment shares should match the LFS (their source);
-`alpha_c` should match HFCE's goods/services split. A SAM that does not reproduce the sector
-structure is the wrong vintage or mis-aggregated; fix that before reading anything off the
-multi-industry steady state.
+Check that a SAM or IO table reproduces the national accounts before building on it; see the
+og-multi-industry-calibration skill.
 
 ## Consumption is a residual
 

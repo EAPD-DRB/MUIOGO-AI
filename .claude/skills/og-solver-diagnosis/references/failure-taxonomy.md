@@ -51,8 +51,9 @@ strings to grep for. When you hit a class not listed here, add it.
   tighter final Distance).
 - **Cause**: outer-loop damping too aggressive for the stiffness of the problem (multi-industry
   especially).
-- **Remedy**: the model owner's standing rule is Anderson (`TPI_outer_method="anderson"`, ogcore
-  ≥ 0.16.4) with `nu` 0.2 or lower on every run, so check those are set before anything else.
+- **Remedy**: the model owner's standing rule is Anderson (`TPI_outer_method="anderson"`) with
+  `nu` 0.2 or lower on every run, so check those are set before anything else (field names can
+  differ between ogcore releases).
   Then lower `nu` further (0.4 → 0.3 → 0.2 → lower); continuation solve for multi-industry cold
   starts. Watch the distance series on the first Anderson run and fall back to damped iteration
   if it oscillates. These treat oscillation only — never class A.
@@ -103,10 +104,10 @@ strings to grep for. When you hit a class not listed here, add it.
 
 - **Signature**: the SS seems slow, with many iterations, but the log shows the solve restarting
   from new initial guesses rather than converging slowly.
-- **Cause**: the starting guess is too far from the solution. OG-Core walks down its list of 39
+- **Cause**: the starting guess is too far from the solution. OG-Core walks down its list of
   `DEV_FACTOR_LIST` scalings and restarts each time, which reads as slow convergence. The
-  savings seed is one constant across ages and types (a hard-coded `0.07` before ogcore 0.20.3,
-  the `initial_guess_b_SS` parameters since).
+  savings seed is one constant across ages and types (hard-coded in older ogcore, a parameter
+  in newer).
 - **Remedy**: warm-start from a solved neighbouring calibration (`og-country-calibration`,
   solving and tuning reference). A guess that is near in values is not necessarily one the
   solver can start from: nearness is not solvability.
@@ -114,10 +115,12 @@ strings to grep for. When you hit a class not listed here, add it.
 ## I. Transition-path resource-constraint error, read by when it occurs
 
 - **Signature**: the baseline TPI resource-constraint error (`RC_error`) is not monotone in time.
-- **Cause by shape**: large early and decaying → initial wealth (`initial_wealth_ratio` or its
-  equivalent) inconsistent with the SS; single-period spikes → an input discontinuity, often at
+- **Cause by shape**: large early and decaying → the initial wealth distribution or its target
+  level is wrong; single-period spikes → an input discontinuity, often at
   the end of the demographic window (`fixper`); growing with debt → fiscal runaway (class A).
 - **Remedy**: triage by shape before any tuning; fix the input, not the solver.
+- **An error only at the very last period** points to the engine, not the calibration; check
+  OG-Core's open issues before tuning anything to remove it.
 
 ## J. Single-threaded run mistaken for slow convergence
 
@@ -133,20 +136,20 @@ strings to grep for. When you hit a class not listed here, add it.
 ## K. Government rate clipped at its floor
 
 - **Signature**: `r_gov` sits exactly at a floor for some periods; fiscal paths look kinked.
-- **Cause**: `fiscal.get_r_gov` floors the government rate at `r_gov_floor` (default 0.0,
-  a parameter in recent ogcore). A sovereign that pays negative real rates hits it.
+- **Cause**: `fiscal.get_r_gov` floors the government rate (0.0 by default; settable as
+  `r_gov_floor` in newer ogcore). A sovereign that pays negative real rates hits it.
 - **Remedy**: set `r_gov_floor` below zero when the country's data supports it; record why.
 
-## L. Slow steady state on ogcore before 0.20.1
+## L. Slow steady state on an old ogcore
 
 - **Signature**: the steady state takes many minutes with the workers mostly idle and the main
   process busy; the transition path then runs at normal speed.
-- **Cause**: before ogcore 0.20.1 each steady-state evaluation re-sent the whole parameters
-  object to the workers; 0.20.1 sends it once per solve.
-- **Remedy**: check `ogcore.__version__` first. On an older lock, expect it, and say that the
-  fix is an ogcore bump (its own change), not a solver setting.
+- **Cause**: older ogcore re-sent the whole parameters object to the workers on every
+  steady-state evaluation; newer versions send it once per solve.
+- **Remedy**: check the ogcore version and its changelog first. On an old lock, say that the fix
+  is an ogcore bump (its own change), not a solver setting.
 
-## Known engine bugs to check before deep-diving (from the calibration playbook)
+## Engine bugs seen before (check whether your ogcore still has them)
 
 - TPI applies **year-0** compliance/filer values to the whole path's revenue accounting — a
   time-varying compliance reform shows behavior responding while revenue tracks baseline.

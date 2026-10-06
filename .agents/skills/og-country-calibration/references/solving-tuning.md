@@ -1,7 +1,6 @@
 # Solving and tuning
 
-The run rules themselves are in SKILL.md ("Running the model: the owner's rules"). This file holds the
-detail behind them. For a solve that will not converge, diverges or oscillates, use
+The run rules themselves are in og-run-rules.md. This file holds the detail behind them. For a solve that will not converge, diverges or oscillates, use
 og-solver-diagnosis before touching any solver setting; for the go/no-go check before a solve, use
 og-run-preflight.
 
@@ -25,11 +24,12 @@ Contents
   local `uv sync` touches it, `git restore uv.lock`. Confirm `uv.lock` and `.python-version` are not
   in the PR diff. **[family among EAPD-DRB repos: PHL/ZAF/IDN/ETH; PSLmodels repos BRA/USA differ]**
 - **Check the resolved ogcore in `uv.lock`, not the `pyproject.toml` floor.** The `ogcore>=` floors
-  are not synced across repos, and the resolved versions have not converged either (on the last
-  check they spanned 0.16 to 0.20). To compare a repo with its siblings, grep `name = "ogcore"` in
-  `uv.lock`. A parameter this skill relies on (`TPI_outer_method`, `r_gov_floor`, the
-  `initial_guess_b_SS` family) may be missing from an older resolved ogcore; check with `hasattr`
-  and treat an ogcore bump as its own change.
+  are not synced across repos, and the resolved versions differ too. To compare a repo with its
+  siblings, grep `name = "ogcore"` in `uv.lock`. A parameter this skill relies on
+  (`TPI_outer_method`, `r_gov_floor`, the `initial_guess_b_SS` family) may be missing from an older
+  resolved ogcore; check with `hasattr` and treat an ogcore bump as its own change. A bump can also
+  rename a parameter or change its shape, so load the packaged JSON against the new version
+  (og-run-preflight `--params-json`) and fix what it rejects before running.
 - **Preflight** (og-run-preflight): print branch + HEAD of every repo involved and `sys.executable`;
   assert imports resolve inside the intended checkout
   (`uv run python -c "import ogXXX, ogcore; print(ogXXX.__file__, ogcore.__file__)"`). Editable
@@ -44,37 +44,25 @@ Contents
 
 ## Run engineering: detail and evidence
 
-- **The example pattern.** Every sibling `run_og_<country>.py` does
-  `num_workers = min(cpu_count(), 7)`, one `Client(n_workers=num_workers, threads_per_worker=1)`,
-  and one `runner(p, time_path=True, client=client)` per scenario. The steady state solves through
-  the client too. Official runs use exactly this, so the model is invoked the way the family invokes
-  it rather than through a hand-rolled driver that can differ subtly from the shipped path.
+The rules are in og-run-rules.md. The evidence behind them:
+
 - **Why seven workers.** `SS.py` and `TPI.py` both call `client.submit` inside
   `for j in range(p.J)`, so workers beyond `J` idle. Seven is maximum parallelism when `J = 7` (the
   ports); OG-USA ships `J = 10`.
-- **Parallel, not serial, for the steady state too.** Older measurements found the SS slower
-  through the client than serial (~38s vs ~6s per GE evaluation **[JPN]**; 12+ min vs 66s **[PHL]**).
-  Both predate ogcore 0.20.1, which scatters the parameters object once per SS solve instead of once
-  per residual evaluation. The owner's rule is to follow the example scripts with everything as
-  parallel as possible (2026-08-10), so do not build a serial driver on the strength of those
-  numbers; if the SS through the client is slow on a current ogcore, report it as a finding.
-- **The trap that looks like an optimisation.** `runner` always re-solves the steady state, so
-  `runner(time_path=False)` followed by `runner(time_path=True, client=client)` solves it twice, the
-  second time the slow way. A two-phase hand driver (SS serial → pickle → TPI with the client) was
-  used on PHL for speed; it is not the example pattern and is not used for official runs.
-- **Anderson every time.** `TPI_outer_method = "anderson"` with `nu` 0.2 or lower, in the packaged
-  parameters, not the script; available since ogcore 0.16.4. Evidence: the M=1 PHL transition went
-  from ~30–70 damped iterations (~20 min) to 11–12 (~2–2.5 min) with monotonically falling distances
-  **[PHL]**; OG-Core's own changelog reports a stiff multi-industry reform converging in 53 outer
-  iterations vs 126 under constant `nu = 0.1`. Watch the distance series the first time; if it
-  oscillates or stalls, fall back to damped `nu`. It is TPI-only (zero occurrences in `SS.py`), so it
-  does nothing for a steady-state problem, and it never fixes a fiscal runaway.
+- **Why not a serial steady state.** Older measurements found the SS slower through the client than
+  serial (~38s vs ~6s per GE evaluation **[JPN]**; 12+ min vs 66s **[PHL]**). They came from older
+  ogcore, which re-sent the parameters to the workers on every evaluation. If the SS through the
+  client is slow on a current ogcore, report it as a finding rather than building a serial driver.
+  A two-phase hand driver (SS serial → pickle → TPI with the client) was used on PHL for speed; it is
+  not the example pattern and is not used for official runs.
+- **Why Anderson.** The M=1 PHL transition went from ~30–70 damped iterations (~20 min) to 11–12
+  (~2–2.5 min) with monotonically falling distances **[PHL]**; OG-Core's own changelog reports a
+  stiff multi-industry reform converging in 53 outer iterations vs 126 under constant `nu = 0.1`. It
+  is TPI-only (it does nothing for a steady-state problem).
 - **Stall detection.** Recent ogcore logs a diagnosis when the TPI outer loop stops improving over
   `TPI_stall_window` iterations, distinguishing a cycling loop (lower `nu` or Anderson) from a
   diverging economy (usually an inconsistent fiscal block). `TPI_stall_action = "stop"` ends a
   hopeless run early. Check `hasattr(p, "TPI_stall_window")`.
-- **Time budget.** A healthy baseline solve takes under 10 minutes (owner's rule). Past that,
-  diagnose; do not wait it out.
 
 ## The in-model tuning loop
 
@@ -109,12 +97,10 @@ not one parameter at a time. After any tax change, re-tune `zeta_K` (macro-open-
 ## Warm-starting the steady state
 
 **If a country's steady state will not converge, suspect the cold start before the calibration.**
-OG-Core seeds the household problem from constants. Through ogcore 0.20.1 these were hard-coded in
-`SS.py` (savings 0.07 for every age and group on the no-zeta path, with its own
-`TODO: remove hardcode`; labour 0.35), with the bequest guesses derived from them. Recent ogcore makes
-them parameters (`initial_guess_b_SS`, `initial_guess_n_SS` and their `_no_zeta` versions; check
-`hasattr(p, "initial_guess_b_SS")`). Each is still one scalar across all ages and types, so the
-problem below remains, though the scalar can now be raised. For a wealthy, ageing, high-saving
+OG-Core seeds the household problem from constants (savings 0.07 for every age and group, labour
+0.35), with the bequest guesses derived from them. Older ogcore hard-coded them; newer versions expose
+them as parameters (`initial_guess_b_SS` and relatives). Each is still one scalar across all ages and
+types, so the problem below remains, though the scalar can be raised. For a wealthy, ageing, high-saving
 population a uniform seed is not imprecise, it is catastrophic:
 
 - the bequest seed lands two orders of magnitude low (JPN: 134× in aggregate, 349× for the top income
@@ -126,7 +112,7 @@ population a uniform seed is not imprecise, it is catastrophic:
   more (JPN ~7e6, IDN worse), so the right seed cannot be entered as a parameter.
 
 **The failure disguises itself.** `run_SS` does not report failure. It silently restarts down a
-39-rung ladder of rescaled seeds (`ogcore.constants.DEV_FACTOR_LIST`), making a separate `opt.root`
+ladder of rescaled seeds (`ogcore.constants.DEV_FACTOR_LIST`), making a separate `opt.root`
 call per rung. What looks like "hundreds of slow iterations" is several failed solves end to end.
 Count restarts, not iterations: a jump of 50× or more in the residual between consecutive evaluations
 is a new rung starting, not progress.
@@ -145,8 +131,8 @@ demographic window and modest parameter moves. Ship the seed with the repo (~9 K
 after any large recalibration; without it a fresh checkout may not solve. Reference implementation:
 OG-JPN's `ogjpn/warm_start.py` + `examples/save_warm_start.py`. Code shipped in the country repo,
 like this, is part of how that repo runs, so it does not break the owner's "nothing bespoke" rule;
-an ad-hoc driver or patch outside the repo would. When an ogcore release ships the same fix (the
-seed became parameters in 0.20.3), retire the repo's patch: grep the repo for patched ogcore
+an ad-hoc driver or patch outside the repo would. When an ogcore release ships the same fix, retire the
+repo's patch: grep the repo for patched ogcore
 functions after each ogcore bump and compare with its changelog.
 
 **Warm-starting is not retuning the seed parameters.** Setting `initial_guess_r_SS`/`TR_SS` to their
@@ -154,12 +140,9 @@ solved values was tried on JPN and made things worse (the "nearness is not solva
 The scalars are 3 of 14 unknowns; the household matrices are 560 numbers and are what the bequest seed
 is computed from. Warm-start the matrices; leave the scalar parameters alone.
 
-**To do: automate this.** Every country repo will hit it. The seed should be produced and reused
-without hand-holding: a `--save-warm-start` flag on the standard example that writes the seed on every
-successful solve, an `enable()` called by default, then a shared helper so each repo does not
-re-derive the same shim. The proper fix is upstream (ogcore deriving its seeds from parameters it
-already has, `b ≈ (K/Y + D_d/Y)·Y` from the firm FOC and the debt parameters, and accepting a warm
-start), but the repo-side helper is worth having regardless, because it also makes reruns cheap.
+**Worth automating.** Every country repo will hit this. Writing the seed on every successful solve
+and reusing it by default makes reruns cheap; a shared helper saves each repo re-deriving it. The
+proper fix is upstream: seeds derived from parameters ogcore already has (`b ≈ (K/Y + D_d/Y)·Y`).
 **[net-new: JPN]**
 
 ## Initial-guess fragility: nearness is not solvability

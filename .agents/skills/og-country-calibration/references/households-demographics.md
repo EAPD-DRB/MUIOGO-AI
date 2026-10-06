@@ -130,7 +130,9 @@ OG-Core supports `"US-Style Social Security"` (the default), `"Defined Benefits"
 - Set `mean_income_data` in local currency, and `avg_earn_num_years` to the country's convention
   (career average vs final salary).
 - `replacement_rate_adjust` applied only to US-style Social Security in older ogcore; recent ogcore
-  applies it to all four systems. Check before relying on it outside the US system.
+  applies it to all four systems. Check before relying on it outside the US system. The pension
+  code is newer and less tested than the core model, so look at OG-Core's open issues before leaning
+  on pension results.
 - Pension outlays belong in the fiscal identity (fiscal-consistency.md).
 
 Validate against public pension expenditure as a share of GDP, not against the replacement rate you
@@ -152,4 +154,4 @@ fed in. **[net-new: JPN]**
 - To calibrate it: either (a) a single-scalar re-tilt like the earnings Gini trick, matching an
   aggregate hours or participation target; or (b) wire the labour force survey through a rewritten
   `labor.py` and a real `estimate_chi_n.py`.
-- In a multi-industry model, `chi_n`/`chi_b` also take the units conversion (multi-industry-sam.md).
+- In a multi-industry model, `chi_n`/`chi_b` also take the units conversion (og-multi-industry-calibration).

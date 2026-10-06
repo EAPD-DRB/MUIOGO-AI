@@ -135,21 +135,20 @@ level onto the model's real MPK. It over-predicted ZAF by ~0.5–0.6pp and PHL b
 low. Do not use the 10-year or inflation-linked marginal yield either: that is new-issue cost, not
 the stock average.
 
-**Exemplar.** ZAF (~3.7%), PHL (~2.0%). IDN and ETH shipped the raw LMWW intercept when last checked.
+**Exemplar.** ZAF (~3.7%), PHL (~2.0%).
 
 ## r_gov floor
 
-**Method.** `fiscal.get_r_gov` wraps the wedge in a lower bound. Older ogcore hard-codes it at
-`0.0`; recent ogcore makes it a parameter, `r_gov_floor` (default 0.0, same behaviour; check
-`hasattr(p, "r_gov_floor")`). For a sovereign in a sustained negative-real-rate regime, set
-`r_gov_floor` below the effective rate you calibrate to. The tell of clipping is a reported `r_gov`
+**Method.** `fiscal.get_r_gov` wraps the wedge in a lower bound, 0.0 by default. Newer ogcore lets
+you set it (`r_gov_floor`); older versions hard-code it. For a sovereign in a sustained
+negative-real-rate regime, set the floor below the effective rate you calibrate to. The tell of clipping is a reported `r_gov`
 of exactly `0.0000` when the formula returns a negative number.
 
-**Pitfall.** Per the JPN measurement, the clip matters less through the interest bill than through `pb*`, hence government
-spending. Measured on JPN: 0.51pp of GDP. Do not compensate elsewhere; if your ogcore has no
-parameter, bump ogcore.
+**Pitfall.** The clip matters less through the interest bill than through `pb*`, hence government
+spending (0.51pp of GDP on JPN). Do not compensate elsewhere; if your ogcore cannot set the floor,
+bump it.
 
-**Exemplar.** **[net-new: JPN]**; the parameter now exists upstream (OG-Core issue #1202).
+**Exemplar.** **[net-new: JPN]**
 
 ## Remittances and aid (alpha_RM_1, alpha_RM_T, eta_RM, g_RM, alpha_FA)
 
@@ -202,66 +201,74 @@ moves the steady state. Freeze it.
 `K̄g/Ȳ = (1−φg)·αI / (e^{gy}(1+gn) − (1−δg))`. If the measured stock is far above sustainable (an
 SOE-built boom), start at the measured value and let it depreciate.
 
-**Pitfall.** Inheriting the sibling-shipped `0.2` undocumented when `gamma_g > 0`. OG-Core's own
-default is `0.0`; PHL/ZAF/IDN/BRA all ship `0.2`, but only PHL has `gamma_g > 0`, so elsewhere it is
-inert.
+**Pitfall.** Inheriting a sibling's `0.2` undocumented. OG-Core's default is `0.0`, and the value
+only matters when `gamma_g > 0`.
 
 **Exemplar.** ETH only; replicate wherever `gamma_g > 0`.
 
 ## Initial household wealth
 
-**Availability.** A parameter for initial wealth (`initial_wealth_ratio`, proposed in OG-Core #1189)
-is not in any ogcore release as of this writing, and its name may change before it merges. Check
-`hasattr(Specifications(), "initial_wealth_ratio")` (or search the parameter list for an
-initial-wealth parameter) against your resolved ogcore. If it is absent, you need the PR branch
-installed (see "Running against an unreleased ogcore" in solving-tuning.md). The diagnostic below
-does not depend on it; run it either way.
+The family uses rickecon's approach (OG-Core's draft on calibrating the initial wealth
+distribution; parameter names may still change in review, so check what your build has). Work built
+on earlier designs migrates to it: carry over the data target (the initial wealth-to-GDP ratio and
+its construction), not the old parameter value, which was scaled differently. Two pieces:
 
-**Diagnose first.** Without the parameter (or at its 0.0 default), the transition imposes the
-steady-state wealth profile rescaled so aggregate B(0) = B_ss. Compute the implied per-household
-scale `B_ss / get_B(b_sp1, p, "SS", True)`. It measures the demographic distance between the initial
-and stationary populations. Anything far from 1 hands every initial household a uniform windfall
-(young population) or confiscation (old), which short-horizon retirees rationally consume or absorb.
-The fingerprint: a violent year-1-or-2 aggregate consumption spike concentrated in ages 60+ across
-all j, an investment collapse, a `tau_c` revenue pulse, and a spurious debt paydown (or the mirror
-images).
+- **Shape.** An S×J matrix of factors on the steady-state wealth profile:
+  `b(s, j, t=1) = factor(s, j) × b_ss(s, j)`. All ones (the default) starts every household at its
+  steady-state wealth. Valid range 0.4–2.0.
+- **Level.** An optional target for initial aggregate household wealth / initial-year GDP
+  (`initial_BY_ratio`, switched on by `use_initial_BY_ratio`; valid range 0.8–7.0). Because
+  first-year GDP is endogenous, the transition rescales the whole initial distribution by a common
+  factor each iteration until `B_1/Y_1` hits the target.
 
-**Units trap.** In the OG-Core #1189 implementation the parameter multiplies **steady-state** GDP
-(`target_B0 = initial_wealth_ratio * ss_vars["Y"]` in `TPI.py`), not t=0 GDP. A data ratio of wealth to
-current GDP cannot go straight in: set the parameter so that the **solved** t=0 wealth-to-GDP ratio
-equals the data. **[JPN got this wrong; PHL's changelog has the right wording]**
+**Diagnose first.** Before setting anything, see what initial condition your ogcore imposes by
+default and what it does to the first years. Older ogcore rescaled the steady-state profile so
+aggregate B(0) = B_ss, which hands every initial household a uniform windfall when the initial
+population is younger than the stationary one (confiscation when older); the per-household scale is
+`B_ss / get_B(b_sp1, p, "SS", True)`. The default above avoids that windfall but gives an aggregate
+B(0) set by demographics, not data. Either way the fingerprint of a wrong initial condition is a
+violent year-1-or-2 consumption spike concentrated in ages 60+ across all j, an investment
+collapse, a `tau_c` revenue pulse and a spurious debt paydown (or the mirror images). It is
+invisible in reform-minus-baseline tables, because both paths share the initial condition.
 
-**Fix.** Set the initial-wealth parameter so the solved t=0 wealth-to-GDP ratio matches the data:
-`(K/Y_PWT − public capital stock/Y_ICSD) × (1 − IIP foreign-owned share) + domestic-held share × D/Y`.
-The model forces B(0) = K_d(0) + D_d(0), so this capital-side construction is the model-consistent
-measure; do not reach for household balance-sheet surveys first.
+**The level: what number to target.** The parameter asks for aggregate household wealth / GDP in
+the start year. Two ways to measure it, and they differ:
+- *Capital side (model-consistent):* the model forces B(0) = K_d(0) + D_d(0), so
+  `(K/Y_PWT − public capital/Y) × (1 − IIP foreign-owned share) + domestic-held share × D/Y`.
+  Compute the PWT ratio from the raw current-PPP series pair (capital `CKSPPP…` over output
+  `CGDPOS…` on FRED), never from memory; PHL moved 3.33 (2019) → 3.97 (2023).
+- *Household balance sheets* (UBS databook class; OG-Core's own documentation tabulates these, e.g.
+  PHL 2.50, ZAF 2.56, ETH 1.70). Usually lower for emerging markets, because they undercount real
+  property.
 
-- The anchor is static within the solve, because initial wealth is a predetermined state. Rescaling
-  households' initial wealth between outer-loop iterations, even damped, drives the initial cohorts
-  into infeasible negative-consumption roots that satisfy the extended FOCs and pass ogcore's
-  constraint checker, which watches a different object. Always read minimum household consumption
-  from the pickle.
-- Compute the PWT ratio from the raw current-PPP series pair (capital `CKSPPP…` over output
-  `CGDPOS…` on FRED), never from memory. PHL moved 3.33 (2019) → 3.97 (2023).
-- Cross-check against household net-worth estimates (UBS databook class). Expect them lower; they
-  undercount EM real property. Expect initial < steady-state wealth ratio for a fast-growing EM.
-- **Out-of-sample check and a tension to expect.** The initial foreign capital share
-  K_f(0)/K(0) vs the IIP is untargeted and worth reporting. Where the model's `K/Y` overshoots the
-  PWT (the family trait), measured household wealth and the measured foreign share cannot both be
-  hit: the model fills its larger capital stock with foreign inflows. Keep the household-wealth
-  anchor (it is the quantity the parameter is) and document the foreign-share miss with its
-  mechanical cause. Hitting the IIP share instead would need initial wealth far above any measured
-  household-claims construction (PHL: 4.3 vs 3.35).
-- Then re-tune the `alpha_G` glide under the new initial condition; it was fit against the
-  windfall-distorted revenue path.
+Prefer the capital-side number, cross-check against the balance-sheet one, and write down which you
+used and why. Expect initial < steady-state wealth ratio for a fast-growing economy.
 
-**Pitfall.** PHL's scale factor was 1.625 (a 63% windfall): retirees consumed at 3–7× steady state
-for years, C jumped 41% for one year, domestic investment fell to ~2% of long run, and debt was paid
-down to 50% vs a 60% target. All of it was invisible in reform-minus-baseline tables (both paths
-share the initial condition), so it survived every reform validation and surfaced only in level
-exercises.
+**The shape.** Ones is a defensible start. If survey data gives wealth by age (and income group),
+set the factors to data relative to the model's steady-state profile, so the young and old start
+where they actually are. Check the result stays inside the valid range; a factor pinned at a bound
+means the steady-state profile itself is far from the data, which is a finding.
 
-**Exemplar.** PHL (diagnosis and fix; OG-Core #1188/#1189).
+**Check the solve, not just the target.**
+- Confirm the solved `B_1/Y_1` equals the target.
+- Rescaling initial wealth between transition iterations is the step that misbehaved before: on
+  JPN it drove the initial cohorts into negative-consumption solutions that satisfied the extended
+  first-order conditions and passed OG-Core's constraint checker, which watches a different object.
+  Always read minimum household consumption from the pickle, and watch that the outer-loop distance
+  still falls. If the targeted run misbehaves, a fixed level reached by tuning the factor matrix over
+  a few runs (target off) is the static alternative.
+- **Report the initial foreign capital share** `K_f(0)/K(0)` against the IIP; it is untargeted.
+  Where the model's `K/Y` overshoots the PWT, measured household wealth and the measured foreign
+  share cannot both be hit: the model fills its larger capital stock with foreign inflows. Keep the
+  wealth anchor and document the foreign-share miss with its cause (PHL: hitting the IIP share would
+  have needed 4.3 against a measured 3.35).
+- Then re-tune the `alpha_G` glide; it was fit against the old initial condition's revenue path.
+
+**Pitfall.** PHL's old default scale was 1.625 (a 63% windfall): retirees consumed at 3–7× steady
+state for years, C jumped 41% for one year, domestic investment fell to ~2% of long run, and debt was
+paid down to 50% against a 60% target. It surfaced only in level exercises.
+
+**Exemplar.** PHL (diagnosis and fix); JPN (the in-loop rescaling failure).
 
 ## delta_annual
 
@@ -313,7 +320,8 @@ is most of the OECD.
     wrong share), the Gollin direction-of-bias argument, and country institutions (e.g. state-owned
     land). State the result as a range with a center, not a point.
   - *Cross-sectional rescale* **[multi-industry; PHL]**: keep the SAM's per-industry dispersion but
-    rescale so the value-added-weighted mean equals the economy-wide capital share.
+    rescale so the value-added-weighted mean equals the economy-wide capital share. Where the table
+    has a mixed-income row, split it per industry first **[BRA]** (og-multi-industry-calibration).
 - **Pitfall [ETH, verified].** The `update_from_api=True` path recomputes the naive `1 − ILOSTAT`
   and silently clobbers a hand-triangulated `gamma` (e.g. overwrites 0.30 with 0.515), undoing the
   whole argument in the docs. Because some examples call that path whenever online (SKILL.md, mental
