@@ -106,6 +106,34 @@ def require_same_world(record, data_storage):
     sys.exit(3)
 
 
+def require_server_matches(url, case, gen):
+    """With an explicit --url there is no launcher record to check --data-storage
+    against, so ask the server for its own copy of the case and compare it with the
+    one on disk. A different genData.json, or no such case on that server, means
+    --data-storage and --url belong to different installations.
+
+    This catches the usual mistake (the other world's port, or a relative path),
+    though not two worlds holding byte-identical case definitions.
+    Exit 3 is the world-crossing code: stop, do not sidestep it.
+    """
+    try:
+        theirs, _ = post(f"{url}/getParamFile", {"dataJson": f"{case}/genData.json"})
+    except urllib.error.HTTPError as exc:
+        theirs = f"HTTP {exc.code}"
+    except (urllib.error.URLError, OSError) as exc:
+        sys.exit(f"cannot reach MUIOGO at the given --url ({exc}).")
+    if theirs == gen:
+        return
+    why = ("has no case of that name" if not isinstance(theirs, dict)
+           else "holds a different version of this case")
+    print(f"refusing to cross worlds: the server at {url} {why}.\n"
+          f"Take --url and --data-storage from the same launcher:\n"
+          f"  muiogo-ai status --json   (muiogo_url)\n"
+          f"  DS=\"$(dirname \"$(muiogo-ai case-path --case '{case}')\")\"",
+          file=sys.stderr)
+    sys.exit(3)
+
+
 def post(url, payload, timeout=120, cookie=None):
     body = json.dumps(payload).encode()
     req = urllib.request.Request(url, data=body, method="POST")
@@ -146,7 +174,8 @@ def main():
                     metavar="FILE:PARAM:ROWID:xFACTOR",
                     help="multiply a row's yearly values, e.g. RYE.json:EP:EMI_6ku9o:x4")
     args = ap.parse_args()
-    if not args.url:
+    explicit_url = bool(args.url)
+    if not explicit_url:
         args.url, world = default_url()
         require_same_world(world, args.data_storage)
 
@@ -161,6 +190,8 @@ def main():
 
     with open(gen_path, encoding="utf-8") as f:
         gen = json.load(f)
+    if explicit_url:
+        require_server_matches(args.url, args.case, gen)
     scenarios = gen.get("osy-scenarios", [])
     if not scenarios:
         sys.exit("case defines no scenarios")

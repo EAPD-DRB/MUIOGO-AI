@@ -1,6 +1,6 @@
 ---
 name: muiogo-run
-description: Run CLEWs/OSeMOSYS models in MUIOGO headless and collect their results — start and stop the server, solve one run or a batch, detect and diagnose failed solves, and save result CSVs reproducibly. Use when asked to run, solve, execute, or re-run a CLEWs case or scenario; to run several runs at once; to check whether a run succeeded or why it failed; or to collect the result files of a run. Also use when another skill needs a case solved first. For installing, importing or exporting a whole case or model, use muiogo-provision.
+description: Solves CLEWs/OSeMOSYS cases in MUIOGO from the command line - starts and stops the server, runs one solve or a batch, diagnoses failed solves, and saves results with a provenance record. Use when asked to run, solve or re-run a CLEWs case or scenario, to run several at once, to find out whether or why a solve failed, or when another skill needs a case solved first. Installing or importing cases is muiogo-provision; judging what results mean is muiogo-analyze.
 ---
 
 # Run CLEWs models in MUIOGO and collect results
@@ -66,8 +66,9 @@ a detached server never leaves untracked files in a model repository.
 Two things to know. The port comes from the setup, and the two differ on
 purpose: an installed muiogoai defaults to 5102, checkouts the user runs
 manually keep MUIOGO's own 5002 — so a command can never silently drive the
-wrong server. And MUIOGO solves synchronously: one solve occupies the server,
-so do not fire runs in parallel against a single server; use `muiogo-ai batch`.
+wrong server. And a single `muiogo-ai run` occupies the server until it
+finishes, so do not fire runs in parallel yourself; for several runs use
+`muiogo-ai batch`.
 
 ## Solvers
 
@@ -81,21 +82,38 @@ country case with many technologies, timeslices, and years can take minutes to
 hours. For anything you expect to run long, propose it and let the user launch
 it — that is an approval gate, not a formality.
 
+Before proposing a long solve, copy this and work through it:
+
+```
+- [ ] muiogo-ai validate --case "<case>" --run <run> reports every input check passed.
+      If not: fix the named failures (muiogo-provision covers validate), validate again.
+- [ ] Propose the command and the expected duration; the user launches it.
+- [ ] Afterwards: status: success, and the first line of results.txt says Optimal.
+      If not: go to "When a solve fails" below.
+```
+
 ## Running several
 
 ```bash
 muiogo-ai batch --case "CLEWs Demo" --runs REF,CO2TAX,RETRG
 ```
 
-The batch endpoint generates input and solves each run server-side with CBC, and
-reports total elapsed time. It is the right tool for a scenario matrix. Verify
-afterwards — a batch reports overall status, so check each run individually:
+The batch endpoint generates the solver input and solves the runs server-side
+with CBC. It is the right tool for a scenario matrix.
 
-```bash
-for r in REF CO2TAX RETRG; do
-  echo "$r: $(muiogo-ai results --case "CLEWs Demo" --run $r | wc -l) result files"
-done
-```
+How it solves depends on the MUIOGO behind the setup. Since MUIOGO PR #534 it
+solves several runs at a time, as many as the machine's cores and memory allow;
+`MUIOGO_BATCH_WORKERS` in the server's environment overrides that, and `1` solves
+one after another. It also rebuilds the solver input only when the model or its
+data changed since the last solve (the log says `reused` or `rebuilt`), which
+saves time on single runs as well. On an older MUIOGO, batch solves the runs one
+after another, rebuilds the input every time, and ignores
+`MUIOGO_BATCH_WORKERS`.
+
+The command checks every run on disk itself. It prints each run's number of
+result variables and its objective, marks a run that produced nothing
+`NO RESULTS — did not solve`, and exits 1 if any run failed. Read that output
+and the exit status; a batch that returned has not necessarily solved.
 
 ## When a solve fails
 

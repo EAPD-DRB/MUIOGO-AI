@@ -1,6 +1,6 @@
 ---
 name: muiogo-workspace
-description: Orient yourself in a MUIOGO-AI installation before doing any CLEWs, OG-Core, or OG-CLEWS work — find where MUIOGO, the country models, the OG-CLEWs link, and the model data are installed, list what is available, and route the request to the right model family and skill. Use this FIRST whenever a request touches CLEWs/OSeMOSYS, MUIOGO, OG-Core, a country model, a scenario, a run, or model results and you do not already know the installation paths; when the user says "my model", "my country", "the Philippines model", or names a case or scenario without a path; when asked what you can do with these models; or when a path you were given does not exist.
+description: Orients a session in a MUIOGO-AI installation before CLEWs, OG-Core or OG-CLEWS work - finds where MUIOGO, the country models, the OG-CLEWs link and the model data are, lists what is available, and routes the request to the right model family and skill. Use first when a request touches these models and the installation paths are not yet known, when the user names a model, country or case without a path, or when a given path does not exist.
 ---
 
 # Orient yourself in a MUIOGO-AI installation
@@ -149,8 +149,8 @@ Once you know the layout, hand off to the skill that owns the job:
 | run a coupled OG-CLEWS analysis (energy policy → the economy) | `og-clews-linked-run` |
 | run an OG country model (baseline, reform, multi-industry) | `og-run` |
 | calibrate an OG country model | `og-country-calibration` |
-| report on a finished OG baseline-vs-reform run | `og-scenario-report` |
-| free-form OG scenario design and bespoke analysis | `og-analysis-studio` |
+| build or align a multi-industry OG calibration | `og-multi-industry-calibration` |
+| design an OG reform, report on a finished run, or analyse it further | `og-scenario-report` |
 | check before launching a long OG solve | `og-run-preflight` |
 | diagnose an OG solve that will not converge | `og-solver-diagnosis` |
 | trace a calibrated parameter to its source | `calibration-provenance` |
