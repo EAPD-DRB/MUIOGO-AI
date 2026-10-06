@@ -61,8 +61,9 @@ Dependabot-lock convention — **never commit a `uv.lock` change from sync work*
 
 Per affected repo:
 
-1. `git fetch` first; branch off the up-to-date default branch (`git switch -c <change>-<slug>`).
-   Never work on a repo's default branch directly.
+1. `git fetch --all` first. Branches come from the fork (`origin`), not from upstream: bring the
+   fork's default branch up to date with upstream's, then branch from it
+   (`git switch -c <change>-<slug>`). Never work on a repo's default branch directly.
 2. Re-run detection *in this repo* and read the actual code — expect the pattern to vary. The
    worked instance's second repo lesson: fixing the primary import exposed a *second* import-time
    side effect that also had to move; the smoke test, not the plan, decides when you're done.

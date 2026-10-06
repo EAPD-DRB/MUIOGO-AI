@@ -162,7 +162,7 @@ each has results.
 **A coupled run is a long computation.** The link's README gives about 20 minutes the
 first time (baseline plus reform) and about 8 minutes on later runs, which reuse the
 baseline. This is an approval gate: propose the command and the expected duration,
-and let the user launch it. Never fire one off on your own initiative.
+and launch it only after the user's explicit go. Never fire one off on your own initiative.
 
 ## Reading the outcome
 
@@ -212,7 +212,7 @@ Copy this and work through it:
       calibration (og-run), then register and check again.
 - [ ] Both CLEWs runs solved and holding results. If not: muiogo-run, then check again.
 - [ ] og-run-preflight reports GO for the link and the OG side. If NO-GO: fix, run it again.
-- [ ] Proposed to the user: command, expected duration. The user launches.
+- [ ] Proposed to the user: command, expected duration. Launch only after the explicit go.
 - [ ] Results read with the channel and direction named, and emit-only levers kept out
       of the macro headline.
 ```

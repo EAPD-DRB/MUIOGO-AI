@@ -11,9 +11,13 @@ launching one as a decision the user makes.
 
 The model owner's run rules (2026-08-12), which win over anything older:
 
-- A healthy baseline solve takes **under ten minutes**. Much longer means something is wrong
-  (the worker pool, the solver settings, or the calibration), not that the model is slow.
-- Run from the country repo's own environment, **the way the example scripts do it**.
+- A healthy baseline solve takes **under ten minutes**: the steady state in seconds to a
+  minute or two, the transition path in about 5–7 minutes. Much longer means something is
+  wrong (the worker pool, the solver settings, a stale ogcore, or the calibration), not that
+  the model is slow.
+- Run from the country repo's own environment, **the way the example scripts do it**, with
+  everything as parallel as possible. Use the environment the repo's own AGENTS.md describes
+  (current repos use uv and `.venv`; older checkouts used conda environments).
   Nothing bespoke.
 - Always run in parallel.
 - Use the **Anderson** solver every time (`TPI_outer_method="anderson"`, available since
@@ -89,7 +93,7 @@ whether to propose that change first; running with a copy of the example that se
 the fallback, and say that you did it.
 
 Propose the run with its expected duration (under ten minutes for a healthy baseline, the
-reform about the same) and let the user launch it. There is no cheap smoke version: the
+reform about the same) and wait for the user's explicit go. There is no cheap smoke version: the
 repo's `test_run_example.py` only checks the process is still alive after five minutes and
 produces no usable output.
 
@@ -113,18 +117,24 @@ Two things that bite in a headless session:
   note that `Specifications` defaults `baseline_dir` to the relative string
   `OUTPUT_BASELINE`. The shipped examples set absolute paths and are not affected.
 
-For a background run, have the user launch it under `nohup` or a terminal
-multiplexer, teeing output to a log so progress survives a disconnect:
+For a background run, launch it (after the user's go) under `nohup` or a terminal
+multiplexer, with unbuffered output teed to a log so progress survives a disconnect:
 
 ```bash
-nohup uv run python examples/run_og_phl.py > og-phl-run.log 2>&1 &
+nohup uv run python -u examples/run_og_phl.py > og-phl-run.log 2>&1 &
 ```
 
-Then monitor rather than re-launching:
+Then monitor rather than re-launching, and report status to the user at intervals without
+being asked:
 
-```bash
-tail -f og-phl-run.log
-```
+- **Running or finished?** The transition path logs `Time path iteration complete.` when it
+  ends. Otherwise compare the log's last-modified time and the process's CPU time between
+  two checks. When matching the process with `pgrep -f`, use a pattern that cannot match
+  your own check command, or you will read your own `pgrep` as the run.
+- **Healthy?** During the solve the worker pool should keep the CPU close to fully busy. A
+  run using a third of the machine is misconfigured (too few workers, or serial), not
+  converging slowly.
+- **On time?** Past about ten minutes for a baseline, check the setup before waiting longer.
 
 To change what is solved, do not edit the shipped example in place. Copy it and change
 only what the run needs: the reform's parameter dictionary, the solver settings above, and
@@ -174,7 +184,8 @@ Copy this and work through it:
 - [ ] og-run-preflight reports GO for the repo and branch the task names.
       If NO-GO: fix what it names and run it again. Do not launch.
 - [ ] Solver set: TPI_outer_method="anderson", nu 0.2 or lower (repo default or the copy).
-- [ ] Proposed to the user: exact command, expected duration, online or not. The user launches.
+- [ ] Proposed to the user: exact command, expected duration, online or not. Launch only
+      after the user's explicit go (or the user launches it).
 - [ ] Monitor the log. If it dies at once: back to the preflight (environment, not economics).
       If it runs far past ten minutes or the distance stops falling: og-solver-diagnosis.
 - [ ] Provenance written next to the output folders (see above).
@@ -205,6 +216,7 @@ economics: wrong interpreter, wrong branch, missing data. Re-run the preflight.
 
 Propose, draft, and prepare; the user decides. Inspecting a model, running the
 preflight, and reading finished output are free. **Stop and ask before launching
-any solve** — state the command and the expected duration; the user launches it.
-Never run solves across several country repos on one approval. Stop before
-pushing, PR-ing, merging, or deleting anything.
+any solve** — state the command and the expected duration, and launch only after the user's
+explicit go. One go can cover an itemised batch (say, the same example in five listed
+countries); it never extends to runs that were not on the list. Stop before pushing,
+PR-ing, merging, or deleting anything.

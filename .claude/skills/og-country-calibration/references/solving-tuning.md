@@ -52,12 +52,12 @@ Contents
 - **Why seven workers.** `SS.py` and `TPI.py` both call `client.submit` inside
   `for j in range(p.J)`, so workers beyond `J` idle. Seven is maximum parallelism when `J = 7` (the
   ports); OG-USA ships `J = 10`.
-- **SS through the client is slower than serial.** Measured: ~38s per GE evaluation through the
-  client vs ~6s serial **[JPN]**; 12+ min for a full SS through a 7-worker client vs 66s with
-  `client=None` **[PHL]**. Both measurements predate ogcore 0.20.1, which scatters the parameters
-  object once per SS solve instead of once per residual evaluation; re-measure on your ogcore before
-  quoting either. This is why a serial SS-only driver is acceptable for tuning iterations (next
-  section). It does not change how official runs are made.
+- **Parallel, not serial, for the steady state too.** Older measurements found the SS slower
+  through the client than serial (~38s vs ~6s per GE evaluation **[JPN]**; 12+ min vs 66s **[PHL]**).
+  Both predate ogcore 0.20.1, which scatters the parameters object once per SS solve instead of once
+  per residual evaluation. The owner's rule is to follow the example scripts with everything as
+  parallel as possible (2026-08-10), so do not build a serial driver on the strength of those
+  numbers; if the SS through the client is slow on a current ogcore, report it as a finding.
 - **The trap that looks like an optimisation.** `runner` always re-solves the steady state, so
   `runner(time_path=False)` followed by `runner(time_path=True, client=client)` solves it twice, the
   second time the slow way. A two-phase hand driver (SS serial → pickle → TPI with the client) was
@@ -78,12 +78,12 @@ Contents
 
 ## The in-model tuning loop
 
-**[PHL]** The tuning loop is cheap: use real solves, not algebra. A warm-guess SS solve on a single
-worker with no dask takes ~15s, so *solve → read the revenue dashboard → adjust dials → re-solve*
-converges in 3–5 iterations for half a dozen simultaneous dials (GS φ2, `tau_c`, CIT adjustment,
-`p_wealth`, `r_gov_shift`, `zeta_K`). Keep a driver that loads the packaged JSON plus an overrides
-dict, solves SS only, and prints model vs target by instrument. That serial SS-only driver is fine for
-tuning iterations. Two things it is not:
+**[PHL]** The tuning loop is cheap: use real solves, not algebra. A warm-guess SS solve takes
+seconds, so *solve → read the revenue dashboard → adjust dials → re-solve* converges in 3–5
+iterations for half a dozen simultaneous dials (GS φ2, `tau_c`, CIT adjustment, `p_wealth`,
+`r_gov_shift`, `zeta_K`). Keep a small driver that loads the packaged JSON plus an overrides dict,
+builds the same worker pool as the example script, calls `runner(..., time_path=False,
+client=client)`, and prints model vs target by instrument. Two things it is not:
 
 - not an official run: once the dials settle, fold the overrides into the JSON and run the example
   script through the client;

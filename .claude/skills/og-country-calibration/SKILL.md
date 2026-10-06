@@ -50,6 +50,7 @@ model can exist in both at different commits. Locate the checkout you mean with
 `../WORLD_DISCIPLINE.md`.
 
 
+
 ## The mental model
 
 1. **The packaged `og<xxx>_default_parameters.json` is the source of truth.**
@@ -104,6 +105,8 @@ These come from the model owner (stated 2026-08-12) and override any older advic
   diagnose (og-solver-diagnosis) rather than wait.
 - **Run from the country repo's own environment, the way its example scripts do.** `uv sync
   --extra dev`, then `uv run python examples/run_og_<xxx>.py`. Nothing bespoke for an official run.
+  Exception: `uv run` re-syncs to the lockfile, so a run that needs an unreleased ogcore uses
+  `.venv/bin/python examples/...` instead (og-run covers it).
 - **Always parallel.** The examples build one dask `Client(n_workers=min(cpu_count(), 7),
   threads_per_worker=1)` and call `runner(p, time_path=True, client=client)` once per scenario.
   `SS.py` and `TPI.py` submit one task per lifetime-income group (`for j in range(p.J)`), so workers
@@ -116,12 +119,14 @@ These come from the model owner (stated 2026-08-12) and override any older advic
   11–12 (~2–2.5 min) with monotonically falling distances. Watch the distance series the first
   time; if it oscillates or stalls, fall back to damped `nu`. Anderson is TPI-only (it does nothing
   for the steady state) and never fixes a fiscal runaway.
-- **A serial SS-only driver is fine for tuning iterations,** because it is fast; official and
-  reported runs go through the example's client pattern. `runner` always re-solves the steady state,
-  so `runner(time_path=False)` followed by `runner(time_path=True, client=client)` solves it twice.
+- **Everything as parallel as possible, tuning included** (owner, 2026-08-10: follow the example
+  scripts). Do not switch to a serial steady-state driver for speed. A steady state that takes more
+  than a minute or two is a symptom (cold seed, calibration, stale ogcore), not a reason to go
+  serial. `runner` always re-solves the steady state, so `runner(time_path=False)` followed by
+  `runner(time_path=True, client=client)` solves it twice.
 - **Preflight before every solve:** use og-run-preflight (branch and HEAD of every repo, imports
   resolve inside the intended checkout, its own venv). Editable installs, script-dir shadowing and
-  cwd shadowing silently run another checkout's code. **Propose runs; the user launches them.**
+  cwd shadowing silently run another checkout's code. **Propose runs; launch only after the user's explicit go.**
 
 Environment facts: uv, not conda; `AGENTS.md` is the setup source of truth (the contributor guide is
 stale in most repos). Never commit a `uv.lock` change from calibration work (`git restore uv.lock`).
