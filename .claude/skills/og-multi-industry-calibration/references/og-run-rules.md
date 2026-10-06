@@ -20,7 +20,7 @@ itself ships (a warm-start helper, a multi-industry continuation solver in its e
 how that repo runs; an ad-hoc driver or patch outside the repo is not. The lockfile is what the repo
 runs: if the environment has drifted from it (an older ogcore in `.venv` than `uv.lock` names), sync
 it with `uv sync --extra dev` and re-run the preflight; do not run the stale environment to avoid the
-sync. The one exception is a deliberately installed unreleased ogcore (solving-tuning.md), which
+sync. The one exception is a deliberately installed unreleased ogcore (og-solver-diagnosis covers the pattern), which
 uses `.venv/bin/python`, because `uv run` would re-sync it away.
 
 **Everything as parallel as possible**, the steady state and tuning loops included. The examples

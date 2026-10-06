@@ -56,7 +56,8 @@ strings to grep for. When you hit a class not listed here, add it.
   differ between ogcore releases).
   Then lower `nu` further (0.4 → 0.3 → 0.2 → lower); continuation solve for multi-industry cold
   starts. Watch the distance series on the first Anderson run and fall back to damped iteration
-  if it oscillates. These treat oscillation only — never class A.
+  if it oscillates. These treat oscillation only — never class A. Recent ogcore can tell a
+  cycling loop from a diverging economy for you (solve-procedures.md, "Stall detection").
 - **Provenance**: ZAF nu sweeps (`logs_ogzaf_nu06/nu07`), IDN/PHL/ZAF control-vs-treatment logs.
 
 ## D. Basin flip (two valid solutions, ill-conditioned Jacobian)
@@ -108,8 +109,8 @@ strings to grep for. When you hit a class not listed here, add it.
   `DEV_FACTOR_LIST` scalings and restarts each time, which reads as slow convergence. The
   savings seed is one constant across ages and types (hard-coded in older ogcore, a parameter
   in newer).
-- **Remedy**: warm-start from a solved neighbouring calibration (`og-country-calibration`,
-  solving and tuning reference). A guess that is near in values is not necessarily one the
+- **Remedy**: warm-start from a solved state (solve-procedures.md, "Warm-starting the steady
+  state"). A guess that is near in values is not necessarily one the
   solver can start from: nearness is not solvability.
 
 ## I. Transition-path resource-constraint error, read by when it occurs
@@ -118,7 +119,8 @@ strings to grep for. When you hit a class not listed here, add it.
 - **Cause by shape**: large early and decaying → the initial wealth distribution or its target
   level is wrong; single-period spikes → an input discontinuity, often at
   the end of the demographic window (`fixper`); growing with debt → fiscal runaway (class A).
-- **Remedy**: triage by shape before any tuning; fix the input, not the solver.
+- **Remedy**: triage by shape before any tuning; fix the input, not the solver
+  (solve-procedures.md, "Triage an RC_error by where in time it happens").
 - **An error only at the very last period** points to the engine, not the calibration; check
   OG-Core's open issues before tuning anything to remove it.
 

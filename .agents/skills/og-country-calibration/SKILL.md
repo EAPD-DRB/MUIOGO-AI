@@ -112,7 +112,7 @@ Read the one that matches the block you are working on. Each is self-contained.
 | [taxes-informality.md](references/taxes-informality.md) | Any tax rate; the PIT form (GS/HSV); payroll and bequest checks; informality; non-tax revenue |
 | [households-demographics.md](references/households-demographics.md) | The `e` matrix and Gini; demographics, data window, income gradients; pensions; `chi_n` |
 | [validation-dashboard.md](references/validation-dashboard.md) | Building or scoring the SS dashboard; sourcing data anchors; reading pickles; tests that pin values |
-| [solving-tuning.md](references/solving-tuning.md) | Run engineering detail; a steady state that will not converge (warm start); tuning-loop order; `RC_error` triage; running against unreleased ogcore |
+| [solving-tuning.md](references/solving-tuning.md) | Environment; the evidence behind the run rules; the in-model tuning loop and its order; derived parameters. Solver trouble (warm start, `RC_error` triage, stalls, unreleased ogcore) is in og-solver-diagnosis |
 | [calibration-pr.md](references/calibration-pr.md) | Writing the calibration PR |
 | [og-run-rules.md](references/og-run-rules.md) | Before any solve |
 
@@ -184,7 +184,7 @@ Loop-backs. Do not move forward past a failed check:
 - **If the standalone solve of the packaged JSON fails (step 13), go back to the overrides you just
   folded in.** It catches schema errors and seed problems the overrides path hides.
 - **If the baseline TPI resource-constraint error is not small and monotone in the distance series
-  (step 10), do the `RC_error` triage before any tuning** ([solving-tuning.md](references/solving-tuning.md)).
+  (step 10), do the `RC_error` triage before any tuning** (og-solver-diagnosis).
   Tuning against a transition artifact bakes the artifact in.
 - **If the steady state is right but the transition runs away, check the fiscal identity before any
   solver setting.** Damping and Anderson do not fix an unbalanced budget.
@@ -315,6 +315,6 @@ Each one shipped in a real repo. Detail is in the linked reference.
 - **Live-API clobber:** `update_from_api=True` recomputes naive `gamma` over a hand-triangulated
   value. Remove curated structural parameters from the live path entirely. [macro-open-economy.md](references/macro-open-economy.md)
 - **Cold-start steady state:** suspect the seed before the calibration; warm-start from a solved
-  state. [solving-tuning.md](references/solving-tuning.md)
+  state (og-solver-diagnosis has the procedure).
 - **Leaving remittances or aid off** for an aid- or remittance-dependent economy: a spurious trade
   surplus and a fiscal squeeze. [macro-open-economy.md](references/macro-open-economy.md)

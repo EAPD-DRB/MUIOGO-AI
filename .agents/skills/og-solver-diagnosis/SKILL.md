@@ -64,7 +64,10 @@ Characterize which of these you have — they have different causes:
   model failure; re-run before diagnosing anything.
 
 Then classify against `references/failure-taxonomy.md` (read it now — it lists the observed
-classes, their signatures, and the known remedy for each).
+classes, their signatures, and the known remedy for each). The step-by-step procedures for the
+common ones (warm-starting a steady state that will not converge, triaging a transition-path
+resource-constraint error by when it happens, reading a stall diagnosis) are in
+`references/solve-procedures.md`.
 
 **Log discipline (a real loss happened without it):** every diagnostic run redirects stdout+stderr
 to a named log (`logs_<pkg>_<variant>.log`), and the script echoes its exact settings (nu, mindist,
@@ -136,7 +139,7 @@ the repo's open PRs. A fix that already landed, or is waiting in a PR, changes t
 2. **Oscillation/stall knobs** (treat oscillation, never runaway): first confirm the owner's
    standing settings, Anderson (`TPI_outer_method="anderson"`) with `nu` 0.2 or lower; then heavier damping, lowering `nu` further;
    for a multi-industry cold start, the continuation solve (flat anchor → morph gamma/Z; see the
-   `og-country-calibration` skill).
+   `og-multi-industry-calibration` skill).
 3. **Convergence-criteria honesty**: loosening `mindist` or raising `maxiter` is masking, not
    fixing, unless you can show the iterate is genuinely near a solution (Distance decaying, Euler
    errors small).
@@ -160,7 +163,8 @@ pattern above applies, with four checks first:
    does.
 
 Each variant gets its own OG-Core worktree and venv; never switch a branch under a running
-battery. Report per country: the expected value, master, and the change, with the
+battery. How to install an unreleased ogcore without the environment silently using another
+build: `references/solve-procedures.md`, "Running against an unreleased ogcore". Report per country: the expected value, master, and the change, with the
 resource-constraint error at t=0 and beyond. The whole battery is one itemised proposal; launch
 only after the user's go.
 
