@@ -52,8 +52,14 @@ under test, OG-PHL here):
 python3 scripts/preflight.py \
   --check <country-repo>::ogphl,ogcore \
   --run-cwd <country-repo> \
-  --entry-script <country-repo>/examples/run_og_phl.py
+  --entry-script <country-repo>/examples/run_og_phl.py \
+  --params-json <country-repo>/ogphl/ogphl_default_parameters.json
 ```
+
+`--params-json` loads the packaged parameters into `Specifications` the way the example does.
+Pass it whenever the run loads a packaged JSON: a JSON that carries a parameter the resolved
+ogcore does not know (an unreleased one, or one from a newer release) fails here in seconds
+instead of at launch.
 
 Cross-env example (ogclews-link, which subprocesses the OG model's own interpreter): one `--check`
 per environment, with the OG side's interpreter taken from the model registry
@@ -80,6 +86,8 @@ The link env must NOT import ogcore — so ogcore goes on the OG side's check li
 | import from `--run-cwd` lands in repo | **cwd shadowing** — launching from another checkout's root imports THAT checkout | launch from the worktree under test, or use the console script |
 | import with entry-script dir at `sys.path[0]` lands in repo | **script-dir shadowing** | move/rename the shadowing package next to the script, or pin+assert in the script |
 | extra packages resolve in repo or venv | a sibling checkout is bleeding into the dependency | reinstall the dependency in this venv |
+| which ogcore (version and install source) | WARN: a local build, not a release; or a build whose source folder is gone, which cannot be reproduced | record the branch and commit with the run, or rebuild from a release or a recorded commit |
+| packaged parameters load (`--params-json`) | the JSON needs a different ogcore than the one installed | match the ogcore to the JSON, or the JSON to the ogcore, before launching |
 
 Uncommitted changes are a WARN, not a FAIL — sometimes you *mean* to run dirty code. Say so out
 loud before launching: "running with N uncommitted changes in <repo>."

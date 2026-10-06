@@ -34,7 +34,8 @@ pensions and any UBI. `fiscal.get_G_ss` subtracts all of them:
 alpha_G + alpha_T + alpha_I + agg_pension_outlays/Y + UBI_outlays/Y  =  revenue/Y − pb*
 ```
 
-- Forgetting `alpha_I ≈ 0.05` mis-sets `alpha_G` by 5pp of GDP. **[PHL]**
+- Forgetting `alpha_I ≈ 0.05` mis-sets `alpha_G` by 5pp of GDP. **[PHL]** Check `alpha_I` itself is
+  sourced: OG-ZAF's `main` ships 0.0003, a placeholder. **[ZAF]**
 - Omitting pensions sets `alpha_G` too high by the whole pension bill (JPN: 0.63pp of GDP).
   **[net-new: JPN]** UBI is usually zero; include it when it is not.
 - **The steady state will not tell you.** The closure forces `G` to the consistent level, so the

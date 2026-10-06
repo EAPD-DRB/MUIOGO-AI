@@ -30,6 +30,8 @@ import numpy as np
 
 MACRO_VARS = ["Y", "C", "K", "L", "r", "w"]
 FISCAL_VARS = ["D", "TR", "total_tax_revenue"]
+# Row labels where the variable name alone misleads (TR is transfers, not tax revenue).
+ROW_LABEL = {"TR": "transfers (TR)", "D": "debt (D)"}
 REV_INSTRUMENTS = [
     ("iit_revenue", "PIT"),
     ("business_tax_revenue", "CIT"),
@@ -136,7 +138,7 @@ def main() -> int:
         ss_chg = pct(scalar(rs), scalar(bs))
         impact[v] = (float(yearly[0]), float(ss_chg))
         row = " | ".join(f"{x:.2f}" for x in yearly)
-        L.append(f"| {v} | {row} | {window:.2f} | {ss_chg:.2f} |")
+        L.append(f"| {ROW_LABEL.get(v, v)} | {row} | {window:.2f} | {ss_chg:.2f} |")
         if v == MACRO_VARS[-1]:
             L.append("")
             L.append("## Fiscal aggregates (% change from baseline)\n")

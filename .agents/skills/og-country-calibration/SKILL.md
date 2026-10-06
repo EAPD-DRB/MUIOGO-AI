@@ -51,6 +51,7 @@ model can exist in both at different commits. Locate the checkout you mean with
 
 
 
+
 ## The mental model
 
 1. **The packaged `og<xxx>_default_parameters.json` is the source of truth.**
@@ -219,7 +220,8 @@ Four mechanical rules:
 2. **Every parameter ends in one of three states, and "placeholder" is not one:** sourced;
    tuned to a named moment; deliberately defaulted with a written reason. A `NEEDS TUNING` marker is
    a debt with an exit criterion. Make it a release gate and a test
-   (`test_no_unresolved_tuning_markers`, as OG-JPN has). The JPN comment even named the dataset; it
+   (`test_no_unresolved_tuning_markers`, as OG-JPN has), and match any wording of the marker
+   (`NEEDS`, `STILL NEEDS FITTING`, `TODO`, `PLACEHOLDER`), not one exact phrase. The JPN comment even named the dataset; it
    shipped anyway, because nothing failed.
 3. **Two moments that move together are one moment.** Check for shared levers before diagnosing
    either. JPN's consumption gap (+2.3pp) and `K/Y` gap (−0.20) were analysed separately for a whole
@@ -241,7 +243,7 @@ households to an unsourced global constant. Run the sweep after the parameters s
 ## Dashboard completeness: an unscored moment cannot pull its parameter
 
 The general form of the `zeta_K` failure. It sat at a placeholder because `K_f/K` was not a row on
-the dashboard. The loop optimised what it could see. Three rules, all mechanically checkable:
+the dashboard. The loop optimised what it could see. Four rules, all mechanically checkable:
 
 1. **Every tuned parameter's identifying moment must be on the dashboard.** Grep the tuned dials,
    grep the dashboard rows, and require a one-to-one match. A dial with no scored moment drifts
@@ -252,6 +254,9 @@ the dashboard. The loop optimised what it could see. Three rules, all mechanical
    revenue is the check that the parts add up, never the thing you steer.
 3. **Score every component of the resource constraint,** not just the residual. Put `I/Y`, `I_g/Y`,
    `G/Y` and `NX/Y` next to `C/Y`.
+4. **Score the first-tier moments early in the transition too,** not only at the steady state.
+   Report each at t=0–10 as well: a steady state can land close while the first years miss badly
+   (OG-JPN's consumption share in 2025, from the initial-wealth units trap). **[JPN]**
 
 The moments most often tuned for but never scored, their sources, and the traps when adding rows
 (per-household arrays, trade balance vs current account) are in
@@ -265,6 +270,9 @@ Copy this into the work log and tick it off. Mechanics throughout: run with
 `OUTPUT_BASELINE/SS/SS_vars.pkl`, `TPI/TPI_vars.pkl` and `model_params.pkl`.
 
 ```
+- [ ] -1. Check for existing work first: open PRs and branches that touch this block, and the
+          current solve's gaps with their direction (a premise like "K/Y runs high" may be
+          stale). Existing work changes the job from building to reviewing or finishing.
 - [ ] 0a. Plan two dashboards together: the near-term fiscal PATH (debt, primary balance,
           revenue, public investment vs actuals and the country's program) and the steady state.
           The path catches what the SS cannot, above all a wrong initial_debt_ratio.

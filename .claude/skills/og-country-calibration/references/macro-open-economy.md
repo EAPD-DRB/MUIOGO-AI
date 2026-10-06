@@ -90,6 +90,11 @@ Near-closed or distressed: leave it at the ~4% benchmark and route country risk 
 **Pitfall.** Adding a spread for a defaulted or restructuring sovereign (wrong model); leaving it
 undocumented.
 
+**Sign check.** The world rate sets the sign of `K_f`, not only its size. If it sits above the solved
+domestic return, foreign capital flows out and `K_f` turns negative whatever `zeta_K` is. After setting
+it, solve and confirm `K_f/K` has the sign the target needs. A sub-investment-grade but not distressed
+sovereign sits between the two cases above; say which rule you applied and why. **[ZAF]**
+
 **Exemplar.** IDN (open); ETH (distressed).
 
 ## g_y_annual
@@ -221,7 +226,12 @@ The fingerprint: a violent year-1-or-2 aggregate consumption spike concentrated 
 all j, an investment collapse, a `tau_c` revenue pulse, and a spurious debt paydown (or the mirror
 images).
 
-**Fix.** Set the initial-wealth parameter (wealth-to-GDP at t=0) from data:
+**Units trap.** In the OG-Core #1189 implementation the parameter multiplies **steady-state** GDP
+(`target_B0 = initial_wealth_ratio * ss_vars["Y"]` in `TPI.py`), not t=0 GDP. A data ratio of wealth to
+current GDP cannot go straight in: set the parameter so that the **solved** t=0 wealth-to-GDP ratio
+equals the data. **[JPN got this wrong; PHL's changelog has the right wording]**
+
+**Fix.** Set the initial-wealth parameter so the solved t=0 wealth-to-GDP ratio matches the data:
 `(K/Y_PWT − public capital stock/Y_ICSD) × (1 − IIP foreign-owned share) + domestic-held share × D/Y`.
 The model forces B(0) = K_d(0) + D_d(0), so this capital-side construction is the model-consistent
 measure; do not reach for household balance-sheet surveys first.

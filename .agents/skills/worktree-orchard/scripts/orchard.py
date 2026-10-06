@@ -141,11 +141,11 @@ def main() -> int:
     rows = sorted(seen.values(), key=lambda d: d["path"])
     wpath = max(len(d["path"]) for d in rows) if rows else 10
     print(f"{'PATH':<{wpath}}  {'KIND':<8} {'CLASS':<11} {'BRANCH':<28} "
-          f"{'HEAD':<9} {'DIRTY':<5} {'A/B':<7} LAST")
+          f"{'HEAD':<9} {'DIRTY':<5} {'A/B':<7} {'LAST':<10} BASE")
     for d in rows:
         print(f"{clean(d['path']):<{wpath}}  {d['kind']:<8} {d['cls']:<11} "
               f"{clean(d['branch']):<28} {clean(d['head']):<9} {d['dirty']:<5} "
-              f"{d['ahead']}/{d['behind']:<5} {clean(d['last_commit'])}")
+              f"{d['ahead']}/{d['behind']:<5} {clean(d['last_commit']):<10} {clean(d.get('base', '')) or '-'}")
     for p in not_git:
         print(f"{clean(p):<{wpath}}  {'dir':<8} {'NOT-GIT':<11} {'-':<28} {'-':<9} {'-':<5} {'-':<7} -")
 

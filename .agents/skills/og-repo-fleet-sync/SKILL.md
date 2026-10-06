@@ -43,6 +43,10 @@ before touching a second repo. It must contain, concretely:
 
 ### 2. Probe the fleet — build the tracking table
 
+First check the change has not already landed: search each sibling's merged PRs and grep its
+up-to-date upstream default branch for the fix. Some siblings may have reached the same goal
+another way, or removed the code on purpose; those rows are not to be "fixed".
+
 Enumerate the fleet fresh (`ls -d <projects root>/OG-*`), and separate **canonical checkouts** from
 worktrees/`_bak`/`copy` dirs — sync canonical checkouts only (the `worktree-orchard` skill is the
 disambiguator when sprawl makes this unclear). Run detection read-only on every repo and write the
@@ -52,7 +56,10 @@ country repo):
 | repo | org | affected? | already fixed? | branch | status | notes |
 |---|---|---|---|---|---|---|
 
-Statuses: `unaffected` / `already-fixed` / `branch-ready` / `blocked` / `needs-decision`.
+Statuses: `unaffected` / `already-fixed` / `diverged-on-purpose` (cite the PR that did it) /
+`branch-ready` / `blocked` / `needs-decision`. When every canonical checkout sits on a busy
+feature branch, work in a fresh worktree off the up-to-date default branch rather than reusing
+one.
 Fleet facts that change the work per row: EAPD-DRB repos (PHL/ZAF/IDN/ETH/FJI) share the uv +
 Dependabot-lock convention — **never commit a `uv.lock` change from sync work**; PSLmodels repos
 (USA/BRA) differ in tooling and review culture. Record the org.

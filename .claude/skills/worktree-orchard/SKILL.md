@@ -55,9 +55,13 @@ It ends with candidate cleanup commands — **printed, never executed**.
   exactly which files before any retirement talk. Watch for secrets (`un_api_token.txt` has
   turned up in copies) — flag, don't copy or quote them.
 - **Ahead/behind is measured against `upstream/<default>`** when that remote exists, else
-  `origin/<default>`, else the local branch, in that order. Those refs are only
-  as fresh as the last fetch: `git fetch --all` (a read operation on the remotes, safe) before
-  trusting close calls.
+  `origin/<default>`, else the local branch, in that order; the BASE column shows which. Those
+  refs are only as fresh as the last fetch, and `upstream/<default>` can be older than
+  `origin/<default>` if only one was fetched: `git fetch --all` (a read operation on the remotes, safe) before
+  trusting close calls. A fetch updates the local remote-tracking refs; if nothing local may
+  change at all, `git ls-remote` reads the remote heads without touching anything.
+- **Stashes are per repository, not per worktree:** every worktree of one repo shows the
+  repo's total. Check `git stash list` to see which branch each stash belongs to.
 - **Squash-merged branches always read DIVERGED.** A squash merge leaves the branch's commits
   off the default branch, so check the PR state (`gh pr list --state merged --head <branch>`)
   before calling a DIVERGED branch unmerged work.

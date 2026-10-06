@@ -22,7 +22,11 @@ The model owner's run rules (2026-08-12), which win over anything older:
 - Always run in parallel.
 - Use the **Anderson** solver every time (`TPI_outer_method="anderson"`, available since
   ogcore 0.16.4), with a low `nu` (0.2 or lower). OG-Core's default is still damped iteration
-  (`"picard"`, `nu` 0.4), and the shipped examples do not change it.
+  (`"picard"`, `nu` 0.4). Repos differ: some packaged parameters already set Anderson, often
+  with `nu` still at 0.4, so check both values. `nu` still matters under Anderson: its trust
+  region is anchored to the damped step, so `nu` limits how far each accelerated step may go.
+  Before setting either, check the installed ogcore has the field
+  (`hasattr(Specifications(), "TPI_outer_method")`); an older lock fails with "Unknown field".
 
 The repos' AGENTS.md files still say a full example run takes "~35 min – 2 hr"; that figure
 predates these rules.
@@ -97,7 +101,7 @@ reform about the same) and wait for the user's explicit go. There is no cheap sm
 repo's `test_run_example.py` only checks the process is still alive after five minutes and
 produces no usable output.
 
-Two things that bite in a headless session:
+Things that bite in a headless session:
 
 - **The UN population token.** Recent ogcore (0.20 and later) looks for it in the
   `UN_API_TOKEN` environment variable, then a per-user file, then a deprecated
@@ -110,7 +114,9 @@ Two things that bite in a headless session:
   can overwrite curated values (`og-country-calibration` covers the risk). Say so when
   proposing the run, and note whether it ran online.
 - **`uv run` re-syncs the environment to the lockfile.** If the run needs an ogcore that is
-  not the locked release (a local build or a branch), `uv run` silently swaps it out.
+  not the locked release (a local build or a branch), `uv run` silently swaps it out. In a
+  repo with no `uv.lock`, `uv run` resolves and installs fresh, with the same effect. Use
+  `.venv/bin/python` in both cases, or create the environment deliberately first.
   Invoke `.venv/bin/python examples/...` directly in that case, and check
   `import ogcore; print(ogcore.__version__, ogcore.__file__)` first.
 - **Custom drivers and relative paths.** If you ever drive the model from your own script,
@@ -131,9 +137,12 @@ being asked:
   ends. Otherwise compare the log's last-modified time and the process's CPU time between
   two checks. When matching the process with `pgrep -f`, use a pattern that cannot match
   your own check command, or you will read your own `pgrep` as the run.
-- **Healthy?** During the solve the worker pool should keep the CPU close to fully busy. A
-  run using a third of the machine is misconfigured (too few workers, or serial), not
-  converging slowly.
+- **Healthy?** Add up the CPU of all the worker processes, not just the main Python
+  process. During the transition path they should keep the machine close to fully busy; a
+  third of the machine there means too few workers or a serial run. During the steady state
+  on ogcore before 0.20.1, the main process is the bottleneck and idle workers are expected
+  (each evaluation re-sends the parameters to the workers); a slow steady state there points
+  to the ogcore version or a cold start, not the worker count.
 - **On time?** Past about ten minutes for a baseline, check the setup before waiting longer.
 
 To change what is solved, do not edit the shipped example in place. Copy it and change
@@ -217,6 +226,7 @@ economics: wrong interpreter, wrong branch, missing data. Re-run the preflight.
 Propose, draft, and prepare; the user decides. Inspecting a model, running the
 preflight, and reading finished output are free. **Stop and ask before launching
 any solve** — state the command and the expected duration, and launch only after the user's
-explicit go. One go can cover an itemised batch (say, the same example in five listed
+explicit go. (A steady-state-only check that takes seconds, inside a calibration task the user
+has already started, follows `og-country-calibration`; a full baseline or reform needs the go.) One go can cover an itemised batch (say, the same example in five listed
 countries); it never extends to runs that were not on the list. Stop before pushing,
 PR-ing, merging, or deleting anything.

@@ -10,7 +10,7 @@ nearest-equivalent instruments: property-type taxes on the wealth tax, state-ass
 adjustment, fees on `tau_c`") and point to the calibration chapter for the derivation, the
 alternatives and the caveats. Design-justification paragraphs ("worth review", "the honest carrier",
 why-not-X) belong in the PR only when you are asking the maintainers to decide something; otherwise
-they read as asking for a debate nobody requested. **[PHL #85 feedback]**
+they read as asking for a debate nobody requested. **[owner feedback on the PHL PR text]**
 
 PR style: narrative, plain language, the why first, detail pushed to the docs. Include a
 changed-parameters table, the goodness-of-fit table, and an example macro-results table.

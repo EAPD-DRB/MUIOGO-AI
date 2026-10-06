@@ -80,8 +80,11 @@ Before any bisection, eliminate the two causes that mimic solver failure and tha
    revenue + `debt_ratio_ss` must satisfy the primary-balance identity, or debt balloons on the
    transition and the convex debt premium runs it to infinity. The SS *always* solves and looks
    fine — only the TPI blows up. Symptom match: baseline TPI diverges/overshoots, worse with
-   `r_gov_DY2 > 0`. Neither damping nor Anderson fixes this. See the Fiscal-consistency section of
-   the `og-country-calibration` skill for the identity and the audit-by-instrument procedure.
+   `r_gov_DY2 > 0`. Neither damping nor Anderson fixes this. Also check the premium is centred
+   at `debt_ratio_ss` (taxonomy class A). See the fiscal-consistency reference of the
+   `og-country-calibration` skill for the identity and the audit-by-instrument procedure.
+   Setting the owner's standing solver settings (Anderson, `nu` 0.2 or lower) is fine at any
+   time; expecting them to fix a runaway is not.
 2. **Calibration placeholders binding constraints**: `zeta_K = 0.9`-style placeholders drive
    `K_d = B − D_d` negative and break the transition; the `K_d has negative elements` guard is the
    tell. Grep the JSON for the known placeholder values before blaming the solver.
@@ -123,7 +126,9 @@ go back to Phase 1 with the new evidence. Three failed fixes = stop and question
 
 ## Phase 4 — Remedies, in order of legitimacy
 
-Only after the class is identified:
+Only after the class is identified. Before writing any fix, check it does not already exist:
+search history and other branches (`git log --all -S<symbol>`, `git branch -a --contains`) and
+the repo's open PRs. A fix that already landed, or is waiting in a PR, changes the job.
 
 1. **Fix the cause** (calibration value, fiscal balance, code bug, stale fixture) — always
    preferred. Add the cheapest regression guard that would have caught it (a value-pinning test, a
@@ -139,6 +144,26 @@ Only after the class is identified:
 
 Report the diagnosis with the evidence chain: log lines → class → hypothesis → probe result →
 fix → verification run. Separate what you verified from what you assume.
+
+## Validating an OG-Core change against the country models
+
+A common request: "check my OG-Core change doesn't break the countries". The control/treatment
+pattern above applies, with four checks first:
+
+1. **Can each country load on both sides?** Run og-run-preflight with `--params-json` for each
+   country against the control ogcore and the treatment ogcore. A country whose packaged
+   parameters do not load on one side cannot be compared; report it rather than patching it.
+2. **Which control?** The merge base of the change, not today's master, unless the user asks
+   for master: otherwise unrelated upstream changes land in the comparison.
+3. **Same inputs on both sides.** Run with `update_from_api=False` (the user's rule for
+   validation runs) so a live data refresh cannot differ between the two.
+4. **Does the run reach the changed code?** A baseline may never touch it; add the reform that
+   does.
+
+Each variant gets its own OG-Core worktree and venv; never switch a branch under a running
+battery. Report per country: the expected value, master, and the change, with the
+resource-constraint error at t=0 and beyond. The whole battery is one itemised proposal; launch
+only after the user's go.
 
 ## Cost gate on probes
 

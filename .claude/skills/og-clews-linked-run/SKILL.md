@@ -90,7 +90,7 @@ Experiments compose channels into a question. The ones that ship:
 
 | Experiment | The question it answers |
 |---|---|
-| `coupled` | the full soft-link: CLEWS electricity price into OG, and OG's response back |
+| `coupled` | the full soft-link: the CLEWS electricity price as a cost push plus a recycled household wedge, public investment, and health into OG; a $50/tCO2 carbon penalty emitted on the CLEWS side only; OG's discount rate and energy demand emitted back |
 | `energy_price` | the demand-response channel at the country's real electricity price |
 | `energy_price_tfp` | a controlled price rise via the electricity industry's productivity |
 | `energy_cost_push` | the same rise as an inter-industry cost-push |
@@ -161,7 +161,8 @@ each has results.
 
 **A coupled run is a long computation.** The link's README gives about 20 minutes the
 first time (baseline plus reform) and about 8 minutes on later runs, which reuse the
-baseline. This is an approval gate: propose the command and the expected duration,
+baseline. The first run is longer because it builds the OG baseline from a cold start;
+the owner's under-ten-minutes rule for a baseline still applies to that part. This is an approval gate: propose the command and the expected duration,
 and launch it only after the user's explicit go. Never fire one off on your own initiative.
 
 ## Reading the outcome
@@ -186,6 +187,13 @@ figure deck. When interpreting:
   economy. Do not describe one as the other.
 - The link ships `VALIDATION.md` and `STATUS.md` in its checkout — read them
   before making strong claims about what is validated.
+- **Is this run still current?** Before reporting from an existing run folder, compare its
+  date with the link's later fixes (its `STATUS.md`, any coordination notes, `git log` since
+  the run) and with later runs on newer calibrations. A run that predates a channel fix, or
+  that a newer run supersedes, is history: say so rather than reporting it as the answer.
+- **Tabulate from the run's own outputs.** A link run does not have the `OUTPUT_BASELINE` /
+  `OUTPUT_REFORM` layout `og-scenario-report` expects; use its `results.csv`, manifest and
+  figure deck. For multi-industry consumption quote `p_tilde·C`, not raw `C`.
 
 ## Handing off
 

@@ -4,7 +4,7 @@
 - A. Fiscal runaway · B. Binding constraint from a calibration placeholder · C. Oscillation
 - D. Basin flip · E. NaN propagation · F. Stale expected-output fixture · G. Infrastructure noise
 - H. Cold-start seed failure · I. Resource-constraint error by timing · J. Single-threaded run
-- K. Government rate at its floor · Known engine bugs
+- K. Government rate at its floor · L. Slow steady state on older ogcore · Known engine bugs
 
 Observed classes from the family's real debugging history (its test scripts and solve logs, the
 OG-ZAF fiscal-runaway work, and the calibration playbook). Signatures are literal
@@ -21,7 +21,11 @@ strings to grep for. When you hit a class not listed here, add it.
   model.
 - **Remedy**: audit revenue by instrument against actual collections; set spending to
   `Σrev/Y − pb*` where `pb* = (r_gov − g)/(1+g)·debt_ratio_ss`; check `r_gov − g` against the
-  country's actual. Full recipe: `og-country-calibration` → Fiscal consistency.
+  country's actual. Check the debt-elastic premium is centred: with `r_gov_DY2 > 0`, the
+  premium should be zero at `debt_ratio_ss` (`r_gov_DY = -2·r_gov_DY2·D̄`, the constant folded
+  into `r_gov_shift`). An uncentred premium adds points to `r_gov` at the target itself and
+  inflates `pb*`, a runaway cause in its own right. Full recipe: `og-country-calibration` →
+  fiscal consistency and the macro reference's debt-elastic premium section.
 - **Provenance**: OG-ZAF TPI sims, proven; HSV's negative bottom-end ETR draining transition
   revenue contributed on ZAF (GS form with same targets converged).
 
@@ -132,6 +136,15 @@ strings to grep for. When you hit a class not listed here, add it.
 - **Cause**: `fiscal.get_r_gov` floors the government rate at `r_gov_floor` (default 0.0,
   a parameter in recent ogcore). A sovereign that pays negative real rates hits it.
 - **Remedy**: set `r_gov_floor` below zero when the country's data supports it; record why.
+
+## L. Slow steady state on ogcore before 0.20.1
+
+- **Signature**: the steady state takes many minutes with the workers mostly idle and the main
+  process busy; the transition path then runs at normal speed.
+- **Cause**: before ogcore 0.20.1 each steady-state evaluation re-sent the whole parameters
+  object to the workers; 0.20.1 sends it once per solve.
+- **Remedy**: check `ogcore.__version__` first. On an older lock, expect it, and say that the
+  fix is an ogcore bump (its own change), not a solver setting.
 
 ## Known engine bugs to check before deep-diving (from the calibration playbook)
 

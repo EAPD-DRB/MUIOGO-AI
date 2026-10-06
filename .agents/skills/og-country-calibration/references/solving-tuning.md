@@ -143,7 +143,11 @@ validator cap. Measured on JPN, identical parameters, same 7-worker client:
 `b` and `n` are in model units, so a seed stays valid across changes to the currency scale, the
 demographic window and modest parameter moves. Ship the seed with the repo (~9 KB) and regenerate it
 after any large recalibration; without it a fresh checkout may not solve. Reference implementation:
-OG-JPN's `ogjpn/warm_start.py` + `examples/save_warm_start.py`.
+OG-JPN's `ogjpn/warm_start.py` + `examples/save_warm_start.py`. Code shipped in the country repo,
+like this, is part of how that repo runs, so it does not break the owner's "nothing bespoke" rule;
+an ad-hoc driver or patch outside the repo would. When an ogcore release ships the same fix (the
+seed became parameters in 0.20.3), retire the repo's patch: grep the repo for patched ogcore
+functions after each ogcore bump and compare with its changelog.
 
 **Warm-starting is not retuning the seed parameters.** Setting `initial_guess_r_SS`/`TR_SS` to their
 solved values was tried on JPN and made things worse (the "nearness is not solvability" rule below).
@@ -186,11 +190,13 @@ fine and the problem is an input. Do this triage before any tuning.
 ## Running against an unreleased ogcore
 
 **[PHL]** `uv run --with-editable <ogcore-checkout>` can silently resolve ogcore from the uv cache,
-and probing with `python -c` from the checkout root masks it through cwd shadowing. The working
-pattern: run from the ogcore checkout's env with the country repo overlaid
-(`cd OG-Core && uv run --with-editable ../OG-XXX python driver.py`), pin
-`sys.path.insert(0, <ogcore-checkout>)` in the driver, and `assert <checkout> in ogcore.__file__`
-before anything else; the assert has caught real contamination. This is a development pattern for
+and probing with `python -c` from the checkout root masks it through cwd shadowing, so do not use
+it. The pattern: put the unreleased ogcore in its own worktree, built from the released base plus
+the one PR's diff (not a branch carrying unrelated upstream merges, which once broke the steady
+state through an unrelated payroll change). Give the country repo its own worktree and venv,
+install that ogcore into it editable, invoke `.venv/bin/python` (never `uv run`, which re-syncs to
+the lock), and `assert <ogcore worktree> in ogcore.__file__` before anything else; the assert has
+caught real contamination. og-run-preflight's ogcore line should then report that local build. This is a development pattern for
 testing an upstream change, not a way to make official runs. Keep the packaged JSON loadable on
 released ogcore too: tests that build a `Specifications` strip not-yet-released parameters when absent
 (`hasattr` guard), so the suite stays green on both.
