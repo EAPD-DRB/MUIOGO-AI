@@ -1,8 +1,9 @@
-# Map of ~/Projects/notebooks (surveyed 2026-07-27)
+# Map of the notebooks directory (surveyed 2026-07-27 on one machine)
 
 What each notebook derives, the intermediate-file graph, and two fully-worked provenance chains.
 The dir has no README; this file is the substitute. Re-verify before relying on a row — notebooks
-drift. Paths are relative to `/Users/mlafleur/Projects/notebooks` unless absolute.
+drift. Paths are relative to the notebooks directory (`~/Projects/notebooks` where surveyed)
+unless absolute; another machine may hold a different set.
 
 ## Per-notebook: country → parameters → inputs → outputs
 
@@ -65,6 +66,9 @@ country-independent constant).
   **arithmetic verified exact** against the shipped JSON (2026-07-27).
 - PHL: frozen with a comment only (`r_gov_shift = -0.04816625043803517`, "recentered documented
   values") — no derivation function; re-deriving it needs the ETH formula with PHL's anchor.
+  Re-anchored since: the `calib/remittances` branch of OG-PHL sets `r_gov_shift = -0.019`, from
+  the treasury-effective re-anchor in `og-country-calibration`; `main` still ships the old value
+  (both checked 2026-10-05). Check which branch the run uses before tracing this number.
 
 ## Secrets in the tracing path (flag, never quote/copy)
 

@@ -1,14 +1,6 @@
 ---
 name: og-analysis-studio
-description: >-
-  On-demand scenario design, analytical exploration, bespoke visualization, and analytical
-  write-ups for OG-Core models — free-form, not bound to the house chart/table conventions. Use
-  when the user wants to design a reform ("how would we model X?", "turn this policy into
-  parameters"), interrogate solved results ("why did investment fall?", "show me the debt path by
-  cohort", "compare these three runs"), produce a custom chart or figure of any model input or
-  output, or get an analytical write-up for a specific audience. For the *standard* deliverable
-  set (macro_table + plot_all + report), use og-scenario-report instead; this skill is for
-  everything that standard set doesn't cover.
+description: "Designs OG-Core reforms and explores model results beyond the standard report: turns a policy into parameters, interrogates solved runs (why investment fell, the debt path by cohort, a comparison of several runs), draws custom charts of any model input or output, and writes analysis for a given audience. Use for bespoke questions and figures; the standard tables, charts and report are og-scenario-report."
 ---
 
 # OG analysis studio
@@ -25,7 +17,7 @@ audience-shaped prose — with two absolutes:
 2. **Analysis never launches computation.** Designing, exploring, plotting, and writing are free.
    The moment a question needs a *new* solve (a redesigned reform, a missing baseline, a
    sensitivity sweep), stop: spec the run, estimate its duration, and ask — the family approval
-   gates (the approval gates in SKILLS.md) bind here. Same for pushing or PR-ing any product of this skill.
+   gates bind here (long computations, pushes and PRs each need the user's explicit go). Same for pushing or PR-ing any product of this skill.
 
 ## Which world
 

@@ -1,12 +1,6 @@
 ---
 name: og-scenario-report
-description: >-
-  Turn a completed OG-Core baseline-vs-reform run (OUTPUT_BASELINE / OUTPUT_REFORM directories)
-  into the standard deliverable: macro-aggregate comparison charts, tables, and narrative
-  paragraphs. Use whenever a scenario/simulation run has finished and someone needs results
-  presented — "summarize the reform run", "make the charts/tables", "write up the scenario",
-  "compare baseline and reform", preparing slides or a report for a ministry/UN audience — for
-  any OG country model (OG-USA/PHL/ZAF/IDN/BRA/ETH) or an OG-simulations scenario folder.
+description: "Turns a finished OG-Core baseline-versus-reform run (its OUTPUT_BASELINE and OUTPUT_REFORM folders) into the standard deliverable: macro comparison tables, charts and narrative paragraphs. Use when a scenario run has finished and the results need presenting (summarize the reform, make the charts and tables, write up the scenario, prepare slides or a report for a ministry or UN audience) for any OG country model or OG-simulations scenario folder."
 ---
 
 # OG scenario report
@@ -56,7 +50,7 @@ A finished scenario folder (reference: `OG-PHL/examples/OG-PHL-Example/`) contai
 
 ## Judgment: what the stock tooling does not cover
 
-These are the gaps repeatedly filled by hand (mined from `~/Projects/OG-simulations`); add them
+These are the gaps repeatedly filled by hand (mined from the OG-simulations scenario folders); add them
 when relevant, and only then:
 
 - **Input-parameter diagnostics.** `plot_all` plots outputs only. If the reform perturbs a
@@ -86,8 +80,7 @@ when relevant, and only then:
   binding-guard warnings (`K_d has negative elements`) in the caveats; if the run itself looks
   sick, switch to the `og-solver-diagnosis` skill before reporting numbers.
 - This skill reads *finished* outputs. If an output dir is missing or stale, never quietly
-  re-run the solve to fill the gap — a model run is a user-approved action (see
-  the approval gates in SKILLS.md); report what's missing and propose the run instead.
+  re-run the solve to fill the gap — a model run needs the user's explicit go; report what's missing and propose the run instead.
 - Multi-industry runs: aggregate consumption comparisons use `p_tilde·C`, never raw `C` (see
   `og-country-calibration` → comparison dashboard); the bundled script sums industry dimensions,
   which is correct for quantities in numeraire units but check before quoting sector detail.

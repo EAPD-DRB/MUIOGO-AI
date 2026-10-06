@@ -1,12 +1,6 @@
 ---
 name: worktree-orchard
-description: >-
-  Inventory and reconcile checkout sprawl: every clone, git worktree, `_bak`, `copy`, and
-  "holding pen" directory for a project family under ~/Projects. Use when asked "which checkouts
-  of X do I have?", "which worktrees can I delete?", "is this copy dir stale?", before an
-  og-repo-fleet-sync sweep (to pick the canonical checkouts), or whenever multiple checkouts of
-  the same repo are causing confusion about which code is where. Read-only by default —
-  destructive cleanup is only ever emitted as commands for the user to review and run.
+description: "Inventories checkout sprawl for a project family under the projects root (default ~/Projects): every clone, git worktree, _bak, copy and holding-pen folder, with which are merged, diverged, dirty or dead. Use when asked which checkouts of a repo exist, which worktrees can be deleted, or whether a copy is stale, and before an og-repo-fleet-sync sweep. Read-only; cleanup is only ever listed as commands for the user to review and run."
 ---
 
 # Worktree orchard
@@ -60,9 +54,13 @@ It ends with candidate cleanup commands — **printed, never executed**.
   checkout first; if the copy contains unique files (data, tokens, half-finished work), say
   exactly which files before any retirement talk. Watch for secrets (`un_api_token.txt` has
   turned up in copies) — flag, don't copy or quote them.
-- **Ahead/behind is measured against the local default branch** — if the checkout hasn't been
-  fetched recently the numbers are stale relative to GitHub. `git fetch` (a read operation on the
-  remote, safe) before trusting close calls.
+- **Ahead/behind is measured against `upstream/<default>`** when that remote exists, else
+  `origin/<default>`, else the local branch, in that order. Those refs are only
+  as fresh as the last fetch: `git fetch --all` (a read operation on the remotes, safe) before
+  trusting close calls.
+- **Squash-merged branches always read DIVERGED.** A squash merge leaves the branch's commits
+  off the default branch, so check the PR state (`gh pr list --state merged --head <branch>`)
+  before calling a DIVERGED branch unmerged work.
 - **Report format**: lead with the counts (N checkouts, M worktrees, K candidates), then the
   table, then per-candidate reasoning. The deliverable is the decision support, not the raw table.
 

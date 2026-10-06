@@ -1,13 +1,27 @@
 ---
 name: og-run
-description: Run an OG-Core country macroeconomic model — launch a baseline and reform solve from the model's own environment, build a multi-industry calibration, monitor progress, and collect the OUTPUT directories. Use when asked to run, solve, or execute an OG-Core or OG country model (OG-USA/PHL/ZAF/IDN/BRA/ETH), to produce a baseline or reform, to re-run after a calibration change, to build a multi-industry calibration, or when another skill needs OG output that does not exist yet.
+description: Runs an OG-Core country macroeconomic model the way its example scripts do - baseline and reform from the model's own environment, in parallel, with the Anderson solver - builds a multi-industry calibration, monitors the run and collects the output. Use when asked to run, solve or re-run an OG country model (OG-USA/PHL/ZAF/IDN/BRA/ETH), to produce a baseline or reform, or when another skill needs OG output that does not exist yet.
 ---
 
 # Run an OG-Core country model
 
-An OG solve is a different animal from a CLEWs solve: 35 minutes to 2 hours
-rather than seconds, parallel worker processes, and a two-stage structure (steady state, then
-transition path). Treat launching one as a decision the user makes.
+An OG solve is a different animal from a CLEWs solve: minutes rather than seconds, parallel
+worker processes, and a two-stage structure (steady state, then transition path). Treat
+launching one as a decision the user makes.
+
+The model owner's run rules (2026-08-12), which win over anything older:
+
+- A healthy baseline solve takes **under ten minutes**. Much longer means something is wrong
+  (the worker pool, the solver settings, or the calibration), not that the model is slow.
+- Run from the country repo's own environment, **the way the example scripts do it**.
+  Nothing bespoke.
+- Always run in parallel.
+- Use the **Anderson** solver every time (`TPI_outer_method="anderson"`, available since
+  ogcore 0.17.0), with a low `nu` (0.2 or lower). OG-Core's default is still damped iteration
+  (`"picard"`, `nu` 0.4), and the shipped examples do not change it.
+
+The repos' AGENTS.md files still say a full example run takes "~35 min – 2 hr"; that figure
+predates these rules.
 
 ## Which world
 
@@ -61,29 +75,41 @@ updates. Run one with the model's own environment:
 uv run python examples/run_og_phl.py
 ```
 
-What it does: starts a pool of worker processes (up to seven, one thread each),
-solves the **baseline** into `OUTPUT_BASELINE/`, applies the reform's parameter
-changes, solves the **reform** into `OUTPUT_REFORM/`, and closes the pool. Each
-stage writes `SS/SS_vars.pkl`, `TPI/TPI_vars.pkl` and `model_params.pkl` under
-its output directory.
+What it does: starts a pool of worker processes (`min(cpu_count, 7)`, one thread each),
+solves the **baseline** into `examples/OG-PHL-Example/OUTPUT_BASELINE/`, applies the
+reform's parameter changes, solves the **reform** into `.../OUTPUT_REFORM/`, and closes the
+pool. The paths are built from the script's own location, so they do not depend on the
+working directory. Each stage writes `SS/SS_vars.pkl`, `TPI/TPI_vars.pkl` and
+`model_params.pkl` under its output directory.
 
-**This takes roughly 35 minutes to 2 hours** (the repo's own AGENTS.md says so).
-Propose it with that duration and let the user launch it. There is no cheap smoke
-version: the repo's `test_run_example.py` only checks the process is still alive
-after five minutes and produces no usable output.
+Set the solver the way the owner's rules require: if the repo's own parameters do not
+already set `TPI_outer_method="anderson"` and a `nu` of 0.2 or lower, add them to the
+parameter update in a copy of the example (below), and say that you did.
+
+Propose the run with its expected duration (under ten minutes for a healthy baseline, the
+reform about the same) and let the user launch it. There is no cheap smoke version: the
+repo's `test_run_example.py` only checks the process is still alive after five minutes and
+produces no usable output.
 
 Two things that bite in a headless session:
 
-- **An interactive prompt can block the run.** Building demographics asks for a
-  UN API token on standard input if `un_api_token.txt` is not in the working
-  directory. It degrades gracefully when there is no terminal, and falls back to
-  the EAPD-DRB Population-Data mirror if the API refuses — but if a run appears
-  to hang early with no output, this is the first thing to check. Put the token
-  file in the working directory beforehand, or accept the fallback knowingly.
-- **The reform finds its baseline by a relative path.** `baseline_dir` defaults
-  to the string `OUTPUT_BASELINE`, resolved against the working directory — so a
-  reform launched from a different directory than its baseline will not find it.
-  Keep both stages in one working directory, or set the paths explicitly.
+- **The UN population token.** Recent ogcore (0.20 and later) looks for it in the
+  `UN_API_TOKEN` environment variable, then a per-user file, then a deprecated
+  `un_api_token.txt` in the working directory. It never prompts when no one is at the
+  keyboard: it falls back to the EAPD-DRB Population-Data archive instead. Older ogcore
+  reads only the working-directory file and can prompt. If a run seems to hang early with
+  no output, check this first.
+- **A run makes live API calls.** Whenever the machine is online, the example calls
+  `Calibration(p, update_from_api=True)`, which refreshes parameters from live sources and
+  can overwrite curated values (`og-country-calibration` covers the risk). Say so when
+  proposing the run, and note whether it ran online.
+- **`uv run` re-syncs the environment to the lockfile.** If the run needs an ogcore that is
+  not the locked release (a local build or a branch), `uv run` silently swaps it out.
+  Invoke `.venv/bin/python examples/...` directly in that case, and check
+  `import ogcore; print(ogcore.__version__, ogcore.__file__)` first.
+- **Custom drivers and relative paths.** If you ever drive the model from your own script,
+  note that `Specifications` defaults `baseline_dir` to the relative string
+  `OUTPUT_BASELINE`. The shipped examples set absolute paths and are not affected.
 
 For a background run, have the user launch it under `nohup` or a terminal
 multiplexer, teeing output to a log so progress survives a disconnect:
@@ -98,11 +124,10 @@ Then monitor rather than re-launching:
 tail -f og-phl-run.log
 ```
 
-To change what is solved, do not edit the shipped example in place. Copy it, or
-better, write a small driver script of your own that imports the model, sets
-`output_base` to wherever you want results, and applies your reform as a
-parameter dictionary — verified to work from any working directory with absolute
-paths, which keeps the model's checkout clean. Either way, say which parameters
+To change what is solved, do not edit the shipped example in place. Copy it and change
+only what the run needs: the reform's parameter dictionary, the solver settings above, and
+the output folder. Keep the example's structure (the worker pool, the calibration call, the
+runner), because the owner's rule is to run the way the examples do. Say which parameters
 you changed. `og-country-calibration` covers which parameters are defensible to
 change and the traps in each block.
 
@@ -133,11 +158,25 @@ OUTPUT_REFORM/      the same under the reform
 ```
 
 Keep them together and record what produced them: the country repo, its branch
-and commit, which example script, which parameters were changed, and the run
-date. Without that, a comparison months later cannot be defended — the same
+and commit, the ogcore version, which example script, which parameters were changed
+(solver settings included), whether it ran online, and the run date. Without that, a comparison months later cannot be defended — the same
 discipline the CLEWs side gets automatically from its `RUN.json`.
 
 Never edit files inside an OUTPUT directory. To redo a run, re-solve.
+
+## Checklist
+
+Copy this and work through it:
+
+```
+- [ ] og-run-preflight reports GO for the repo and branch the task names.
+      If NO-GO: fix what it names and run it again. Do not launch.
+- [ ] Solver set: TPI_outer_method="anderson", nu 0.2 or lower (repo default or the copy).
+- [ ] Proposed to the user: exact command, expected duration, online or not. The user launches.
+- [ ] Monitor the log. If it dies at once: back to the preflight (environment, not economics).
+      If it runs far past ten minutes or the distance stops falling: og-solver-diagnosis.
+- [ ] Provenance written next to the output folders (see above).
+```
 
 ## When a solve misbehaves
 

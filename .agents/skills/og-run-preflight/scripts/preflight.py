@@ -137,7 +137,10 @@ def check_repo(spec: str, run_cwd: str | None, entry_script: str | None, rep: Re
         rep.fail(f"invalid package name(s) {bad} -- must be plain (dotted) identifiers")
         return
     own, extras = pkgs[0], pkgs[1:]
-    python = real(parts[2]) if len(parts) == 3 else os.path.join(repo, ".venv", "bin", "python")
+    # abspath, NOT realpath: a uv venv's python is a symlink to uv's base interpreter, and running
+    # the resolved target would report the base prefix instead of the venv's.
+    python = (os.path.abspath(os.path.expanduser(parts[2])) if len(parts) == 3
+              else os.path.join(repo, ".venv", "bin", "python"))
 
     print(f"\n=== {own} @ {repo} ===")
     if not os.path.isdir(repo):
@@ -169,7 +172,14 @@ def check_repo(spec: str, run_cwd: str | None, entry_script: str | None, rep: Re
     # Vector (a): editable install -> another worktree. Neutral cwd.
     with tempfile.TemporaryDirectory() as neutral:
         ok, path = probe(python, own, neutral)
-    if not ok:
+    not_installed = not ok and f"No module named '{own.split('.')[0]}'" in path
+    if not_installed:
+        # Nothing installed, so no other checkout can shadow it. Safe only if the run
+        # launches from a folder where it resolves inside the repo -- checked below.
+        rep.info("INFO", f"{own} is not installed (runs from its folder); the run-cwd import decides")
+        if not run_cwd:
+            rep.fail(f"{own} is not installed and no --run-cwd was given: cannot confirm which code runs")
+    elif not ok:
         rep.fail(f"import {own} (neutral cwd) failed: {path}")
     elif under(path, repo):
         rep.ok(f"import {own} (neutral cwd) -> {path}")

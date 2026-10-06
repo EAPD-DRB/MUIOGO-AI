@@ -1,19 +1,13 @@
 ---
 name: og-solver-diagnosis
-description: >-
-  Structured diagnosis protocol for OG-Core solver trouble: a steady-state (SS) or transition-path
-  (TPI) solve that does not converge, diverges, oscillates, crashes, runs away (debt → ∞), throws
-  NaN/negative-value warnings, or converges to a suspicious answer; also for dense-vs-sparse or
-  control-vs-treatment result drift and failing expected-output tests. Use it BEFORE touching any
-  solver knob (TPI_NU, maxiter, Anderson) or proposing a fix — the protocol finds the root cause
-  first. Applies to OG-USA/PHL/ZAF/IDN/BRA/ETH and ogclews-link runs.
+description: "Diagnoses OG-Core solver trouble by finding the root cause before any fix: a steady-state or transition-path solve that does not converge, diverges, oscillates, crashes, runs away, warns about NaN or negative values, runs far longer than expected, or lands on a suspicious answer; also result drift between runs and failing expected-output tests. Use before changing any solver setting (nu, maxiter, Anderson) or proposing a fix."
 ---
 
 # OG solver diagnosis
 
 Adapted from obra/superpowers `systematic-debugging` (MIT — credit: https://github.com/obra/superpowers),
 specialized to OG-Core solves with the failure classes and bisection patterns actually used in this
-model family (mined from `~/Projects/og-country-tests`).
+model family (mined from the family's test scripts and solve logs).
 
 **The iron law (inherited): no fix without root-cause investigation first.** Solver knobs are
 Phase 4, not Phase 1. Most "solver failures" in this family were not solver failures — they were
@@ -43,9 +37,12 @@ Read the actual solve log before forming any theory. Extract, with grep:
 ```bash
 grep -n "Iteration\|Distance" <log> | tail -20     # convergence trajectory
 grep -n "K_d has negative\|Traceback\|RuntimeError\|Key lost\|Falling back" <log>   # known signatures
-grep -n "Time path iteration complete\|SS fsolve" <log>   # did it actually finish?
+grep -n "Time path iteration complete" <log>   # did the transition path finish?
 tail -30 <log>
 ```
+
+The steady state has no single completion line: its `Iteration: … Distance: …` lines stop once
+it converges, and the transition path then starts its own `Iteration:` / `Distance:` pairs.
 
 Beware the benign-label trap: a naive `grep -i "error"` drowns in `GE loop errors = [...]` and
 `Max Euler error` lines, which are per-iteration diagnostics, not failures (verified on the PHL
@@ -150,4 +147,4 @@ expected runtime); a full SS, any TPI run, a control/treatment pair, or a multi-
 expensive — present the probe plan (which runs, why, expected total time) and get the user's
 explicit approval before launching. Never queue a battery of diagnostic runs on your own, and
 never re-launch a failed run "to see if it happens again" without asking. Skills propose; the
-user launches (see the approval gates in SKILLS.md).
+user launches; long computations never start without the user's explicit go.

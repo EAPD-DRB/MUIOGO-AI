@@ -1,6 +1,6 @@
 ---
 name: og-clews-linked-run
-description: Run coupled OG-CLEWS analyses through ogclews-link — connect a country's CLEWs energy scenarios to its OG-Core macroeconomic model and report the economy-wide results. Use when asked about the economic or macroeconomic effects of an energy, climate, or CLEWs policy; to link, couple, or connect the two models; to run a named linkage experiment or channel (energy price, carbon, health, investment, demand); or when a question spans both the energy system and the economy — for example what an electricity price rise or a carbon price does to GDP, welfare, or revenue.
+description: "Runs coupled OG-CLEWS analyses through ogclews-link, feeding a country's CLEWs energy scenarios into its OG-Core macroeconomic model, and reports the economy-wide results. Use when asked what an energy, climate or CLEWs policy does to GDP, welfare or revenue, to couple the two models, or to run a named linkage experiment or channel (energy price, carbon, health, investment, demand)."
 ---
 
 # Run coupled OG-CLEWS analyses
@@ -105,7 +105,13 @@ Experiments compose channels into a question. The ones that ship:
 
 Channels carry a direction — `clews->og` for a signal entering the economy,
 `og->clews` for one returning to the energy system. The `og->clews` emitters run
-*after* the reform solve, because they need its equilibrium.
+*after* the reform solve, because they need its equilibrium. Until the link re-solves the
+CLEWs side with what it emits (`STATUS.md` says a multi-pass run still degrades to one
+pass), the emitted artifacts (carbon penalty, discount rate, energy demand) bind nothing in
+this run; they matter only if a second CLEWs solve consumes them. So never describe an
+emit-only lever as part of the macro result: `coupled`'s carbon penalty is CLEWs-side
+only, and the macro headline contains no carbon-tax effect unless the OG-side tax channel
+was included.
 
 ## Running one
 
@@ -126,9 +132,20 @@ loudly if the case is not there, which is the answer you want rather than a
 same-named case in the other world.
 
 Other options: `--countries` for your own country definitions (see
-`ogclews_countries.example.json`), `--workers` for the OG solve's worker
-processes, `--no-figures` to skip the results deck, `--rebuild-baseline` to
-discard the cached baseline.
+`ogclews_countries.example.json`), `--workers` for the OG solve's worker processes,
+`--no-figures` to skip the results deck, `--rebuild-baseline` to discard the cached
+baseline.
+
+**Workers.** The command line defaults to 7 workers, so the command above runs in
+parallel. Never pass `--workers 1`. A driver that builds `runtime.RunnerConfig` itself is
+different: `num_workers` defaults to 1 there, and the link then creates no worker pool at
+all, so the whole solve runs on one core with no warning. Pass `num_workers=7` (or
+`min(7, cores - 2)`) in any such driver.
+
+**Know which ogcore the OG side runs.** `uv sync` or `uv run` in the country repo silently
+replaces a locally built ogcore with the lockfile's release. If the run depends on an
+unreleased fix, check `import ogcore; print(ogcore.__version__, ogcore.__file__)` with the
+registered interpreter before the run, and invoke it through `.venv/bin/`, never `uv run`.
 
 The CLEWs side comes from a MUIOGO install. Point the link at it and name the
 runs:
@@ -142,9 +159,9 @@ Both CLEWs runs must be **solved before you start** — the link consumes their
 results, it does not run them. Solve them with `muiogo-run` first and confirm
 each has results.
 
-**A coupled run is a long computation** — the OG side is a transition-path solve,
-tens of minutes at least, and the first run builds a baseline that later runs
-reuse. This is an approval gate: propose the command and the expected duration,
+**A coupled run is a long computation.** The link's README gives about 20 minutes the
+first time (baseline plus reform) and about 8 minutes on later runs, which reuse the
+baseline. This is an approval gate: propose the command and the expected duration,
 and let the user launch it. Never fire one off on your own initiative.
 
 ## Reading the outcome
@@ -156,6 +173,11 @@ figure deck. When interpreting:
   household consumption" is only meaningful with the transmission named — a TFP
   channel and a cost-push channel give different answers to the same price rise,
   by design.
+- **Check it ran in parallel before judging convergence.** A single-threaded run looks
+  like slow convergence in the log. The GE loop can also plateau: it has been seen to
+  repeat an identical error vector for a dozen or more iterations before stepping down.
+  Identical consecutive vectors are not by themselves a stall; judge convergence by
+  whether the maximum error falls over a long window.
 - **Check the channels did not skip.** A single-industry model silently skips the
   energy channels; if the macro effect is suspiciously near zero, verify
   `couplable` rather than reporting "no effect".
@@ -177,9 +199,23 @@ figure deck. When interpreting:
 
 ## Platform
 
-The link is bash-only today, so coupled runs need macOS or Linux. PowerShell
-support is being added upstream; until it lands, say so plainly rather than
-attempting a Windows workaround.
+The one-script quick start is macOS and Linux only. On Windows the link's manual setup
+steps work from PowerShell (`scripts/setup.ps1`; see the link's README).
+
+## Checklist
+
+Copy this and work through it:
+
+```
+- [ ] Link installed; `models list` run from the link's directory shows the OG model.
+- [ ] couplable=1, and its qualifiers read. If couplable=0: build the multi-industry
+      calibration (og-run), then register and check again.
+- [ ] Both CLEWs runs solved and holding results. If not: muiogo-run, then check again.
+- [ ] og-run-preflight reports GO for the link and the OG side. If NO-GO: fix, run it again.
+- [ ] Proposed to the user: command, expected duration. The user launches.
+- [ ] Results read with the channel and direction named, and emit-only levers kept out
+      of the macro headline.
+```
 
 ## Approval gates
 

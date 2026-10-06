@@ -120,7 +120,7 @@ def main() -> int:
 
     # --- Macro table -------------------------------------------------------
     L.append("## Macro aggregates (% change from baseline)\n")
-    header = "| Variable | " + " | ".join(ylab) + " | 10-yr window | SS |"
+    header = "| Variable | " + " | ".join(ylab) + f" | {a.num_years}-yr window | SS |"
     L.append(header)
     L.append("|" + "---|" * (len(ylab) + 3))
     impact: dict[str, tuple[float, float]] = {}

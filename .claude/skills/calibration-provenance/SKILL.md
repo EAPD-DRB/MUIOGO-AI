@@ -1,19 +1,12 @@
 ---
 name: calibration-provenance
-description: >-
-  Trace any calibrated parameter in an OG-Core country repo (OG-USA/PHL/ZAF/IDN/BRA/ETH) back to
-  its authoritative source — through ~/Projects/notebooks, intermediate CSV/XLSX files, R/Stata
-  pipelines, live APIs, or cited papers — and record the chain in the repo. Use when asked "where
-  does this number come from?", "is this value still right?", "what's the source for gamma /
-  zeta_K / r_gov_shift / the e-matrix?", when auditing a calibration for undocumented
-  placeholders, or before recalibrating a parameter whose derivation is unclear. Complements
-  og-country-calibration, which sets values; this skill reconstructs and documents where existing
-  values came from.
+description: "Traces a calibrated parameter in an OG-Core country repo back to its source (notebooks, intermediate files, R/Stata pipelines, live APIs or cited papers) and records the chain in the repo. Use when asked where a number comes from, whether a value is still right, or what the source of gamma, zeta_K, r_gov_shift or the e-matrix is, and before recalibrating a parameter of unclear origin. og-country-calibration sets values; this skill documents where existing ones came from."
 ---
 
 # Calibration provenance
 
-24+ loose notebooks in `~/Projects/notebooks` derive parameters that get hard-coded into country
+24+ loose notebooks in the user's notebooks directory (`~/Projects/notebooks` on the machine
+the map was surveyed on) derive parameters that get hard-coded into country
 repos with no trace back — and the notebooks dir has no README. This skill is the tracing
 protocol plus the map of what's already known (`references/notebook-map.md` — read it before
 searching blind; it lists which notebook derives which parameter, the intermediate-file
@@ -58,7 +51,7 @@ The same parameter shows different traceability across sibling repos — verifie
    copied default) — that reshapes the search.
 2. **Find the writer.** In-repo first: `macro_params.py`, `calibrate.py`, `income.py`, builder
    scripts; check whether the live-API path can *overwrite* the value (the gamma-clobber bug
-   class). Then outward: `~/Projects/notebooks` (use the map), `archive/macro_params.py` (the
+   class). Then outward: the notebooks directory (use the map), `archive/macro_params.py` (the
    notebooks' consolidation point), R pipelines (`factor_j/`, `e_adj_factors/`), Stata `.do`
    files, `git log -S` on the JSON.
 3. **Walk to the ultimate source.** Intermediate CSVs are links, not sources — find who wrote
@@ -102,5 +95,5 @@ the state og-country-calibration exists to fix.
 
 Scope of action: drafting the provenance record and committing it locally is this skill's job;
 pushing it or opening a PR against a country repo is the user's call, asked separately
-(the approval gates in SKILLS.md). Never re-run a calibration or launch a solve to
+(long computations, pushes and PRs each need the user's explicit go). Never re-run a calibration or launch a solve to
 "re-verify" a chain — propose it.

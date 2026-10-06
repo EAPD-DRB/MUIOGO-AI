@@ -1,13 +1,6 @@
 ---
 name: og-run-preflight
-description: >-
-  Mandatory preflight before launching ANY OG-Core / CLEWS model computation — a steady-state or
-  TPI solve, an example script (run_og_*.py), a battery, an ogclews-link run, or any long
-  computation that imports ogcore or a country package (ogphl/ogzaf/ogidn/ogbra/ogeth/ogusa) or
-  ogclews_link. Use it the moment a session is about to launch such a run, even if the environment
-  "looks right" — it verifies branch+HEAD of every repo involved, that the interpreter imports the
-  intended worktree's code (all three shadowing vectors), and that each worktree has its own venv.
-  Also use when a run result looks contaminated or reproduces a known-buggy number.
+description: "Checks, before any OG-Core or OG-CLEWS computation is launched (a steady-state or transition solve, a run_og_*.py example, a battery, an ogclews-link run), that every repo is on the intended branch and commit, that each interpreter imports the intended worktree's code, and that each worktree has its own venv. Use the moment a run is about to start, even if the environment looks right, and when a result looks contaminated or reproduces a known-buggy number."
 ---
 
 # OG run preflight
@@ -52,13 +45,14 @@ python3 scripts/preflight.py \
   probe alone does **not** reproduce script-dir shadowing, so probe with the run's own invocation
   style. Console scripts are immune to cwd shadowing; `python script.py` and `python -c` are not.
 
-Single-repo example (country model):
+Single-repo example (a country model; `<country-repo>` is the absolute path of the checkout
+under test, OG-PHL here):
 
 ```bash
 python3 scripts/preflight.py \
-  --check ~/Projects/OG-PHL::ogphl,ogcore \
-  --run-cwd ~/Projects/OG-PHL \
-  --entry-script ~/Projects/OG-PHL/examples/run_og_phl.py
+  --check <country-repo>::ogphl,ogcore \
+  --run-cwd <country-repo> \
+  --entry-script <country-repo>/examples/run_og_phl.py
 ```
 
 Cross-env example (ogclews-link, which subprocesses the OG model's own interpreter): one `--check`
@@ -67,10 +61,10 @@ per environment, with the OG side's interpreter taken from the model registry
 
 ```bash
 python3 scripts/preflight.py \
-  --check ~/Projects/ogclews-link::ogclews_link \
+  --check <ogclews-link checkout>::ogclews_link \
   --check <registry source_dir's repo root>::ogphl,ogcore::<registry env_python> \
-  --run-cwd ~/Projects/ogclews-link \
-  --entry-script ~/Projects/ogclews-link/experiments/run_battery.py
+  --run-cwd <ogclews-link checkout> \
+  --entry-script <ogclews-link checkout>/experiments/run_battery.py
 ```
 
 The link env must NOT import ogcore — so ogcore goes on the OG side's check line only.
@@ -82,6 +76,7 @@ The link env must NOT import ogcore — so ogcore goes on the OG side's check li
 | git branch + HEAD printed per repo | (informational — but confirm it's the branch you *intend*, not just any branch) | `git switch` in the right worktree |
 | venv prefix inside the repo | shared/foreign venv; per-worktree-venv rule broken | `python -m venv .venv && .venv/bin/pip install -e .` in that worktree |
 | import from neutral cwd lands in repo | **editable install points at another worktree** | `pip install -e <repo>` with that venv's pip |
+| package not importable at all from a neutral cwd (INFO, not a failure) | it isn't installed and runs from its folder (e.g. MUIOGO's in-repo `oglink`), so nothing can shadow it | nothing, provided `--run-cwd` is given and that import lands in the repo (otherwise FAIL) |
 | import from `--run-cwd` lands in repo | **cwd shadowing** — launching from another checkout's root imports THAT checkout | launch from the worktree under test, or use the console script |
 | import with entry-script dir at `sys.path[0]` lands in repo | **script-dir shadowing** | move/rename the shadowing package next to the script, or pin+assert in the script |
 | extra packages resolve in repo or venv | a sibling checkout is bleeding into the dependency | reinstall the dependency in this venv |
@@ -101,9 +96,11 @@ loud before launching: "running with N uncommitted changes in <repo>."
 - **Run as a user would**: the documented CLI from the checkout's own env. If the preflight only
   passes under some ad-hoc invocation, the environment is wrong, not the preflight.
 - **A GO is a precondition, not an authorization.** This skill never launches the run itself.
-  SS solves are minutes; TPI runs and batteries are much longer and invisible while running.
-  After a GO, propose the exact launch command with its expected duration and wait for the
-  user's explicit call (house approval gate — see the approval gates in SKILLS.md).
+  A healthy baseline solve takes under ten minutes when run the way the example scripts run
+  it, in parallel, with the Anderson solver (the model owner's rule, 2026-08-12); batteries are
+  much longer, and every run is invisible while it runs. After a GO, propose the exact launch
+  command with its expected duration and wait for the user's explicit go: long computations
+  are never launched without one.
 - **Contamination heuristic (post-run, standing):** if a fresh run reproduces a number from a
   known-buggy earlier run, assume the wrong code ran. Stop, re-run the preflight, and never
   commit or bless those outputs.

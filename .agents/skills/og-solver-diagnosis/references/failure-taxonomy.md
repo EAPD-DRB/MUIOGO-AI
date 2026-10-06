@@ -1,7 +1,13 @@
 # OG-Core solve failure taxonomy
 
-Observed classes from the family's real debugging history (`~/Projects/og-country-tests` scripts
-and logs, the OG-ZAF fiscal-runaway work, and the calibration playbook). Signatures are literal
+## Contents
+- A. Fiscal runaway · B. Binding constraint from a calibration placeholder · C. Oscillation
+- D. Basin flip · E. NaN propagation · F. Stale expected-output fixture · G. Infrastructure noise
+- H. Cold-start seed failure · I. Resource-constraint error by timing · J. Single-threaded run
+- K. Government rate at its floor · Known engine bugs
+
+Observed classes from the family's real debugging history (its test scripts and solve logs, the
+OG-ZAF fiscal-runaway work, and the calibration playbook). Signatures are literal
 strings to grep for. When you hit a class not listed here, add it.
 
 ## A. Fiscal runaway (TPI debt divergence)
@@ -25,11 +31,14 @@ strings to grep for. When you hit a class not listed here, add it.
   (may still converge — OG-PHL logs show 3 occurrences then clean convergence); or transition
   breaks outright.
 - **Cause**: `zeta_K` set to an undocumented high placeholder (the 0.9 case) or other open-economy
-  dial forcing `K_d = B − D_d < 0`.
-- **Remedy**: recalibrate the placeholder (Chinn-Ito-anchored `zeta_K` + cross-check). Treat the
-  warning as a calibration smell even when the run converges.
-- **Provenance**: OG-IDN hit and fixed the 0.9; OG-PHL `main` still ships it and its logs show the
-  guard firing.
+  dial forcing `K_d = B − D_d < 0`. The guard then floors `K_d` at `0.05·B` (`np.fmax` in
+  `aggregates.get_K_splits`) while `K_f` keeps its unfloored value, so `K = K_d + K_f` no longer
+  holds exactly in the saved output.
+- **Remedy**: recalibrate the placeholder: tune `zeta_K` to the IIP-implied `K_f/K` level, with
+  Chinn-Ito only as a prior (`og-country-calibration`). Treat the warning as a calibration smell
+  even when the run converges.
+- **Provenance**: OG-IDN hit and fixed the 0.9; OG-PHL fixed it later (it now ships 0.4); its older
+  logs show the guard firing.
 
 ## C. Oscillation / slow outer-loop convergence
 
@@ -38,8 +47,11 @@ strings to grep for. When you hit a class not listed here, add it.
   tighter final Distance).
 - **Cause**: outer-loop damping too aggressive for the stiffness of the problem (multi-industry
   especially).
-- **Remedy**: `TPI_NU` 0.4 → 0.3 → 0.2; Anderson (`TPI_outer_method="anderson"`, ogcore ≥ 0.16.4);
-  continuation solve for multi-industry cold starts. These treat oscillation only — never class A.
+- **Remedy**: the model owner's standing rule is Anderson (`TPI_outer_method="anderson"`, ogcore
+  ≥ 0.17.0) with `nu` 0.2 or lower on every run, so check those are set before anything else.
+  Then lower `nu` further (0.4 → 0.3 → 0.2 → lower); continuation solve for multi-industry cold
+  starts. Watch the distance series on the first Anderson run and fall back to damped iteration
+  if it oscillates. These treat oscillation only — never class A.
 - **Provenance**: ZAF nu sweeps (`logs_ogzaf_nu06/nu07`), IDN/PHL/ZAF control-vs-treatment logs.
 
 ## D. Basin flip (two valid solutions, ill-conditioned Jacobian)
@@ -82,6 +94,44 @@ strings to grep for. When you hit a class not listed here, add it.
   read model meaning into a truncated log.
 - **Provenance**: `logs_idn_control.log` (only log with the warnings, only incomplete log; its
   clean re-run converged normally).
+
+## H. Cold-start seed failure (silent restarts)
+
+- **Signature**: the SS seems slow, with many iterations, but the log shows the solve restarting
+  from new initial guesses rather than converging slowly.
+- **Cause**: the starting guess is too far from the solution. OG-Core walks down its list of 39
+  `DEV_FACTOR_LIST` scalings and restarts each time, which reads as slow convergence. The
+  savings seed is one constant across ages and types (a hard-coded `0.07` before ogcore 0.20.3,
+  the `initial_guess_b_SS` parameters since).
+- **Remedy**: warm-start from a solved neighbouring calibration (`og-country-calibration`,
+  solving and tuning reference). A guess that is near in values is not necessarily one the
+  solver can start from: nearness is not solvability.
+
+## I. Transition-path resource-constraint error, read by when it occurs
+
+- **Signature**: the baseline TPI resource-constraint error (`RC_error`) is not monotone in time.
+- **Cause by shape**: large early and decaying → initial wealth (`initial_wealth_ratio` or its
+  equivalent) inconsistent with the SS; single-period spikes → an input discontinuity, often at
+  the end of the demographic window (`fixper`); growing with debt → fiscal runaway (class A).
+- **Remedy**: triage by shape before any tuning; fix the input, not the solver.
+
+## J. Single-threaded run mistaken for slow convergence
+
+- **Signature**: a run takes far longer than the owner's ten-minute baseline, with a normal-looking
+  log.
+- **Cause**: no worker pool. The country examples always create one; ogclews-link's command line
+  defaults to 7 workers, but a driver that builds `runtime.RunnerConfig` itself defaults to 1 and
+  creates no pool.
+- **Remedy**: check the worker count first: the country examples print "Number of workers"; an
+  ogclews-link log does not, so check the command's `--workers` or the driver's `RunnerConfig`.
+  Then re-run properly. Do not tune the solver.
+
+## K. Government rate clipped at its floor
+
+- **Signature**: `r_gov` sits exactly at a floor for some periods; fiscal paths look kinked.
+- **Cause**: `fiscal.get_r_gov` floors the government rate at `r_gov_floor` (default 0.0,
+  a parameter in recent ogcore). A sovereign that pays negative real rates hits it.
+- **Remedy**: set `r_gov_floor` below zero when the country's data supports it; record why.
 
 ## Known engine bugs to check before deep-diving (from the calibration playbook)
 

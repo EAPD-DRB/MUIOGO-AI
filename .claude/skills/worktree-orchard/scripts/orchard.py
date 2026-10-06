@@ -9,7 +9,8 @@ Finds, under --root:
 
 For each, reports: branch, HEAD, dirty file count, stash count, ahead/behind vs the
 repo's default branch, last commit date, and a classification:
-  MERGED      HEAD is an ancestor of the default branch and the tree is clean
+  MERGED      HEAD is an ancestor of the default branch (upstream's, else origin's,
+              else local) and the tree is clean
   DIVERGED    commits not on the default branch
   UNCOMMITTED dirty working tree (with or without divergence)
   STALE-REF   default branch could not be determined (bare/odd repo)
@@ -51,12 +52,20 @@ def is_git(path: str) -> bool:
 
 
 def default_branch(path: str) -> str:
+    """The ref to judge merged/ahead/behind against.
+
+    Work in this family lands upstream (origin is usually the user's fork), and a
+    local main is often stale, so prefer upstream/<default>, then origin/<default>,
+    then the local branch. Comparing with a stale local main reports merged work
+    as unmerged, and a fetch would not change the numbers.
+    """
     ref = run(["git", "-C", path, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"])
-    if ref:
-        return ref.rsplit("/", 1)[-1]
-    for cand in ("main", "master"):
-        if run(["git", "-C", path, "rev-parse", "--verify", "--quiet", cand]):
-            return cand
+    names = [ref.rsplit("/", 1)[-1]] if ref else []
+    names += [n for n in ("main", "master") if n not in names]
+    for name in names:
+        for cand in (f"upstream/{name}", f"origin/{name}", name):
+            if run(["git", "-C", path, "rev-parse", "--verify", "--quiet", cand]):
+                return cand
     return ""
 
 
