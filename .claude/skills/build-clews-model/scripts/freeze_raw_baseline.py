@@ -134,6 +134,19 @@ def main() -> int:
             "model_inputs": tree_hash(root / "model" / "inputs"),
             "model_results": tree_hash(root / "model" / "results"),
         },
+        # Checksums of the records the delivery check depends on, so a later
+        # edit to the pins, the audit or the status summary is detected.
+        "records": {
+            "upstream_versions_sha256": sha256_file(
+                root / "config" / "upstream_versions.json"
+            ),
+            "no_forcing_audit_sha256": sha256_file(
+                root / "diagnostics" / "no_forcing_audit.json"
+            ),
+            "validation_summary_sha256": sha256_file(
+                root / "diagnostics" / "validation_summary.json"
+            ),
+        },
     }
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(manifest, indent=2))

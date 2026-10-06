@@ -1,5 +1,14 @@
 # Stock, turnover and adoption patterns
 
+## Contents
+
+- [Interpret observations first](#interpret-observations-first)
+- [Trace the local capacity equations](#trace-the-local-capacity-equations)
+- [Represent inherited stock](#represent-inherited-stock)
+- [Test the entire horizon](#test-the-entire-horizon)
+- [Separate adoption from utilization](#separate-adoption-from-utilization)
+- [Treat aggregate coupling as a performance risk](#treat-aggregate-coupling-as-a-performance-risk)
+
 ## Interpret observations first
 
 - A stock observation initializes capacity or an age cohort.
@@ -37,7 +46,7 @@ Use the best available hierarchy:
 1. unit-level commissioning and retirement dates;
 2. age-cohort or survival distributions;
 3. official stock total with a sourced aggregate retirement curve;
-4. uniform-age retirement as an explicit sensitivity assumption;
+4. uniform-age retirement as an explicit, replaceable proxy assumption;
 5. effective initial stock derived from a fresh, full-precision feasible
    result when no defensible physical mapping exists.
 
@@ -98,9 +107,10 @@ performance. Before adoption:
 
 1. prove the proposed cap is physically and dimensionally correct;
 2. inspect the added rows, columns and nonzeros;
-3. run one unchanged control and one minimal aggregate-cap A/B;
+3. include the minimal aggregate cap in the current calibration wave rather
+   than creating separate comparison runs;
 4. stop near twice the known-good runtime;
-5. quantify whether the cap materially binds the unconstrained optimum.
+5. inspect whether the cap binds in that retained solve.
 
 Do not keep a slow aggregate formulation merely because it is mathematically
 valid.

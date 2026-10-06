@@ -1,6 +1,6 @@
 ---
 name: add-environmental-accounting
-description: Add or validate environmental accounting (water, land, emissions, wastewater) in a MUIO/OSeMOSYS CLEWs model - solver-enforced terminals where an exactness proof passes, disclosed post-solve publication otherwise. Not for structural cleanup - use clews-model-fix.
+description: Adds or validates environmental accounting (water, land, emissions, wastewater) in a MUIO/OSeMOSYS CLEWs model - solver-enforced terminals where an exactness proof passes, disclosed post-solve publication otherwise. Use when asked to add residual water, water vapor, land-state accounts, emissions, wastewater, or backstop diagnostics to a country model (for example Zambia or Namibia). Not for structural cleanup - use clews-model-fix.
 ---
 
 # Add Environmental Accounting
@@ -9,18 +9,15 @@ Add a transparent accounting layer without changing the modeled economy or silen
 
 ## Triage before anything else
 
-The evidence a change requires scales with what the change can affect. This skill is for
-**adding or validating an accounting layer**. If the request is smaller, take the smaller path:
+Use this skill when the environmental layer reports or balances physical flows without
+refining the economic model. Use `calibrate-clews-model` when the work instead replaces
+generic country inputs, closes a resource account, or repairs a physical cross-sector
+connection. Use `clews-model-fix` for value-neutral structural cleanup.
 
-| Class | Test | Path |
-|---|---|---|
-| **A — structural** | No parameter value changes and no source data changes (removing an unreferenced commodity, fixing a description, regrouping technologies) | **Stop. Use `clews-model-fix`.** |
-| **B — accounting layer** | New terminals, ratios or constraints, from documented sources | This skill |
-| **C — calibration** | A value chosen *with reference to* an observed outcome | `calibrate-clews-model` |
-
-The discriminator is the counterfactual test in
-[references/non-forcing.md](references/non-forcing.md): *would this exact change still be
-made if no historical outcome were known?*
+Apply the discriminator in [references/non-forcing.md](references/non-forcing.md): *would
+this exact change still be made if no historical outcome were known?* If not, reject the
+change and record the mismatch as a diagnostic gap; neither this skill nor calibration may
+fit the parameter to the observed outcome.
 
 ## Non-negotiable rules
 
@@ -39,16 +36,17 @@ made if no historical outcome were known?*
 
 ### 1. Discover the model and its execution path
 
-- Read repository instructions and locate the named case, normally under `WebAPP/DataStorage/<case>`.
+- Read repository instructions and locate the named case. When a `muiogo-ai` launcher is present, resolve it with `CASE="$(muiogo-ai case-path --case '<case>')"`. Otherwise set `CASE` to the case folder path (in a MUIO checkout, normally `WebAPP/DataStorage/<case>`).
 - Locate `genData.json`, parameter JSON files, saved results, `Parameters.json`, `Variables.json`, solver model, and the MUIO data-generation/run classes or scripts.
 - Confirm regions, scenarios, years, timeslices, modes, existing result cases, and solver. If the bundled audit finds multiple regions, use its summaries only for discovery and validate row-level results by region.
 - Run the read-only inventory:
 
 ```bash
-python scripts/audit_environmental_model.py --model WebAPP/DataStorage/<case>
+python scripts/audit_environmental_model.py --model "$CASE"
 ```
 
-Use the path inside this skill when it is installed elsewhere. Treat its name-based classifications as leads and verify them against ratios, constraints, units, and results.
+Run the script from this skill's folder, or give its full path. It refuses a bare
+case name unless you also pass `--datastorage <folder>`. Treat its name-based classifications as leads and verify them against ratios, constraints, units, and results.
 
 Load a reference when you reach the step that needs it, not now:
 [references/accounting-patterns.md](references/accounting-patterns.md) when interpreting a
@@ -201,14 +199,18 @@ When replacing an existing derived case, preserve its results, validation report
 
 - Run the generator to create the derived case.
 - Invoke the repository's existing MUIO data-file generator for every saved case/scenario combination.
+  When a `muiogo-ai` launcher is present, drive generation and solving through it:
+  `muiogo-ai batch --case '<derived-case>' --runs '<run>,<run>'`. Otherwise use the
+  repository's own scripts from the checkout that holds the case.
 - Run the same solver used by the project.
 - Let MUIO regenerate `data.txt`, processed data, linear program, solver output, CSV results, and Pivot metadata.
 - Require every case to solve optimally before accepting the accounting layer.
 - Parse and retain explicit solver status, version, and run metadata.
 - When the `ENV_WATER` fallback is active, run the publisher after MUIO
   finishes all required view generation. Use a unique evidence label, and
-  rerun it after any subsequent solve **that changed a result** — the published
-  view is derived from results, so an unchanged solve needs no republish.
+  rerun it after every subsequent solve — every solve regenerates the views
+  (see [references/muio-json-workflow.md](references/muio-json-workflow.md),
+  section 6).
 
 Do not guess command names. Inspect the host repository and call its actual classes or scripts.
 
@@ -262,6 +264,29 @@ Measure runtime separately from correctness. Compare generated matrix or LP size
   Pivot is a postprocessed reporting surface.
 - Explain constants, discontinuities, dummy activity, and any scenario invariance from source equations—not from chart appearance alone.
 - Deliver the generator, derived case location, validation results, accounting dictionary, limitations, and exact viewing instructions.
+
+## Checklist
+
+Copy this and tick items as you go.
+
+```text
+- [ ] 1  Case located; read-only inventory run
+- [ ] 2  Accounting boundary table built
+- [ ] 3  Special constructs classified
+- [ ] 4  Exactness proof run per domain (ENV_WATER, ENV_LAND)
+- [ ] 5  Generator written; dry run and structural diff pass
+- [ ] 6  Every case regenerated and solved; publisher run if fallback active
+- [ ] 7  Closure and non-interference checks pass
+- [ ] 8  Dynamic Graph and Pivot checked; hand-off delivered
+```
+
+Go-back lines:
+
+- Exactness proof fails: go back to step 4 and use its fallback (unforced
+  `ENV_WATER` with the publisher; reporting-only `ENV_LAND`).
+- Structural diff not allowlisted: go back to step 5 and fix the generator.
+- Closure fails: go back to step 5 and fix the generator. Never fix it by hand
+  edit.
 
 ## Acceptance gate
 

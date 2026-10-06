@@ -1,5 +1,15 @@
 # Workaround for unsupported reserve-margin tags
 
+## Contents
+
+- [Why direct substitutions are wrong](#why-direct-substitutions-are-wrong)
+- [Mathematical representation](#mathematical-representation)
+- [Fiji-style internal-node workaround](#fiji-style-internal-node-workaround)
+- [MUIO representation](#muio-representation)
+- [Mandatory stale-data guard](#mandatory-stale-data-guard)
+- [Validation](#validation)
+- [Required documentation language](#required-documentation-language)
+
 Use this only after proving that the installed MUIO version cannot natively
 store and enforce `ReserveMargin`, `ReserveMarginTagFuel`, and
 `ReserveMarginTagTechnology`. Prefer native support whenever it is complete.
