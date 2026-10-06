@@ -1,6 +1,6 @@
 ---
 name: muiogo-explain
-description: Explain a CLEWs or OG-Core model to a person — what this particular model contains, how it is calibrated, the underlying theory, and the intuition for why it behaves as it does. Use when asked what a model does or covers, what its assumptions are, why a result came out a certain way, what a parameter or variable means, to explain the theory or the maths, or to brief someone new. This skill DESCRIBES; use assess-clews-calibration to grade calibration quality, og-country-calibration to change it, and calibration-provenance to trace one number to its source.
+description: Explains a CLEWs or OG-Core model to a person - what this model contains, how it is calibrated, the theory behind it, and the mechanism that makes it respond as it does. Use when asked what a model covers or assumes, what a parameter or variable means, why an optimiser or OLG model reacts the way it does, to explain the maths, or to brief someone new. Numbers and comparisons are muiogo-analyze; grading a calibration is assess-clews-calibration.
 ---
 
 # Explain a model, its calibration, and the intuition

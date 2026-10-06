@@ -1,6 +1,6 @@
 ---
 name: muiogo-workspace
-description: Orient yourself in a MUIOGO-AI installation before doing any CLEWs, OG-Core, or OG-CLEWS work — find where MUIOGO, the country models, the OG-CLEWs link, and the model data are installed, list what is available, and route the request to the right model family and skill. Use this FIRST whenever a request touches CLEWs/OSeMOSYS, MUIOGO, OG-Core, a country model, a scenario, a run, or model results and you do not already know the installation paths; when the user says "my model", "my country", "the Philippines model", or names a case or scenario without a path; when asked what you can do with these models; or when a path you were given does not exist.
+description: Orients a session in a MUIOGO-AI installation before CLEWs, OG-Core or OG-CLEWS work - finds where MUIOGO, the country models, the OG-CLEWs link and the model data are, lists what is available, and routes the request to the right model family and skill. Use first when a request touches these models and the installation paths are not yet known, when the user names a model, country or case without a path, or when a given path does not exist.
 ---
 
 # Orient yourself in a MUIOGO-AI installation

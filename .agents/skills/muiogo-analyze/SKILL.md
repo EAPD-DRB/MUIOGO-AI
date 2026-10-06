@@ -1,6 +1,6 @@
 ---
 name: muiogo-analyze
-description: Interpret and present results from a CLEWs/OSeMOSYS model run in MUIOGO — compare runs or scenarios, check whether a solve is trustworthy, chart trajectories, break results down by technology or fuel, and write short analytical notes. Use when asked what a CLEWs run shows, how two runs or scenarios differ, what drives a difference, whether results look right, or for a chart, table, summary, or policy write-up from CLEWs results. This is the CLEWs/MUIOGO side only: for OG-Core baseline-vs-reform output use og-scenario-report, and for bespoke OG exploration use og-analysis-studio.
+description: Interprets and presents results from a solved CLEWs/OSeMOSYS run in MUIOGO - checks that a solve is trustworthy, compares runs or scenarios, breaks a difference down by technology or fuel, and charts and writes up results. Use when asked what a CLEWs run shows, how runs differ, which technologies or fuels drive a difference, whether results look right, or for a chart, table or write-up. Why a model behaves as it does is muiogo-explain; OG-Core output is og-scenario-report or og-analysis-studio.
 ---
 
 # Interpret and present CLEWs results
@@ -50,6 +50,9 @@ was never solved or the solve failed — stop and say so. Then sanity-check:
   `muiogo-ai scenarios --case "<case>"` that the run activates what you think.
 - **Structure.** If numbers look impossible, the model may be malformed rather
   than mis-solved — hand off to `clews-model-review`.
+
+If the status or provenance check fails, stop and hand back to `muiogo-run`. If
+plausibility, direction or structure fails, say so before interpreting anything.
 
 Report negative or zero values where they are surprising rather than smoothing
 them over. They are usually informative: a negative emission total, for example,

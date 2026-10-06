@@ -1,6 +1,6 @@
 ---
 name: muiogo-scenarios
-description: Create and run policy scenarios in a MUIOGO CLEWs case — build a new scenario such as a carbon tax, renewable target, or demand change; combine existing scenarios into runs; and sweep a scenario matrix. Use when asked to add, design, build, or modify a scenario; to test a policy, tax, target, subsidy, or constraint; to set up a "what if" case; to combine two scenarios; to run a sweep, matrix, or sensitivity over several scenario settings; or to change a model parameter and see the effect. This skill BUILDS and runs scenarios; to compare or chart the results afterwards use muiogo-analyze.
+description: Creates and runs policy scenarios in a MUIOGO CLEWs case - builds a new scenario such as a carbon tax, renewable target or demand change, combines existing scenarios into runs, and sweeps a scenario matrix. Use when asked to add, design or change a scenario, test a policy, tax, target, subsidy or constraint, set up a what-if, combine scenarios, or run a sweep or sensitivity. Solving is muiogo-run; comparing and charting results afterwards is muiogo-analyze.
 ---
 
 # Create and run scenarios in a MUIOGO CLEWs case
@@ -73,18 +73,20 @@ The bundled script does exactly that:
 
 ```bash
 CASE="$(muiogo-ai case-path --case 'My Case')"
+URL="$(muiogo-ai status --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["muiogo_url"])')"
 python3 <this skill>/scripts/new_scenario.py \
     --case "My Case" --name High_CO2_tax --desc "CO2 tax at 4x" \
     --copy-from CO2_tax \
     --set RYE.json:EP:EMI_6ku9o:x4 \
-    --data-storage "$(dirname "$CASE")"
+    --data-storage "$(dirname "$CASE")" --url "$URL"
 ```
 
 It registers the scenario, copies a full slice from `--copy-from` (default: the
 base), applies any `--set` multipliers, and tells you the next commands. It
-writes through MUIOGO's HTTP API and refuses to guess a world, so run it from a
-shell a launcher started, or pass `--url` (the `world:` line any `muiogo-ai`
-command prints carries this world's URL). Then:
+writes through MUIOGO's HTTP API and refuses to guess a world. Take `--url` and
+`--data-storage` from the same launcher, as above: the script checks that the
+server at `--url` holds the same case it reads from `--data-storage`, and exits
+3 if not. Then:
 
 ```bash
 muiogo-ai new-run --case "My Case" --run HITAX --activate High_CO2_tax
@@ -133,9 +135,10 @@ per combination, then batch-solve:
 ```bash
 # three tax levels seeded from the existing tax scenario
 DS="$(dirname "$(muiogo-ai case-path --case 'My Case')")"
+URL="$(muiogo-ai status --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["muiogo_url"])')"
 for f in 2 4 8; do
   python3 <skill>/scripts/new_scenario.py --case "My Case" --name Tax_x$f \
-      --copy-from CO2_tax --set RYE.json:EP:EMI_6ku9o:x$f --data-storage "$DS"
+      --copy-from CO2_tax --set RYE.json:EP:EMI_6ku9o:x$f --data-storage "$DS" --url "$URL"
   muiogo-ai new-run --case "My Case" --run TAX_X$f --activate Tax_x$f
 done
 muiogo-ai batch --case "My Case" --runs TAX_X2,TAX_X4,TAX_X8
@@ -160,14 +163,18 @@ the scenario's slice actually holds your values before reporting results.
 ## Verify a scenario actually took effect
 
 Do not trust `status: success` alone — a run can solve while your overlay did
-nothing.
+nothing. Copy this and work through it:
 
-1. The new scenario appears: `muiogo-ai scenarios --case "<case>"`.
-2. The run activates it: same command shows the run and its active scenarios.
-3. The numbers moved in the expected direction, versus the run without it.
-
-If results are identical to the base, the overlay is empty: confirm the row id
-and parameter code, and that you edited the new scenario's slice.
+```
+- [ ] Working on a copy (muiogo-ai copy) unless the user asked for the original.
+- [ ] muiogo-ai scenarios --case "<case>" lists the new scenario, and the run
+      activates it.
+- [ ] The run solves (muiogo-run).
+- [ ] The numbers moved in the expected direction against the run without it.
+      If they are identical to the base, the overlay is empty: go back and check
+      the row id, the parameter code, and that you edited the new scenario's
+      slice, then create it again.
+```
 
 ## Handing off
 
