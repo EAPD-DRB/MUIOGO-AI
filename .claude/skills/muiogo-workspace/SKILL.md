@@ -149,8 +149,8 @@ Once you know the layout, hand off to the skill that owns the job:
 | run a coupled OG-CLEWS analysis (energy policy → the economy) | `og-clews-linked-run` |
 | run an OG country model (baseline, reform, multi-industry) | `og-run` |
 | calibrate an OG country model | `og-country-calibration` |
-| report on a finished OG baseline-vs-reform run | `og-scenario-report` |
-| free-form OG scenario design and bespoke analysis | `og-analysis-studio` |
+| build or align a multi-industry OG calibration | `og-multi-industry-calibration` |
+| design an OG reform, report on a finished run, or analyse it further | `og-scenario-report` |
 | check before launching a long OG solve | `og-run-preflight` |
 | diagnose an OG solve that will not converge | `og-solver-diagnosis` |
 | trace a calibrated parameter to its source | `calibration-provenance` |

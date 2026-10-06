@@ -184,7 +184,7 @@ nothing. Copy this and work through it:
   `clews-model-review`.
 - Adding a whole sector rather than a policy overlay → `add-fisheries-sector`
   or `add-environmental-accounting`.
-- OG-Core reforms are a different family — see `og-analysis-studio`.
+- OG-Core reforms are a different family — see `og-scenario-report`.
 
 ## Approval gates
 

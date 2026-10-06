@@ -1,6 +1,6 @@
 ---
 name: muiogo-analyze
-description: Interprets and presents results from a solved CLEWs/OSeMOSYS run in MUIOGO - checks that a solve is trustworthy, compares runs or scenarios, breaks a difference down by technology or fuel, and charts and writes up results. Use when asked what a CLEWs run shows, how runs differ, which technologies or fuels drive a difference, whether results look right, or for a chart, table or write-up. Why a model behaves as it does is muiogo-explain; OG-Core output is og-scenario-report or og-analysis-studio.
+description: Interprets and presents results from a solved CLEWs/OSeMOSYS run in MUIOGO - checks that a solve is trustworthy, compares runs or scenarios, breaks a difference down by technology or fuel, and charts and writes up results. Use when asked what a CLEWs run shows, how runs differ, which technologies or fuels drive a difference, whether results look right, or for a chart, table or write-up. Why a model behaves as it does is muiogo-explain; OG-Core output is og-scenario-report.
 ---
 
 # Interpret and present CLEWs results
@@ -151,8 +151,7 @@ Rules for these write-ups:
 - Results look structurally impossible → `clews-model-review`.
 - Judging whether the model is fit for the question at all →
   `assess-clews-calibration`.
-- OG-Core runs are a different family → `og-scenario-report`,
-  `og-analysis-studio`.
+- OG-Core runs are a different family → `og-scenario-report`.
 
 ## Approval gates
 
