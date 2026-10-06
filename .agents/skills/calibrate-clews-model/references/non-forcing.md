@@ -28,24 +28,37 @@ If no, it is calibration-by-fitting. Defer it, document it, and leave the raw mo
 
 ## How OSeMOSYS activates bounds — read before writing a forcing check
 
-Upstream activates lower and upper limits **asymmetrically**
-([`osemosys.txt`](https://github.com/OSeMOSYS/OSeMOSYS_GNU_MathProg/blob/master/src/osemosys.txt)):
+Lower and upper limits are activated **asymmetrically**, and upstream OSeMOSYS and MUIO
+switch an upper limit off in different ways. Check which formulation the model runs on.
+
+**Upstream OSeMOSYS**
+([`osemosys.txt`](https://github.com/OSeMOSYS/OSeMOSYS_GNU_MathProg/blob/master/src/osemosys.txt)),
+used by the raw CLEWs Global build:
 
 | Bound | Guard | Meaning |
 |---|---|---|
 | Upper (`TCC1`, `NCC1`, `AAC2`, `TAC2`) | `<> -1` | `-1` disables it. **`0` is live and pins the variable to zero.** |
 | Lower (`TCC2`, `NCC2`, `AAC3`, `TAC3`) | `> 0` | `0` or `-1` disables it. |
 
-Two consequences for any forcing audit:
+Upstream's own sanity check at `osemosys.txt:195` branches on both `<> 0` and `<> -1`.
 
-- A matching pair only pins something when the shared value is **positive**. A `-1 / -1`
-  row — the standard "no limit" default — constrains nothing, and reporting it as a lock
-  buries the real findings.
+**MUIO** (`WebAPP/SOLVERs/model.v.5.4.txt`), used by every case in MUIOGO:
+
+| Bound | Guard | Meaning |
+|---|---|---|
+| Upper (`TCC1`, `NCC1`, `AAC2`, `TAC2`, and the emission limits `E8`, `E9`) | none | Always live. MUIO switches it off with its default of `999999` (`Parameters.json`). **`-1` is a live limit below zero and makes the model infeasible; `0` pins the variable to zero.** |
+| Lower (`TCC2`, `NCC2`, `AAC3`, `TAC3`) | `> 0` | `0` disables it. |
+
+So a value carried from an upstream CSV into MUIO changes meaning: an upstream `-1` "no
+limit" must become MUIO's `999999`, never stay `-1`.
+
+Two consequences for any forcing audit, in either formulation:
+
+- A matching pair only pins something when the shared value is **positive**. A
+  "no limit" row (`-1 / -1` upstream; `0` lower with `999999` upper in MUIO) constrains
+  nothing, and reporting it as a lock buries the real findings.
 - A **lone upper bound of zero** switches the object off for that year and needs no matching
   lower bound to bite. A pair-matching check cannot see it; check for it separately.
-
-Upstream's own sanity check at `osemosys.txt:195` branches on both `<> 0` and `<> -1`,
-which is the authority for this distinction.
 
 ## Never add or tune
 
@@ -79,8 +92,9 @@ during a build.
 ## Enforcement
 
 `clews-model-review/audit.py` implements the exact-bound-pair detection for the
-`TAL`/`TAU` and `TAMinC`/`TAMaxC` families. `build-clews-model/scripts/audit_no_forcing.py`
-covers the config-level forcing keys and the upstream drift diff. Run the audit that
+`TAL`/`TAU` and `TAMinC`/`TAMaxC` families. The `audit_no_forcing.py` script in
+`build-clews-model` (and the calibration version in `calibrate-clews-model`) covers the
+config-level forcing keys and the upstream drift diff. Run the audit that
 applies to your representation; do not hand-check this list.
 
 ## Language

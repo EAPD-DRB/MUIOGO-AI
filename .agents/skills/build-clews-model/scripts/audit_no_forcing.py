@@ -274,10 +274,8 @@ def main() -> int:
         for lower_name, upper_name, label in PAIR_CHECKS:
             lower_path = input_directory / lower_name
             upper_path = input_directory / upper_name
-            if not lower_path.is_file() or not upper_path.is_file():
-                continue
-            lower = indexed_values(lower_path)
-            upper = indexed_values(upper_path)
+            lower = indexed_values(lower_path) if lower_path.is_file() else {}
+            upper = indexed_values(upper_path) if upper_path.is_file() else {}
             for key in sorted(lower.keys() & upper.keys()):
                 lower_value = lower[key]
                 upper_value = upper[key]
@@ -294,11 +292,13 @@ def main() -> int:
                         input_directory,
                         f"{label} at index {key} equals {lower_value}.",
                     )
-            # Upper limits are guarded `<> -1` upstream, so 0 is a live bound that
-            # pins the variable to zero on its own - no matching lower bound needed,
-            # which is why the pair check above cannot see it. Warned rather than
-            # failed: a zero cap is legitimate when a technology genuinely is not
-            # available, and forcing only when it was chosen to match an idle history.
+            # A zero upper bound pins the variable to zero on its own, with no
+            # matching lower bound needed, so this runs for any upper-bound file
+            # that is present, whether or not its lower-bound file exists. In
+            # MUIO's formulation an upper bound is off at the 999999 default,
+            # and 0 is a live lock. Warned rather than failed: a zero cap is
+            # legitimate when a technology genuinely is not available, and
+            # forcing only when it was chosen to match an idle history.
             for key, upper_value in sorted(upper.items()):
                 if upper_value == 0:
                     finding(

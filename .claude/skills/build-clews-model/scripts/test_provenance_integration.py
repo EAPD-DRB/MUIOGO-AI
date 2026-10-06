@@ -85,6 +85,9 @@ class BuildProvenanceIntegrationTests(unittest.TestCase):
                 "repository": "https://example.test/muiogo.git",
                 "commit": "b" * 40,
                 "version": None,
+                "importer_sha256": "c" * 64,
+                "parameter_registry_sha256": "d" * 64,
+                "formulation_sha256": "e" * 64,
             },
             "toolchain": {"python": "3.12", "solver": "CBC"},
         }
@@ -211,7 +214,7 @@ class BuildProvenanceIntegrationTests(unittest.TestCase):
             any("config/config.yaml" in failure for failure in report["failures"])
         )
 
-    def test_freeze_and_delivery_validation_use_the_split_checkers(self) -> None:
+    def freeze_package(self) -> None:
         self.populate_build_package()
         diagnostics = self.package / "diagnostics"
         (diagnostics / "validation_summary.json").write_text(
@@ -250,11 +253,81 @@ class BuildProvenanceIntegrationTests(unittest.TestCase):
             "--date",
             "2026-07-30",
         )
+
+    def test_freeze_and_delivery_validation_use_the_split_checkers(self) -> None:
+        self.freeze_package()
         result = self.run_python(
             self.package / "scripts" / "validate_delivery.py",
             str(self.package),
         )
         self.assertEqual(json.loads(result.stdout)["status"], "pass")
+        manifest = json.loads(
+            (self.package / "config" / "baseline_manifest.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(
+            sorted(manifest["records"]),
+            [
+                "no_forcing_audit_sha256",
+                "upstream_versions_sha256",
+                "validation_summary_sha256",
+            ],
+        )
+
+    def test_delivery_rejects_a_changed_record_after_freeze(self) -> None:
+        self.freeze_package()
+        summary = self.package / "diagnostics" / "validation_summary.json"
+        summary.write_text(
+            summary.read_text(encoding="utf-8") + "\n", encoding="utf-8"
+        )
+        result = self.run_python(
+            self.package / "scripts" / "validate_delivery.py",
+            str(self.package),
+            expect_success=False,
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("record checksum mismatch", result.stdout)
+
+    def test_delivery_requires_the_muio_checksums(self) -> None:
+        self.populate_build_package()
+        pins_path = self.package / "config" / "upstream_versions.json"
+        pins = json.loads(pins_path.read_text(encoding="utf-8"))
+        del pins["muiogo"]["formulation_sha256"]
+        pins_path.write_text(json.dumps(pins), encoding="utf-8")
+        result = self.run_python(
+            self.package / "scripts" / "validate_package.py",
+            str(self.package),
+            "--stage",
+            "delivery",
+            expect_success=False,
+        )
+        self.assertIn("formulation_sha256", result.stdout)
+        # The same package still passes the build checkpoint.
+        build = self.run_python(
+            self.package / "scripts" / "validate_package.py",
+            str(self.package),
+            "--stage",
+            "build",
+        )
+        self.assertEqual(json.loads(build.stdout)["status"], "pass")
+
+    def test_lone_zero_upper_bound_is_flagged_without_a_lower_file(self) -> None:
+        inputs = self.work / "model" / "inputs"
+        inputs.mkdir(parents=True)
+        (inputs / "TotalAnnualMaxCapacity.csv").write_text(
+            "REGION,TECHNOLOGY,YEAR,VALUE\nEXP,PWRX,2030,0\nEXP,PWRY,2030,5\n",
+            encoding="utf-8",
+        )
+        self.assertFalse((inputs / "TotalAnnualMinCapacity.csv").exists())
+        result = self.run_python(
+            self.isolated_skill / "scripts" / "audit_no_forcing.py",
+            str(self.work),
+        )
+        findings = json.loads(result.stdout)["findings"]
+        zero = [f for f in findings if f["rule"] == "zero-upper-bound"]
+        self.assertEqual(len(zero), 1)
+        self.assertIn("PWRX", zero[0]["detail"])
 
     def test_copied_skill_has_no_repository_relative_runtime_dependency(self) -> None:
         self.scaffold()

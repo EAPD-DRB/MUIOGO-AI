@@ -44,8 +44,6 @@ Search parameter IDs through `Parameters.json` instead of assuming file location
 
 These are screening checks. Code-prefix domain detection is heuristic, saved results may be stale, and exact bounds may be legitimate. Spot-check every decision-relevant finding.
 
-## Relationship to the existing Claude skill
-
-MUIOGO may also contain `.claude/skills/clews-model-review`. That skill focuses on structure and data consistency against a project benchmark. This Codex skill is complementary: it uses structural integrity as a gate and then evaluates historical fit, forcing independence, held-out validation, robustness, and fitness for purpose.
+## Benchmarks are not calibration
 
 Do not infer country calibration from similarity to the Namibia case. A benchmark can reveal missing structure or conventions, but country tailoring requires country evidence.

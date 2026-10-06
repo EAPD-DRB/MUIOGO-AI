@@ -1,6 +1,6 @@
 ---
 name: add-fisheries-sector
-description: Add a source-traceable, non-forcing Fisheries sector (fleet propulsion, aquaculture, cold chain, processing) to a solved OSeMOSYS/CLEWs/MUIO country model, reconciled with existing energy, water, land and food accounts.
+description: Adds a source-traceable, non-forcing Fisheries sector to a solved OSeMOSYS, CLEWs, or MUIO country model. Use when adding fishing-fleet propulsion, aquaculture, fish production, cold chain, or processing; estimating existing equipment stock and residual capacity; reconciling Fisheries with energy, water, land, or food accounts; or documenting the source of every number.
 ---
 
 # Add Fisheries Sector
@@ -33,6 +33,10 @@ omissions of existing sectors, and do not force historical technology outcomes.
    coefficient inferred from a saved optimization result.
 9. Make every final model value traceable from model parameter to calculation,
    source observation, conversion, proxy, and assumption.
+
+The non-forcing rule is stated once, in
+[references/non-forcing.md](references/non-forcing.md). Read it before choosing
+any limit, constraint, or utilization value.
 
 ## Required references
 
@@ -93,7 +97,9 @@ generates their contents, so never fill them in by hand.
   currency basis, rounding, scripts, and source IDs for every derived value.
 - Use the same parameter record IDs in model documentation and validation
   reports.
-- Run `scripts/validate_provenance.py` and resolve every error before solving. Cap this at
+- Run `scripts/validate_provenance.py` with the six register flags (the full
+  command is in [references/source-traceability.md](references/source-traceability.md)
+  section 7) and resolve every error before solving. Cap this at
   three fix-and-rerun cycles; if errors remain, stop and report what is unresolved with the
   validator output rather than continuing to iterate.
 - Then project the registers into the six-table ledger every other CLEWs skill
@@ -214,6 +220,32 @@ ResidualCapacity =
   registers, calculation scripts, audit results, limitations, reproduction
   commands, and source-access notes.
 - Create one portable archive and verify its integrity and checksum.
+
+## Checklist
+
+Copy this and tick items as you go.
+
+```text
+- [ ] 1  Baseline solves; backup made
+- [ ] 2  Boundary register built
+- [ ] 3  Provenance validates; ledger projected and validated
+- [ ] 4  Demands and projections built
+- [ ] 5  Residual stock estimated
+- [ ] 6  Pathways implemented
+- [ ] 7  Accounting boundaries reconciled; totals match
+- [ ] 8  Freedom audit and scope diff clean
+- [ ] 9  All scenarios regenerated and solved
+- [ ] 10 Provenance and ledger re-run; trace test passes; archive verified
+```
+
+Go-back lines:
+
+- Freedom-audit findings: go back to step 6 (pathway) or step 8 (constraint
+  review), fix, and re-run the audit.
+- Scope-diff failures (changes outside Fisheries, the boundary register, or
+  metadata): go back to step 7, then repeat step 8.
+- Provenance errors: fix and re-run. After three cycles with errors left,
+  stop and report the validator output.
 
 ## Completion gates
 

@@ -1,5 +1,13 @@
 # Permitted technical corrections
 
+## Contents
+
+- [Acceptance test](#acceptance-test)
+- [Valid correction classes](#valid-correction-classes)
+- [Minimum regression-fixture catalogue](#minimum-regression-fixture-catalogue)
+- [Not technical corrections](#not-technical-corrections)
+- [Required patch record](#required-patch-record)
+
 A technical correction repairs reproducible software behavior. It must not be
 selected because it moves a country result closer to an observation.
 

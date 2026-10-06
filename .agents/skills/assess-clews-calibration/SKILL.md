@@ -1,6 +1,6 @@
 ---
 name: assess-clews-calibration
-description: Grade how well an OSeMOSYS/CLEWs country model is calibrated (Not assessable to Excellent) and judge fitness for a stated use. For structural defects use clews-model-review; to implement changes, calibrate-clews-model.
+description: "Grades how well an OSeMOSYS or CLEWs model is calibrated to its country (Not assessable, Unacceptable, Acceptable, Good or Excellent), names its strong and weak points, and judges fitness for a stated use. Use when auditing a country model or its base-year calibration, checking whether results are reproduced rather than forced, or comparing modelled values with observations. Structural defects are clews-model-review; describing a model is muiogo-explain; changing it is calibrate-clews-model."
 ---
 
 # Assess CLEWs Calibration
@@ -20,7 +20,7 @@ A model matching a historical year is not necessarily calibrated when demands, c
 3. If reviewing MUIOGO data, also read [references/muiogo-data-format.md](references/muiogo-data-format.md). Run:
 
    ```bash
-   python scripts/audit_muiogo_model.py <model-folder> --output <inventory.json>
+   python scripts/audit_muiogo_model.py <absolute-model-folder> --output <inventory.json>
    ```
 
 4. Build a historical-comparison CSV using [references/evidence-schema.md](references/evidence-schema.md). Use observed data from traceable sources and retain units, geography, period, and uncertainty. Run:
@@ -29,7 +29,7 @@ A model matching a historical year is not necessarily calibrated when demands, c
    python scripts/compare_history.py <comparisons.csv> --output <history.json>
    ```
 
-5. Inspect the actual constraints and assign every scored outcome `E`, `J`, or `H` using the forcing reference. Spot-check automated findings against the source model.
+5. Inspect the actual constraints and assign every scored outcome `E`, `J`, or `H` using the forcing reference and the [non-forcing rule](references/non-forcing.md), which also explains how upstream OSeMOSYS and MUIO switch bounds off. Spot-check automated findings against the source model.
 6. Complete an assessment JSON following the evidence schema. Score it with:
 
    ```bash
@@ -67,6 +67,8 @@ Lead with a decision-ready summary:
 - **Required improvements:** ordered by which change could alter the grade
 
 Include the score as supporting information, not as a substitute for the grade rationale.
+
+Name the model graded by its absolute path and the installation it came from. One machine can hold two MUIOGO installations with the same case names, and a grade attached to the wrong one is worse than none.
 
 ## Related skills
 

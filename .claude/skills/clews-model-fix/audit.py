@@ -176,12 +176,12 @@ def exact_bound_matches(parameters, years):
             low_values, high_values = expanded(lower[scenario]), expanded(upper[scenario])
             for key in sorted(set(low_values) & set(high_values)):
                 low, high = low_values[key], high_values[key]
-                # Upstream OSeMOSYS activates these constraints asymmetrically: upper
-                # limits are guarded `<> -1` (TCC1/NCC1/AAC2/TAC2) and lower limits
-                # `> 0` (TCC2/NCC2/AAC3/TAC3). So a matching pair only pins anything
-                # when the shared value is positive. A -1/-1 row - the standard "no
-                # limit" default - constrains nothing at all, and reporting it as a
-                # lock would bury the real findings.
+                # Lower limits (TCC2/NCC2/AAC3/TAC3) are guarded `> 0` in both
+                # upstream OSeMOSYS and MUIO, so a matching pair only pins anything
+                # when the shared value is positive. Upper limits differ: upstream
+                # guards them `<> -1`, MUIO does not guard them and switches them off
+                # with its 999999 default. Either way a "no limit" row constrains
+                # nothing, and reporting it as a lock would bury the real findings.
                 if low <= 0:
                     continue
                 if abs(low - high) <= max(1e-9, 1e-9 * max(abs(low), abs(high))):
@@ -197,8 +197,9 @@ def exact_bound_matches(parameters, years):
 def forced_off_bounds(parameters, years):
     """Upper-bound rows set to an active zero, which switches the object off.
 
-    Zero is not a sentinel: the upper-limit constraints are guarded `<> -1`, so an
-    upper bound of 0 is live and pins the variable to zero. That needs no matching
+    Zero is not a sentinel: no formulation switches an upper limit off at 0
+    (upstream uses -1, MUIO its 999999 default), so an upper bound of 0 is live and
+    pins the variable to zero. That needs no matching
     lower bound to bite, so `exact_bound_matches` cannot see it.
     """
     found, year_set = [], set(years)

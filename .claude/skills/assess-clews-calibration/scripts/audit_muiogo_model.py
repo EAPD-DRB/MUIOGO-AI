@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Structural and constraint inventory for one MUIOGO model folder.
 
-This is now a thin delegate to ``clews-model-review/audit.py`` (``inventory()``
-and ``inventory_main()``), which owns every check both skills share. The CLI,
+This is a thin delegate to ``audit.py`` beside it (``inventory()`` and
+``inventory_main()``), a generated copy of ``clews-model-review/audit.py``, which
+owns every check both skills share. The copy keeps this skill self-contained. The CLI,
 the JSON schema and the exit codes are unchanged.
 
 Why: this file used to reimplement six of that script's checks with copied
@@ -26,33 +27,28 @@ import sys
 from pathlib import Path
 from typing import Any
 
-# Set CLEWS_AUDIT_PY to override the search below (e.g. an unusual skill layout).
+# Set CLEWS_AUDIT_PY to use a different audit.py than the copy beside this file.
 ENV_OVERRIDE = "CLEWS_AUDIT_PY"
 _MODULE: Any = None
 
 
 def audit_module() -> Any:
-    """Import clews-model-review/audit.py from wherever the skills are installed."""
+    """Import the audit.py shipped beside this script (or CLEWS_AUDIT_PY)."""
     global _MODULE
     if _MODULE is not None:
         return _MODULE
-    here = Path(__file__).resolve()
-    candidates = [Path(os.environ[ENV_OVERRIDE])] if os.environ.get(ENV_OVERRIDE) else []
-    for parent in here.parents:
-        for prefix in ((), ("skills",), (".claude", "skills")):
-            candidates.append(parent.joinpath(*prefix, "clews-model-review", "audit.py"))
-    for candidate in candidates:
-        if candidate.is_file():
-            spec = importlib.util.spec_from_file_location("clews_model_audit", candidate)
-            module = importlib.util.module_from_spec(spec)
-            assert spec.loader is not None
-            spec.loader.exec_module(module)
-            _MODULE = module
-            return module
-    raise FileNotFoundError(
-        "clews-model-review/audit.py not found near "
-        f"{here}; set {ENV_OVERRIDE} to its path"
-    )
+    override = os.environ.get(ENV_OVERRIDE)
+    candidate = Path(override) if override else Path(__file__).resolve().with_name("audit.py")
+    if not candidate.is_file():
+        raise FileNotFoundError(
+            f"{candidate} not found; reinstall the whole skill folder or set {ENV_OVERRIDE}"
+        )
+    spec = importlib.util.spec_from_file_location("clews_model_audit", candidate)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    _MODULE = module
+    return module
 
 
 def audit(model_dir: Path | str) -> dict[str, Any]:
