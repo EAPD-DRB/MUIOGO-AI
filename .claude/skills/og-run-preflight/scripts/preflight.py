@@ -43,6 +43,7 @@ model itself -- only point this at repos/venvs you intend to run anyway.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 import sys
@@ -125,7 +126,8 @@ def probe(python: str, pkg: str, cwd: str, prepend: str | None = None) -> tuple[
     return True, real(r.stdout.strip())
 
 
-def check_repo(spec: str, run_cwd: str | None, entry_script: str | None, rep: Report) -> None:
+def check_repo(spec: str, run_cwd: str | None, entry_script: str | None, rep: Report,
+               params_json: str | None = None) -> None:
     parts = spec.split("::")
     if len(parts) not in (2, 3):
         rep.fail(f"bad --check spec (want REPO::PKG[,PKG..][::VENV_PY]): {spec}")
@@ -137,7 +139,10 @@ def check_repo(spec: str, run_cwd: str | None, entry_script: str | None, rep: Re
         rep.fail(f"invalid package name(s) {bad} -- must be plain (dotted) identifiers")
         return
     own, extras = pkgs[0], pkgs[1:]
-    python = real(parts[2]) if len(parts) == 3 else os.path.join(repo, ".venv", "bin", "python")
+    # abspath, NOT realpath: a uv venv's python is a symlink to uv's base interpreter, and running
+    # the resolved target would report the base prefix instead of the venv's.
+    python = (os.path.abspath(os.path.expanduser(parts[2])) if len(parts) == 3
+              else os.path.join(repo, ".venv", "bin", "python"))
 
     print(f"\n=== {own} @ {repo} ===")
     if not os.path.isdir(repo):
@@ -169,7 +174,14 @@ def check_repo(spec: str, run_cwd: str | None, entry_script: str | None, rep: Re
     # Vector (a): editable install -> another worktree. Neutral cwd.
     with tempfile.TemporaryDirectory() as neutral:
         ok, path = probe(python, own, neutral)
-    if not ok:
+    not_installed = not ok and f"No module named '{own.split('.')[0]}'" in path
+    if not_installed:
+        # Nothing installed, so no other checkout can shadow it. Safe only if the run
+        # launches from a folder where it resolves inside the repo -- checked below.
+        rep.info("INFO", f"{own} is not installed (runs from its folder); the run-cwd import decides")
+        if not run_cwd:
+            rep.fail(f"{own} is not installed and no --run-cwd was given: cannot confirm which code runs")
+    elif not ok:
         rep.fail(f"import {own} (neutral cwd) failed: {path}")
     elif under(path, repo):
         rep.ok(f"import {own} (neutral cwd) -> {path}")
@@ -223,6 +235,70 @@ def check_repo(spec: str, run_cwd: str | None, entry_script: str | None, rep: Re
                 "its venv (another checkout is bleeding in)"
             )
 
+    if "ogcore" in pkgs:
+        ogcore_build(python, rep)
+    if params_json:
+        check_params(python, params_json, rep)
+
+
+OGCORE_BUILD = r"""
+import json, ogcore
+from importlib import metadata
+try:
+    raw = metadata.distribution("ogcore").read_text("direct_url.json")
+except Exception:
+    raw = None
+print(json.dumps({"version": ogcore.__version__, "direct_url": json.loads(raw) if raw else None}))
+"""
+
+
+def ogcore_build(python: str, rep: Report) -> None:
+    """Say which ogcore will run: a release, a recorded commit, or a local build.
+
+    Where ogcore imports from is checked above; this is what it is. A local build is
+    not wrong, but the run cannot be reproduced unless its source and commit are kept,
+    and a build whose source folder is gone cannot be rebuilt at all.
+    """
+    r = subprocess.run([python, "-c", OGCORE_BUILD], capture_output=True, text=True, timeout=120)
+    if r.returncode != 0:
+        rep.warn("could not read ogcore's version and install source")
+        return
+    info = json.loads(r.stdout.strip().splitlines()[-1])
+    version, url = info["version"], info["direct_url"]
+    if not url:
+        rep.ok(f"ogcore {version}: a released package")
+    elif "vcs_info" in url:
+        commit = url["vcs_info"].get("commit_id", "?")[:10]
+        rep.info("INFO", f"ogcore {version}: installed from {url.get('url', '?')} at commit {commit}")
+    else:
+        src = url.get("url", "").replace("file://", "")
+        kind = "editable local checkout" if url.get("dir_info", {}).get("editable") else "local build"
+        if src and not os.path.exists(src):
+            rep.warn(f"ogcore {version}: {kind} from {src}, which no longer exists -- this run "
+                     "cannot be reproduced or rebuilt")
+        else:
+            rep.warn(f"ogcore {version}: {kind} from {src} (not a release) -- record its branch "
+                     "and commit with the run")
+
+
+def check_params(python: str, params_json: str, rep: Report) -> None:
+    """Load the packaged parameters into Specifications, the way the examples do."""
+    code = (
+        "import json; from ogcore.parameters import Specifications; "
+        "p = Specifications(baseline=True); "
+        f"p.update_specifications(json.load(open({params_json!r})))"
+    )
+    r = subprocess.run([python, "-c", code], capture_output=True, text=True, timeout=300)
+    if r.returncode == 0:
+        rep.ok(f"packaged parameters load on this ogcore: {params_json}")
+    else:
+        lines = r.stderr.strip().splitlines()
+        # The error spans several lines (paramtools prints a JSON body): keep from the
+        # exception line to the end, flattened.
+        start = max((i for i, line in enumerate(lines) if "Error" in line.split(":")[0]), default=len(lines) - 1)
+        why = " ".join(" ".join(lines[start:]).split())[:300] if lines else "load failed"
+        rep.fail(f"packaged parameters do NOT load on this ogcore ({params_json}): {why}")
+
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
@@ -231,11 +307,14 @@ def main() -> int:
                     metavar="REPO::PKG[,PKG..][::VENV_PY]")
     ap.add_argument("--run-cwd", help="directory the run will be launched from")
     ap.add_argument("--entry-script", help="the script the run will execute")
+    ap.add_argument("--params-json", help="the packaged parameters JSON the run loads; checked "
+                    "to load on the resolved ogcore (applies to the first --check)")
     args = ap.parse_args()
 
     rep = Report()
     for spec in args.check:
-        check_repo(spec, args.run_cwd, args.entry_script, rep)
+        check_repo(spec, args.run_cwd, args.entry_script, rep,
+                   args.params_json if spec == args.check[0] else None)
 
     print()
     if rep.failures:

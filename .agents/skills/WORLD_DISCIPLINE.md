@@ -95,3 +95,12 @@ Ask, cheaply — one command per setup, no cross-listing exists:
 muiogo-ai status          # the installation: paths, port, cases, OG models
 muiogo status             # the user's own checkouts, if any are adopted
 ```
+
+## When there is no installation
+
+Many machines have no MUIOGO-AI installation at all: no `muiogo-ai` on the PATH and no
+workspace, only the user's own checkouts (MUIOGO, OG country repos, ogclews-link) under the
+projects folder. Then there is one world, the user's own, and the rules above that guard the
+installation do not apply. When the user names a checkout, a run folder or a repo, work there:
+read-only inspection needs no further permission, and changes follow the usual approval rules.
+Say plainly in what you report that no installation exists and which checkout you used.

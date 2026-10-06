@@ -1,26 +1,18 @@
 ---
 name: og-repo-fleet-sync
-description: >-
-  Apply one change across the OG-Core country-repo fleet (OG-USA, OG-PHL, OG-ZAF, OG-IDN, OG-BRA,
-  OG-ETH, OG-FJI and variants) and track which repos have it. Use whenever a fix or upgrade needs
-  to propagate to more than one country repo: a dependency break (the pandas-datareader/pandas-3
-  class), a CI workflow update, an AGENTS.md/docs revision, a ruff or conda→uv migration, a shared
-  test or packaging fix. Also use when asked "which repos still need X?" or when a fix proven in
-  one repo should be rolled out to siblings. Prepares per-repo branches and commits; never pushes
-  or opens PRs without asking.
+description: "Applies one change across the OG-Core country-repo fleet (OG-USA, OG-PHL, OG-ZAF, OG-IDN, OG-BRA, OG-ETH, OG-FJI and variants) and tracks which repos have it. Use when a fix or upgrade proven in one repo must reach the others (a dependency break, CI or docs update, tooling migration, shared test or packaging fix), or when asked which repos still need something. Prepares per-repo branches and commits; never pushes or opens PRs without asking."
 ---
 
 # OG repo fleet sync
 
-Generalized from the pandas-3 import-fix rollout (`~/Projects/PANDAS3_IMPORT_FIX_PLAYBOOK.md`,
-the worked instance — read it when you want a full example of the level of detail a playbook
-should reach). The problem this solves: ~20 sibling repos drift apart because changes land in one
+Generalized from the pandas-3 import-fix rollout (its worked playbook, if one exists on this
+machine, shows the level of detail a playbook should reach). The problem this solves: ~20 sibling repos drift apart because changes land in one
 repo and propagate by hand, or never (the conda→uv drift is the standing cost of not doing this).
 
 ## Which world
 
 This skill deliberately works across the user's **own** checkouts — the adopted setup —
-because inventorying and reconciling them is the whole point. That makes it the one
+because carrying one change across all of them is the whole point. That makes it the one
 place where crossing is intended, so be explicit: name the checkouts you looked at
 and the world they belong to, and never touch the runtime installation's copies
 under a world's `og-models` directory unless the user asked. Never present a live
@@ -51,16 +43,24 @@ before touching a second repo. It must contain, concretely:
 
 ### 2. Probe the fleet — build the tracking table
 
-Enumerate the fleet fresh (`ls -d ~/Projects/OG-*`), and separate **canonical checkouts** from
-worktrees/`_bak`/`copy` dirs — sync canonical checkouts only (the `worktree-orchard` skill is the
-disambiguator when sprawl makes this unclear). Run detection read-only on every repo and write the
+First check the change has not already landed: search each sibling's merged PRs and grep its
+up-to-date upstream default branch for the fix. Some siblings may have reached the same goal
+another way, or removed the code on purpose; those rows are not to be "fixed".
+
+Enumerate the fleet fresh (`ls -d <projects root>/OG-*`), and separate **canonical checkouts** from
+worktrees/`_bak`/`copy` dirs — sync canonical checkouts only. When sprawl makes this unclear, `git worktree list` in each
+checkout separates the two (a personal `worktree-orchard` skill, if installed, does the full
+inventory). Run detection read-only on every repo and write the
 tracking table to a file (it outlives the session — put it next to the playbook, never inside a
 country repo):
 
 | repo | org | affected? | already fixed? | branch | status | notes |
 |---|---|---|---|---|---|---|
 
-Statuses: `unaffected` / `already-fixed` / `branch-ready` / `blocked` / `needs-decision`.
+Statuses: `unaffected` / `already-fixed` / `diverged-on-purpose` (cite the PR that did it) /
+`branch-ready` / `blocked` / `needs-decision`. When every canonical checkout sits on a busy
+feature branch, work in a fresh worktree off the up-to-date default branch rather than reusing
+one.
 Fleet facts that change the work per row: EAPD-DRB repos (PHL/ZAF/IDN/ETH/FJI) share the uv +
 Dependabot-lock convention — **never commit a `uv.lock` change from sync work**; PSLmodels repos
 (USA/BRA) differ in tooling and review culture. Record the org.
@@ -69,8 +69,9 @@ Dependabot-lock convention — **never commit a `uv.lock` change from sync work*
 
 Per affected repo:
 
-1. `git fetch` first; branch off the up-to-date default branch (`git switch -c <change>-<slug>`).
-   Never work on a repo's default branch directly.
+1. `git fetch --all` first. Branches come from the fork (`origin`), not from upstream: bring the
+   fork's default branch up to date with upstream's, then branch from it
+   (`git switch -c <change>-<slug>`). Never work on a repo's default branch directly.
 2. Re-run detection *in this repo* and read the actual code — expect the pattern to vary. The
    worked instance's second repo lesson: fixing the primary import exposed a *second* import-time
    side effect that also had to move; the smoke test, not the plan, decides when you're done.
@@ -80,6 +81,18 @@ Per affected repo:
    Distrust old green tests near your change (the worked instance found a
    `list(x).sort() == y.sort()` test that compared `None == None`).
 4. Commit with a single-line message; update the tracking table row to `branch-ready`.
+
+Copy this per repo and work through it:
+
+```
+- [ ] Fetched; fresh branch off the up-to-date default branch.
+- [ ] Detection re-run here; the actual code read.
+- [ ] Minimal fix applied; playbook tests added; the repo's own validation run.
+      If a failure is not yours: mark it pre-existing in the table, do not fix it.
+      If the fix stops being minimal: mark the row needs-decision, move to the next repo.
+      If the smoke test still fails: back to the detection step for this repo.
+- [ ] Single-line commit; table row set to branch-ready.
+```
 
 ### 4. Report and ask — never push, never PR, on your own
 
@@ -95,7 +108,7 @@ nothing has left the machine. Then the gates, in order and each with its own exp
 3. **Never merge anything**, ever — merges are the user's alone.
 
 Opening N PRs across a fleet is exactly the "expensive and expansive" action the family's
-approval gates exist for (the approval gates in SKILLS.md): the skill's deliverable is the prepared
+approval gates exist for (long computations, pushes and PRs each need the user's explicit go): the skill's deliverable is the prepared
 branches, drafted PR texts, and the tracking table — not the outbound actions. If PRs are
 approved: per-repo PR text follows the playbook (what/why/tested), with Phase-2 items filed as
 follow-up issues, not folded in.
