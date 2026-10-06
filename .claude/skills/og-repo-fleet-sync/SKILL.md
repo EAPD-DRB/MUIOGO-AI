@@ -48,8 +48,9 @@ up-to-date upstream default branch for the fix. Some siblings may have reached t
 another way, or removed the code on purpose; those rows are not to be "fixed".
 
 Enumerate the fleet fresh (`ls -d <projects root>/OG-*`), and separate **canonical checkouts** from
-worktrees/`_bak`/`copy` dirs — sync canonical checkouts only (the `worktree-orchard` skill is the
-disambiguator when sprawl makes this unclear). Run detection read-only on every repo and write the
+worktrees/`_bak`/`copy` dirs — sync canonical checkouts only. When sprawl makes this unclear, `git worktree list` in each
+checkout separates the two (a personal `worktree-orchard` skill, if installed, does the full
+inventory). Run detection read-only on every repo and write the
 tracking table to a file (it outlives the session — put it next to the playbook, never inside a
 country repo):
 

@@ -40,16 +40,9 @@ Before launching anything, run the preflight in `og-run-preflight`. It exists
 because a battery once ran silently against stale code. A passing preflight is a
 precondition, never an authorization.
 
-Minimum check by hand:
-
-```bash
-cd <og-models>/OG-PHL
-git rev-parse --abbrev-ref HEAD && git rev-parse --short=8 HEAD
-.venv/bin/python -c "import ogphl; print(ogphl.__file__)"
-```
-
-The printed package path must be inside the checkout you intend to run. If it
-points elsewhere, stop — that is the finding.
+If the preflight cannot run, the minimum by hand is: print the branch and HEAD of the
+checkout, and confirm the model's own interpreter imports the package from inside that checkout.
+If it points elsewhere, stop; that is the finding.
 
 ## Launching a run
 
@@ -202,8 +195,8 @@ economics: wrong interpreter, wrong branch, missing data. Re-run the preflight.
 
 - Before launching: `og-run-preflight`.
 - Which parameters to set, and why: `og-country-calibration`.
-- Turning finished OUTPUT dirs into the standard deliverable: `og-scenario-report`.
-- Bespoke exploration and figures: `og-analysis-studio`.
+- Designing the reform, the standard deliverable, and bespoke analysis of finished OUTPUT
+  dirs: `og-scenario-report`.
 - A solve that will not converge: `og-solver-diagnosis`.
 - Tracing a calibrated number to its source: `calibration-provenance`.
 - Coupling to the energy system: `og-clews-linked-run`.
