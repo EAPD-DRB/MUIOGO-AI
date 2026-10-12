@@ -39,6 +39,17 @@ folder) and re-run the preflight; do not run the stale environment. The one rema
 is testing an unreleased ogcore under a country model (og-solver-diagnosis covers the pattern),
 and only when the user asked for it.
 
+**Tests run in an installer copy too.** Any OG test run whose result you will report (the CI
+selection, the slow `local` tests, a single test file) runs inside a copy made by the installer,
+for the exact commit under test: `bash install.sh --repo-url <git URL or local clone> --branch
+<branch> --dest <new folder> --yes`, then `uv run python -m pytest ...` (or `pytest` with the
+environment activated) from that copy's folder, with the repo's own command (the contributor
+guide's `pytest`, CI's `-m "not local and not benchmark"`, or `-m local`). Not from a development
+worktree, not from an environment you synced by hand. When the code changes, re-install before
+re-testing; a copy is tied to one commit. The installer names the package from the last part of
+the URL, so a local branch is installed from a clone whose folder is named like the repo
+(`.../OG-Core`), not from a worktree named `OG-Core.something`.
+
 **Evidence about the model comes only from such a run.** A claim that the model fails, is wrong,
 has a bug, or got faster must come from an installer-installed copy running its shipped example.
 Test fixtures, saved test pickles, serial runs, partial reproductions and your own drivers give

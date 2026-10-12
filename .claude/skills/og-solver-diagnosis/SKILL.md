@@ -176,7 +176,8 @@ pattern above applies, with four checks first:
 
 Each variant gets its own install from OG-Core's official installer (`--repo-url <URL> --branch
 <branch>` for the change, a plain install for the control), in its own folder; never switch a
-branch under a running battery. How to install an unreleased ogcore without the environment silently using another
+branch under a running battery. Test suites for each variant run inside that same install, with
+the repo's own pytest command, never in a development worktree. How to install an unreleased ogcore without the environment silently using another
 build: `references/solve-procedures.md`, "Running against an unreleased ogcore". Report per country: the expected value, master, and the change, with the
 resource-constraint error at t=0 and beyond. The whole battery is one itemised proposal; launch
 only after the user's go.

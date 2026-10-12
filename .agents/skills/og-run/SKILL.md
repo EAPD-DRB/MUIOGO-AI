@@ -203,6 +203,8 @@ Copy this and work through it:
       a branch under test gets its own install (--repo-url ... --branch ...).
 - [ ] The run is the shipped example script, unchanged, nothing injected. Any deviation was
       asked for by the user and will be named in the report.
+- [ ] Tests for the change (CI selection, `local`, or one file) also run in an installer
+      copy of the exact commit, with the repo's own pytest command, never in a dev worktree.
 - [ ] og-run-preflight reports GO for the repo and branch the task names.
       If NO-GO: fix what it names and run it again. Do not launch.
 - [ ] Solver set: TPI_outer_method="anderson", nu 0.2 or lower (repo default or the copy).
