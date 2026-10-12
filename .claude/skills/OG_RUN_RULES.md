@@ -43,7 +43,11 @@ for the exact commit under test: `bash install.sh --repo-url <git URL or local c
 environment activated) from that copy's folder, with the repo's own command (the contributor
 guide's `pytest`, CI's `-m "not local and not benchmark"`, or `-m local`). Not from a development
 worktree, not from an environment you synced by hand. When the code changes, re-install before
-re-testing; a copy is tied to one commit. The installer names the package from the last part of
+re-testing; a copy is tied to one commit. Tests that solve the model use the example's
+parallelism: OG-Core's test files build a smaller Dask pool (`test_TPI.py`: 4 workers x 2
+threads), so in the test copy only, set it to the example's `min(cpu_count(), 7)` workers x 1
+thread before launching, and say so in the report (the model owner's call, 2026-10-12). Never
+commit that edit. The installer names the package from the last part of
 the URL, so a local branch is installed from a clone whose folder is named like the repo
 (`.../OG-Core`), not from a worktree named `OG-Core.something`.
 
