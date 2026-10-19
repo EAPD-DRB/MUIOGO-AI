@@ -162,6 +162,22 @@ the transition's stance changes. If the program's own consolidation converges to
 of the program window, the steady state is literally where the government's plan is headed: say so
 in the docs. Re-tune the glide after fixing the initial-wealth condition.
 
+**When pensions (or any outlay) move a lot over the transition, the identity value is a path, not a
+number.** `alpha_G` is held at its input for the first `tG1` periods, but pension outlays in the
+transition start at today's level and grow toward the steady state's. Holding `alpha_G` at the
+steady-state identity value then runs a surplus for years and pays debt down far below target
+before the closure starts (KOR, an ageing country with a maturing pension system: pensions 2.7% of
+GDP in 2025 rising toward 5.6%, pb +1% to +1.7% a year, debt 49.6% → 35.7% by 2036 against a plan
+near 52%). Compute the glide from the transition's own paths, one baseline run back:
+
+```
+alpha_G(t) = revenue(t)/Y − pb_target(t) − alpha_T − alpha_I(t) − pensions(t)/Y,   t < tG1
+```
+
+and when the program is stated as a debt path, derive `pb_target(t)` from it:
+`pb(t) ≈ −(d(t+1) − d(t)) + (r_gov − g)·d(t)`, debt shares of GDP, which avoids bridging revenue
+and primary-balance concepts the model does not share with the data. **[KOR]**
+
 ## A violent early-transition spike is a diagnosis
 
 A one-to-two-year consumption or consumption-tax-revenue pulse at the start of the baseline is the

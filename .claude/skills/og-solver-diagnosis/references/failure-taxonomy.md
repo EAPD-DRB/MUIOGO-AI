@@ -58,7 +58,15 @@ strings to grep for. When you hit a class not listed here, add it.
   starts. Watch the distance series on the first Anderson run and fall back to damped iteration
   if it oscillates. These treat oscillation only — never class A. Recent ogcore can tell a
   cycling loop from a diverging economy for you (solve-procedures.md, "Stall detection").
-- **Provenance**: ZAF nu sweeps (`logs_ogzaf_nu06/nu07`), IDN/PHL/ZAF control-vs-treatment logs.
+- **Variant: Anderson stalls just above `mindist_TPI`** **[KOR]**. Signature: the distance falls
+  cleanly to a few times the tolerance, then rises for several iterations in a row (KOR: 2.7e-5 at
+  iteration 18, then 3.2, 3.9, 4.4, 4.7, 4.9e-5 against 1e-5). With `maxiter` 250 it can run for
+  hours, so stop it. Damped iteration (`TPI_outer_method="picard"`, `nu` 0.2) from the same
+  calibration went through the same level and converged (9.7e-6 at iteration 55, about 28 minutes
+  at ~30 s an iteration on a loaded 10-core machine). The fallback is slower, so it can exceed the
+  run rules' 5–7 minute guide without anything being wrong; record the iteration time.
+- **Provenance**: ZAF nu sweeps (`logs_ogzaf_nu06/nu07`), IDN/PHL/ZAF control-vs-treatment logs;
+  KOR run logs (`example_run_A.log`, `example_run_B.log`).
 
 ## D. Basin flip (two valid solutions, ill-conditioned Jacobian)
 
@@ -112,6 +120,15 @@ strings to grep for. When you hit a class not listed here, add it.
 - **Remedy**: warm-start from a solved state (solve-procedures.md, "Warm-starting the steady
   state"). A guess that is near in values is not necessarily one the
   solver can start from: nearness is not solvability.
+- **Variant: an inconsistent seed set, not a far one** **[KOR]**. ogcore derives the GDP guess as
+  `initial_guess_TR_SS / alpha_T`. A repo bootstrapped from a sibling keeps the sibling's TR seed;
+  against the new `alpha_T` the GDP guess lands several times too high. Signature: one GE-loop
+  residual, the fifth (`Y`, after `r_p`, `r`, `w`, `p_m`), stuck large and negative (KOR −3.5,
+  the guess 4.6x the solution) while the rest decay. Residual order, from `SS_fsolve`:
+  `[r_p, r, w, p_m..., Y, BQ..., TR, factor]`. Remedy: set every `initial_guess_*` from the
+  country's own last solve, then warm-start. Also note `SS_fsolve` divides the factor residual by
+  1,000,000, so in a high-denomination currency measured in millions the factor's residual is
+  near-invisible to the root-finder; seed it well.
 
 ## I. Transition-path resource-constraint error, read by when it occurs
 

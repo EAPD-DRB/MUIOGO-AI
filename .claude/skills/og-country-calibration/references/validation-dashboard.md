@@ -79,6 +79,15 @@ tier with a written reason.
   large net international investment position, most of the current account is primary income, not
   trade. Japan's CA surplus is ~3.8% of GDP against a goods-and-services balance near zero, so a model
   `NX/Y` of 0.000 is right, and scoring it against 3.8% would be a concept error.
+- **A steady state cannot run a trade surplus and own net foreign assets at once.** In a steady
+  state a net creditor (`K_f < 0`) spends its foreign income, so `NX` is negative; a country
+  observed with both a trade surplus and a positive NIIP is still accumulating, which only the
+  transition can show. Score `NX/Y` in the early transition, and in the steady state compare only its
+  sign with the sign of `K_f`. Then decompose the consumption gap (below): most of it will be this
+  `NX` term. (KOR: data `NX/Y` +5.5% with NIIP +47%; model steady state −3.1%, accounting for 8.5
+  of an 11-point `C/Y` gap.) **[KOR]**
+- **Use the model's own `K` concept.** `K/Y` targets private capital: subtract public capital from
+  the PWT ratio (macro-open-economy.md, `delta_annual`). **[KOR]**
 
 ## Revenue by instrument
 
