@@ -17,7 +17,12 @@ OG-Core's own installer, as `scripts/QUICK_INSTALL.md` in PSLmodels/OG-Core desc
 `bash install.sh --repo <key> --dest <new parent folder> --yes` (`--list` shows the keys: og-core,
 og-eth, og-zaf, og-idn, og-phl, og-bra). It clones the repo, installs uv if needed, runs
 `uv sync --extra dev`, and checks the import. To test a branch or a fork, install it the same way
-into its own folder: `--repo-url <git URL> --branch <branch>`. Do not build an environment by hand
+into its own folder: `--repo-url <git URL> --branch <branch>`. A local clone works as the URL,
+which is how a new country repo not yet in the catalog is installed. The installer names the
+package from the last part of the URL (lowercased, hyphens dropped) and checks that it imports, so
+install from a clone whose folder is named like the repo (`.../OG-KOR`, `.../OG-Core`), not from a
+worktree or a demo folder (`OG-Core.fix`, `OG-KOR-demo`): those install but fail the import check.
+Do not build an environment by hand
 for a reported run: no conda environment, no `uv sync` inside an ad-hoc worktree, no `PYTHONPATH`
 or `sys.path` shadowing, no `pip install` of another build. If the installer cannot produce what the
 task needs, stop and ask.
@@ -36,6 +41,14 @@ folder) and re-run the preflight; do not run the stale environment. The one rema
 is testing an unreleased ogcore under a country model (og-solver-diagnosis covers the pattern),
 and only when the user asked for it.
 
+**Calibration tuning runs through repo code too.** Tuning a dial takes many steady-state solves,
+and the example always runs the full transition. So the repo ships a small tuning script (for
+example `examples/tune_ss.py`): it loads the packaged JSON plus an overrides dict, builds the
+example's worker pool, calls `runner(p, time_path=False, client=client)` and prints the dashboard.
+Because the repo ships it, it runs from the installed copy like any repo code; it is never an
+ad-hoc driver in a scratch folder. Its output sets dials and nothing more: fold the settled values
+into the JSON, commit, re-install, and take every reported number from the shipped example.
+
 **Tests run in an installer copy too.** Any OG test run whose result you will report (the CI
 selection, the slow `local` tests, a single test file) runs inside a copy made by the installer,
 for the exact commit under test: `bash install.sh --repo-url <git URL or local clone> --branch
@@ -47,9 +60,7 @@ re-testing; a copy is tied to one commit. Tests that solve the model use the exa
 parallelism: OG-Core's test files build a smaller Dask pool (`test_TPI.py`: 4 workers x 2
 threads), so in the test copy only, set it to the example's `min(cpu_count(), 7)` workers x 1
 thread before launching, and say so in the report (the model owner's call, 2026-10-12). Never
-commit that edit. The installer names the package from the last part of
-the URL, so a local branch is installed from a clone whose folder is named like the repo
-(`.../OG-Core`), not from a worktree named `OG-Core.something`.
+commit that edit.
 
 **Evidence about the model comes only from such a run.** A claim that the model fails, is wrong,
 has a bug, or got faster must come from an installer-installed copy running its shipped example.

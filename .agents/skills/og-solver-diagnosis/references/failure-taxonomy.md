@@ -112,6 +112,15 @@ strings to grep for. When you hit a class not listed here, add it.
 - **Remedy**: warm-start from a solved state (solve-procedures.md, "Warm-starting the steady
   state"). A guess that is near in values is not necessarily one the
   solver can start from: nearness is not solvability.
+- **Variant: an inconsistent seed set, not a far one** **[KOR]**. ogcore derives the GDP guess as
+  `initial_guess_TR_SS / alpha_T`. A repo bootstrapped from a sibling keeps the sibling's TR seed;
+  against the new `alpha_T` the GDP guess lands several times too high. Signature: one GE-loop
+  residual, the fifth (`Y`, after `r_p`, `r`, `w`, `p_m`), stuck large and negative (KOR −3.5,
+  the guess 4.6x the solution) while the rest decay. Residual order, from `SS_fsolve`:
+  `[r_p, r, w, p_m..., Y, BQ..., TR, factor]`. Remedy: set every `initial_guess_*` from the
+  country's own last solve, then warm-start. Also note `SS_fsolve` divides the factor residual by
+  1,000,000, so in a high-denomination currency measured in millions the factor's residual is
+  near-invisible to the root-finder; seed it well.
 
 ## I. Transition-path resource-constraint error, read by when it occurs
 

@@ -15,6 +15,9 @@ fiscal inconsistencies, calibration placeholders, or the wrong code running.
 
 ## Which world
 
+This applies when you work through MUIOGO. For a standalone OG repo installed with OG-Core's
+installer (no `muiogo-ai` involved), skip it: the checkout you were given is the world. **[KOR]**
+
 This skill diagnoses a solve in **one** world: the runtime installation reached by
 `muiogo-ai`, unless the user explicitly asked about their own live one
 (`muiogo-live`). Never use bare `muiogo`, and never fall back to it. Every command
