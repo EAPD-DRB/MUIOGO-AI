@@ -218,7 +218,19 @@ fail silently. **[KOR]** Before any solve:
   settings (`TPI_outer_method`, `nu`, `initial_guess_*`): a sibling can predate a run rule (KOR
   inherited `nu` 0.4 with Anderson from PHL). The seeds are the sibling's solution, not neutral
   defaults: ogcore guesses GDP as `initial_guess_TR_SS / alpha_T`, so a sibling's TR seed against
-  the new `alpha_T` put KOR's GDP guess 4.6x too high and stalled the solve.
+  the new `alpha_T` put KOR's GDP guess 4.6x too high and stalled the solve. What replaces each
+  inherited value:
+
+  | Inherited | Replace with |
+  |---|---|
+  | `start_year` | the latest year with observed data |
+  | demographic window | the archive's last year minus one; check `g_n_ss` against the UN growth |
+  | every tax rate, `tau_bq` included | effective = collections / the model's base, by instrument |
+  | `alpha_G`, `alpha_T`, `alpha_I`, pensions | the budget identity at `debt_ratio_ss` (step 7) |
+  | `K/Y` target, `delta` | private capital: PWT less public capital; CFC less government's |
+  | `zeta_K`, world rate, `r_gov_shift` | IIP gross `K_f/K`; a sourced world rate; the treasury's effective rate |
+  | `nu`, `TPI_outer_method`, `initial_guess_*` | the run rules; seeds from the new country's own first solve |
+
 - **Replace the sibling's example reform** with one that means something for the new country (for
   example, a reform the new country has enacted, not the sibling's; history: KOR).
 

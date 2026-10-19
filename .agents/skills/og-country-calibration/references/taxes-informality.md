@@ -44,7 +44,7 @@ estate and donor collections of ~0.07%.
 Deductions, exemptions and non-filing put effective estate taxation one to two orders of magnitude
 below statutory nearly everywhere. Always compute `tau_bq` from collections ÷ model bequest flows,
 and grep every port, new or old, for this parameter: a value equal to a statutory rate, or copied
-from a sibling, is the error. (history: BRA)
+from a sibling, is the error. **[ZAF, PHL]** (history: ZAF, PHL, BRA)
 
 ## PIT functional form: three paths
 
