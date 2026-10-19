@@ -1,6 +1,6 @@
 ---
 name: og-run
-description: Installs an OG-Core model (OG-Core or a country repo) with OG-Core's official installer and runs its shipped example script unchanged - baseline and reform from that install's own environment, in parallel, with the Anderson solver - builds a multi-industry calibration, monitors the run and collects the output. Use when asked to run, solve or re-run an OG model (OG-Core, OG-USA/PHL/ZAF/IDN/BRA/ETH), to produce a baseline or reform, to benchmark or test a code change, to check whether the model fails or misbehaves, or when another skill needs OG output that does not exist yet.
+description: Installs an OG-Core model (OG-Core or a country repo) with OG-Core's official installer and runs its shipped example script unchanged - baseline and reform from that install's own environment, in parallel, with the Anderson solver - builds a multi-industry calibration, monitors the run and collects the output. Use when asked to run, solve or re-run an OG model (OG-Core, OG-USA/PHL/ZAF/IDN/BRA/ETH/JPN/FJI or any other OG country repo), to produce a baseline or reform, to benchmark or test a code change, to check whether the model fails or misbehaves, or when another skill needs OG output that does not exist yet.
 ---
 
 # Run an OG-Core country model
@@ -71,7 +71,9 @@ If it points elsewhere, stop; that is the finding.
 
 ## Launching a run
 
-Country models ship example scripts that define the baseline and the reform:
+Country models ship example scripts that define the baseline and the reform. OG-PHL is the
+example in this section; other repos name their scripts and folders their own way, so list
+`examples/` in yours:
 
 ```bash
 cd <og-models>/OG-PHL
@@ -120,8 +122,11 @@ Things that bite in a headless session:
   `Calibration(p, update_from_api=True)`, which refreshes parameters from live sources and
   can overwrite curated values (`og-country-calibration` covers the risk). Say so when
   proposing the run, and note whether it ran online.
-- **`uv run` re-syncs the environment to the lockfile.** If the run needs an ogcore that is
-  not the locked release (a local build or a branch), `uv run` silently swaps it out. In a
+- **`uv run` re-syncs the environment to the lockfile.** In an installer copy run as installed
+  this changes nothing: its environment is the lockfile's, so `uv run` and the activated `python`
+  above are the same (an unreleased ogcore pinned in `pyproject.toml` is in the lockfile too). It
+  bites when ogcore was changed by hand after install (a local build or a branch the lockfile does
+  not name): `uv run` silently swaps it out. In a
   repo with no `uv.lock`, `uv run` resolves and installs fresh, with the same effect. Use
   `.venv/bin/python` in both cases, or create the environment deliberately first.
   Invoke `.venv/bin/python examples/...` directly in that case, and check
@@ -134,7 +139,7 @@ For a background run, launch it (after the user's go) under `nohup` or a termina
 multiplexer, with unbuffered output teed to a log so progress survives a disconnect:
 
 ```bash
-nohup uv run python -u examples/run_og_phl.py > og-phl-run.log 2>&1 &
+nohup uv run python -u examples/<example script> > <country>-run.log 2>&1 &
 ```
 
 Then monitor rather than re-launching, and report status to the user at intervals without

@@ -1,7 +1,7 @@
 # Macro and open-economy block
 
 Method, pitfall and exemplar for each parameter, then the capital share and the gross-vs-net `K_f`
-question. The `K/Y` closed form these rows refer to is in SKILL.md, Step zero.
+question. The `K/Y` closed form these rows refer to is in method.md, Step zero.
 
 Contents
 - start_year
@@ -32,11 +32,13 @@ interest actuals) are data for a year-X start but extrapolations for X+1. Changi
 demographics (and everything derived from them) through the country's regeneration tool, and
 re-maps the fiscal glide to the program years.
 
-**Pitfall.** Inheriting a future start year from a sibling. PHL shipped start 2026 while its latest
-data was 2025: the packaged `initial_debt_ratio` 0.60 was the beginning-of-2025 value (a 2026 start
-needed ~0.62), and the 2025-observed remittance ratio was treated as a 2026 extrapolation.
+**Pitfall.** A start year past the latest data, whether inherited from a sibling or set ahead in a
+parameter update. A start one year past the latest data
+makes the packaged `initial_debt_ratio` the prior year's value (the later start needs a different
+one), and turns the latest observed levels, such as the remittance ratio, into extrapolations.
+**[PHL]** (history: PHL)
 
-**Exemplar.** PHL (caught by the user, moved 2026 → 2025).
+**Exemplar.** PHL (caught by the user, moved back to its latest data year).
 
 ## Debt (initial_debt_ratio, debt_ratio_ss)
 
@@ -49,12 +51,12 @@ wrong `initial_debt_ratio` is invisible to the steady state; only the transition
 (see fiscal-consistency.md).
 
 **A government that owns large financial assets.** OG-Core's government has debt but no assets.
-Where it holds a large funded pension reserve or sovereign fund (KOR: general government net
-financial assets +51% of GDP, the pension fund alone 54%), choose the perimeter and say it: gross
-debt (D2-type) paired with the effective rate on gross debt (validation-dashboard.md, "Pair the debt
-concept with the interest concept"), with the asset side and its income left out. That income
-(KOR: ~2.4% of GDP of property income) is then missing from revenue, so the budget closure lands
-`G/Y` below the data by about that much: report it as that omission, not as a consolidation gap.
+Where it holds a large funded pension reserve or sovereign fund, choose the perimeter and say it:
+gross debt (D2-type) paired with the effective rate on gross debt (validation-dashboard.md, "Pair
+the debt concept with the interest concept"), with the asset side and its income left out. That
+income is then missing from revenue, so the budget closure lands `G/Y` below the data by about that
+much (on KOR, ~2.4% of GDP of property income): report it as that omission, not as a consolidation
+gap.
 Do not route it through `alpha_FA`: that parameter is foreign aid and also enters the resource
 constraint as an inflow from abroad. **[KOR]**
 
@@ -77,8 +79,8 @@ Tune until the solved steady-state `K_f/K` matches the IIP foreign-capital share
 solves bracket it; PHL sensitivity ≈ 0.4pp of `K_f/K` per 0.01 of `zeta_K`). The normalized
 Chinn-Ito index is the prior that locates the plausible range, not the target. Decide gross vs net
 `K_f` first (last section). **Re-validate after any tax-side change.** Tax recalibration moves
-domestic saving, which moves `K_f/K` at a fixed `zeta_K` (PHL: honest taxes pushed it 0.26 → 0.14;
-`zeta_K` 0.4 → 0.47 restored the 0.20 IIP anchor).
+domestic saving, which moves `K_f/K` at a fixed `zeta_K` (on PHL, honest taxes moved it from 0.26
+to 0.14, and re-tuning `zeta_K` restored the IIP anchor). (history: PHL)
 
 **Pitfall.** The `zeta_K = 0.9` placeholder ("implies high openness"). It drives domestic capital
 `K_d = B − D_d` negative. `aggregates.get_K_splits` then floors `K_d` at `0.05·B` (`np.fmax`, with a
@@ -95,7 +97,7 @@ it and fixed it.
 **Method.** Open, investment-grade: risk-free (~4%) plus the country's sovereign spread.
 Near-closed or distressed: leave it at the ~4% benchmark and route country risk through a low
 `zeta_K` and the debt-elastic premium instead. At high `zeta_K` this constant sets `r`, so source it
-(SKILL.md, default sweep).
+(method.md, default sweep).
 
 **Pitfall.** Adding a spread for a defaulted or restructuring sovereign (wrong model); leaving it
 undocumented.
@@ -110,10 +112,9 @@ return at the data-consistent private `K/Y` can sit at or below the world rate, 
 demand that `zeta_K` scales is zero or negative. Then no `zeta_K` produces a positive gross `K_f/K`,
 and `zeta_K` is not identified by the steady state. Do not invent a world rate to rescue the target,
 and do not distort `K/Y`. Keep the sourced world rate, set `zeta_K` from the openness prior with a
-written reason, judge it on the transition, and report the `K_f/K` miss with its cause. (KOR: private
-`K/Y` 4.31 gives `r` 3.97% against a 4.0% world rate; gross IIP target +8.4%, model −0.9% to −3.3%
-for `zeta_K` 0.17–0.5; a positive share would need a world rate near 3.7% that no source supports.)
-**[KOR]**
+written reason, judge it on the transition, and report the `K_f/K` miss with its cause. (On KOR,
+every `zeta_K` from 0.17 to 0.5 left gross `K_f/K` negative, −0.9% to −3.3%, against a positive
+target.) **[KOR]** (history: KOR)
 
 **Exemplar.** IDN (open); ETH (distressed).
 
@@ -122,8 +123,9 @@ for `zeta_K` 0.17–0.5; a positive share would need a world rate near 3.7% that
 **Method.** Measure per hour, not per worker. Labour input is people × hours × ability and
 steady-state hours per worker are constant, so a trend in hours per worker is transitional and must
 be stripped, exactly like a trending participation rate; treat the two consistently (it is easy to
-strip one and leave the other). PWT via FRED: real GDP ÷ (persons engaged × average hours). JPN
-2000–2019: +0.557%/yr per worker, −0.472%/yr hours, +1.035%/yr per hour **[net-new: JPN]**. Choose
+strip one and leave the other). PWT via FRED: real GDP ÷ (persons engaged × average hours). On JPN,
+falling hours per worker meant measuring per hour raised `g_y` by about 0.5pp a year over measuring
+per worker **[net-new: JPN]** (history: JPN). Choose
 the growth window as named constants with a rationale (start after a structural break, end before
 the latest shock, reject unrepeatable booms). The steady state is a long-run state, so `g_y` must be
 consistent with the growth the `debt_ratio_ss` anchor assumes (`GDP growth ≈ g_y + g_n_ss`). If the
@@ -134,8 +136,9 @@ productivity growth (medium-term GDP growth − `g_n_ss`), not the stagnant real
 with a stabilization `debt_ratio_ss`: internally inconsistent (that is the pessimistic,
 debt-drifts-up scenario), so the model's debt will not hold at the target.
 
-**Exemplar.** IDN, ETH, PHL. ZAF: the realized 0.6% was inconsistent with the 0.765 anchor's ~1.8%
-growth, so `g_y` rose to ~1.4% (= 1.8% − `g_n` 0.42%).
+**Exemplar.** IDN, ETH, PHL. ZAF: the realized-window `g_y` was inconsistent with the growth its
+`debt_ratio_ss` anchor assumes, so `g_y` was set to that growth less `g_n`, a rise of about 0.8pp
+(history: ZAF).
 
 ## r_gov base wedge (r_gov_scale, r_gov_shift)
 
@@ -144,18 +147,18 @@ growth, so `g_y` rose to ~1.4% (= 1.8% − `g_n` 0.42%).
 estimated sovereign-vs-corporate pass-through), but re-anchor the `shift` so the steady-state
 `r_gov` equals the country's actual real effective rate on debt: interest payments ÷ gross debt,
 minus expected inflation. Take both from the treasury's own cash-operations or budget report (news
-stories mislabel fiscal years; PHL's widely quoted "FY2024" interest figure was FY2025). Expect
+stories mislabel fiscal years **[PHL]**; history: PHL). Expect
 `r_gov < g` for many emerging markets. Then the debt-stabilizing primary balance `pb*` is a deficit,
 matching how such countries stabilize debt while running primary deficits. State the consolidation
 gap (actual primary balance vs `pb*`) in the docs, since the stable-debt steady state embeds it.
 
 **Pitfall.** The LMWW intercept is a cross-country EM average that maps a nominal USD bond-yield
-level onto the model's real MPK. It over-predicted ZAF by ~0.5–0.6pp and PHL by ~3pp (5.1% vs the
-~2.0% the Treasury pays), inflating the debt-stabilizing primary surplus and forcing spending too
+level onto the model's real MPK. It over-predicted ZAF by ~0.5–0.6pp and PHL by ~3pp against what
+each treasury actually pays, inflating the debt-stabilizing primary surplus and forcing spending too
 low. Do not use the 10-year or inflation-linked marginal yield either: that is new-issue cost, not
 the stock average.
 
-**Exemplar.** ZAF (~3.7%), PHL (~2.0%).
+**Exemplar.** ZAF, PHL (history: ZAF, PHL).
 
 ## r_gov floor
 
@@ -194,11 +197,11 @@ a real trade deficit and a fiscally sustainable government.
   `Specifications` object is internal tiling.
 
 **Pitfall.** Leaving remittances or aid off for an aid- or remittance-dependent economy: a spurious
-trade surplus and an implausible fiscal squeeze. A nominal growth rate in the `g_RM` slot: PHL
-shipped `g_RM = 0.03` (Dec-on-Dec USD growth) against a ~5.7% model-consistent denominator, so RM/Y
-fell 35% below its calibrated share by t≈24 and recovered only after t≈100, with nothing in the docs
-intending it. The cash-measure trap: PHL's 0.072 came from a central-bank headline that was the cash
-series (personal was 8.1%).
+trade surplus and an implausible fiscal squeeze. A nominal growth rate in the `g_RM` slot: on PHL,
+a Dec-on-Dec USD growth rate there, well below the model-consistent denominator, made RM/Y fall 35%
+below its calibrated share by t≈24, recovering only after t≈100, with nothing in the docs intending
+it. The cash-measure trap: a level taken from a central-bank headline that was the cash series, not
+the personal one **[PHL]**. (history: PHL)
 
 **Exemplar.** PHL (all three, fixed); ETH (aid).
 
@@ -241,27 +244,23 @@ its construction), not the old parameter value, which was scaled differently. Tw
   first-year GDP is endogenous, the transition rescales the whole initial distribution by a common
   factor each iteration until `B_1/Y_1` hits the target.
 
-**What the open PRs actually did on an old population (KOR, 2026-10).** The names above had
-already changed: PSLmodels/OG-Core#1250 (draft) ships `initial_wealth_ratio` (B/Y in the first
-period, default 5.702 and always on) and `initial_hhwealth_dist` (the S×J shape), and is being split
-into smaller PRs starting with #1251. With KOR's capital-side target 4.43 and the default shape, its
-in-loop rescaling oscillated for ten damped iterations without decaying (1.47 … 0.64 … 1.55 … 1.10)
-where the same calibration without it converged steadily. PR #1189 (a static anchor on
-steady-state GDP, set before the solve; reforms inherit the baseline's B(0)) converged normally and
-delivered 4.39. Neither removed KOR's early consumption spike: it sits in the second year,
-concentrated in ages 60+ (2.3× steady-state consumption under #1189, 1.9× under the old default),
-and it *grew* when the level rose to the data. So for an old population the level anchor is not
-the fix; the age shape of initial wealth is the next suspect (Korean survey data give net worth by
-age of household head), and why the spike lands in year 2 rather than year 1 is not yet explained.
-Record which build each result came from, and do not adopt an unreleased initial-wealth build for a
-country unless it measurably fixes that country's symptom. **[KOR]**
+**Test an initial-wealth build on your country before adopting it.** Two designs have been tried.
+Rescaling the initial distribution inside the transition loop can oscillate: on an old population
+it ran ten damped iterations without decaying, where the same calibration without it converged.
+A static anchor set before the solve (reforms inherit the baseline's B(0)) converged and landed
+close to the target. Neither fixes an early consumption spike caused by unsolved start cohorts
+(og-solver-diagnosis, class M), which looks the same; rule that out first. Record which build each
+result came from, and adopt an unreleased build only if it measurably fixes your country's
+symptom. **[KOR]** (history: KOR)
 
 **Diagnose first.** Before setting anything, see what initial condition your ogcore imposes by
 default and what it does to the first years. Older ogcore rescaled the steady-state profile so
 aggregate B(0) = B_ss, which hands every initial household a uniform windfall when the initial
 population is younger than the stationary one (confiscation when older); the per-household scale is
 `B_ss / get_B(b_sp1, p, "SS", True)`. The default above avoids that windfall but gives an aggregate
-B(0) set by demographics, not data. Either way the fingerprint of a wrong initial condition is a
+B(0) set by demographics, not data. On KOR the two differ by that factor: the old rescale multiplied
+wealth by 1.53, and the rescaled level happened to land near the data target. That is luck, not
+method; take the level from data (history: KOR). Either way the fingerprint of a wrong initial condition is a
 violent year-1-or-2 consumption spike concentrated in ages 60+ across all j, an investment
 collapse, a `tau_c` revenue pulse and a spurious debt paydown (or the mirror images). It is
 invisible in reform-minus-baseline tables, because both paths share the initial condition.
@@ -272,9 +271,9 @@ the start year. Two ways to measure it, and they differ:
   `(K/Y_PWT − public capital/Y) × (1 − IIP foreign-owned share) + domestic-held share × D/Y`.
   Compute the PWT ratio from the raw current-PPP series pair (capital `CKSPPP…` over output
   `CGDPOS…` on FRED), never from memory; PHL moved 3.33 (2019) → 3.97 (2023).
-- *Household balance sheets* (UBS databook class; OG-Core's own documentation tabulates these, e.g.
-  PHL 2.50, ZAF 2.56, ETH 1.70). Usually lower for emerging markets, because they undercount real
-  property.
+- *Household balance sheets* (UBS Global Wealth Databook class, or the national accounts' household
+  sector). Usually lower for emerging markets, because they undercount real property.
+  (history: PHL, ZAF, ETH)
 
 Prefer the capital-side number, cross-check against the balance-sheet one, and write down which you
 used and why. Expect initial < steady-state wealth ratio for a fast-growing economy.
@@ -286,8 +285,8 @@ means the steady-state profile itself is far from the data, which is a finding.
 
 **Check the solve, not just the target.**
 - Confirm the solved `B_1/Y_1` equals the target.
-- Rescaling initial wealth between transition iterations is the step that misbehaved before: on
-  JPN it drove the initial cohorts into negative-consumption solutions that satisfied the extended
+- Rescaling initial wealth between transition iterations is the step that misbehaved before
+  (PSLmodels/OG-Core#1189): it drove the initial cohorts into negative-consumption solutions that satisfied the extended
   first-order conditions and passed OG-Core's constraint checker, which watches a different object.
   Always read minimum household consumption from the pickle, and watch that the outer-loop distance
   still falls. If the targeted run misbehaves, a fixed level reached by tuning the factor matrix over
@@ -295,15 +294,15 @@ means the steady-state profile itself is far from the data, which is a finding.
 - **Report the initial foreign capital share** `K_f(0)/K(0)` against the IIP; it is untargeted.
   Where the model's `K/Y` overshoots the PWT, measured household wealth and the measured foreign
   share cannot both be hit: the model fills its larger capital stock with foreign inflows. Keep the
-  wealth anchor and document the foreign-share miss with its cause (PHL: hitting the IIP share would
-  have needed 4.3 against a measured 3.35).
+  wealth anchor and document the foreign-share miss with its cause (on PHL, hitting the IIP share
+  would have needed household wealth about 28% above the measured level; history: PHL).
 - Then re-tune the `alpha_G` glide; it was fit against the old initial condition's revenue path.
 
 **Pitfall.** PHL's old default scale was 1.625 (a 63% windfall): retirees consumed at 3–7× steady
 state for years, C jumped 41% for one year, domestic investment fell to ~2% of long run, and debt was
-paid down to 50% against a 60% target. It surfaced only in level exercises.
+paid down 10pp of GDP below its target. It surfaced only in level exercises. (history: PHL)
 
-**Exemplar.** PHL (diagnosis and fix); JPN (the in-loop rescaling failure).
+**Exemplar.** PHL (diagnosis, fix, and the in-loop rescaling failure; PSLmodels/OG-Core#1189).
 
 ## delta_annual
 
@@ -318,16 +317,16 @@ use `private K/Y = PWT K/Y − public K/Y` (the same subtraction the initial-wea
 both as the `K/Y` dashboard target and as the denominator here, and take government CFC out of the
 numerator. Set `delta_g` from government CFC over the public stock. Scoring the model's private
 `K/Y` against total PWT `K/Y` sends `beta` after a gap that is not there, and moves `r` across the
-world rate (KOR: 5.13 total vs 4.36 private; `delta` 4.35% → 4.75%; at 5.13 the implied `r` was
-3.1%, below the 4.0% world rate). **[KOR]**
+world rate (on KOR, the private split raised `delta` by 0.4pp, and scoring against total `K/Y` put
+the implied `r` about 0.9pp below the world rate). **[KOR]** (history: KOR)
 
-**Pitfall.** Leaving OG-Core's 0.05, a US value. JPN 0.05 → 0.062 moved investment 2.7pp of GDP.
+**Pitfall.** Leaving OG-Core's 0.05, a US value **[JPN]**.
 
 **Exemplar.** **[net-new: JPN]**; private/public split **[KOR]**.
 
 ## beta_annual
 
-**Method.** Not observable; calibrate it to the capital-output ratio through the firm FOC (SKILL.md,
+**Method.** Not observable; calibrate it to the capital-output ratio through the firm FOC (method.md,
 Step zero). With `gamma` and `delta` sourced, `K/Y` is a function of `r`, and `r` is what `beta`
 moves; two or three SS solves bracket it. `beta` is one of eleven levers on `K/Y`, so check Step
 zero before concluding it is the binding one. Order matters: sourced parameters first, then look at
@@ -347,9 +346,9 @@ out of the household budget, not `TR`, which enters it. Split from OECD SOCX or 
 social-security accounts.
 
 **Pitfall.** In-kind spending in `alpha_T` hands households income they do not have and inflates
-consumption directly. JPN shipped 0.075 against a true cash ~0.025: three times too high, the largest
-single error in its consumption fit. Worst wherever health care is publicly provided in kind, which
-is most of the OECD.
+consumption directly. On JPN the shipped `alpha_T` was three times the true cash share, the largest
+single error in its consumption fit (history: JPN). Worst wherever health care is publicly
+provided in kind, which is most of the OECD.
 
 **Exemplar.** **[net-new: JPN]**
 
@@ -367,7 +366,8 @@ is most of the OECD.
     rescale so the value-added-weighted mean equals the economy-wide capital share. Where the table
     has a mixed-income row, split it per industry first **[BRA]** (og-multi-industry-calibration).
 - **Pitfall [ETH, verified].** The `update_from_api=True` path recomputes the naive `1 − ILOSTAT`
-  and silently clobbers a hand-triangulated `gamma` (e.g. overwrites 0.30 with 0.515), undoing the
+  and silently clobbers a hand-triangulated `gamma` (on ETH, with a value about 0.2 higher; case
+  notes: ETH), undoing the
   whole argument in the docs. Because some examples call that path whenever online (SKILL.md, mental
   model 1), this sits in the default run. Remove curated structural parameters from the live path
   entirely, as IDN did; an `if update_from_api` guard is not enough.
@@ -380,20 +380,20 @@ The identity is `K = K_d + K_f` with `K_d = B − D_d`, so `K_f` reads as the **
 share of the domestic capital stock: households hold domestic capital and domestic government debt,
 and nothing else. On that reading the IIP target is inward direct-investment equity (including
 reinvested earnings) + inward portfolio equity, ÷ GDP ÷ `K/Y`, where `K/Y` is the model's *private*
-capital ratio (PWT less public capital; see `delta_annual`), or the share is understated (KOR: 7.1%
-on total PWT capital, 8.4% on private). Japan end-2024:
-(34.5 + 334.8) / 609 / 3.70 = +16.4%, against the 1.5% a placeholder `zeta_K = 0.10` produced.
+capital ratio (PWT less public capital; see `delta_annual`), or the share is understated (on KOR,
+total PWT capital understated it by 1.3pp). On JPN, a placeholder `zeta_K = 0.10` produced about a
+tenth of the gross target. (history: KOR, JPN)
 
 But `K_f = zeta_K·(K_demand_open − B + D_d)` is not clamped, and the outflow term
 `(r + delta)·K_f − new_borrowing_f + debt_service_f` reverses cleanly, so a negative `K_f` is
-arithmetically fine and reads as a **net** creditor position. Japan's net IIP is +¥533tn, 87.5% of
-GDP; on the net reading the target is −23.7%, the opposite sign.
+arithmetically fine and reads as a **net** creditor position. For a large net creditor, the net
+reading gives a target of the opposite sign (history: JPN).
 
 **Which to use.** The identity is the stronger argument: `K_d = B − D_d` leaves households no foreign
 asset, so a negative `K_f` is an unclamped edge case rather than a designed representation.
 Calibrate to gross. Say plainly what that costs: the model omits the country's foreign portfolio, so
 household wealth `B` is understated by it and the primary income it earns is absent from the
-resource constraint (for Japan, ¥1,659tn of assets and roughly 3.8% of GDP a year of income). This is
+resource constraint (on JPN, roughly 3.8% of GDP a year of income). This is
 an OG-Core limitation, not a calibration choice: there is one `K_f`, so a two-sided external balance
 sheet cannot be expressed. Check the sign of the country's NIIP, state which reading you took, and
 note the omission in the audit. **[net-new: JPN]**

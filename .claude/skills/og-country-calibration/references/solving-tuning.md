@@ -15,6 +15,11 @@ Contents
 
 ## Environment
 
+- **What `Calibration` delivers.** `Calibration(p, update_from_api=False)` (the class default)
+  fetches nothing and overlays only no-op identity values (single-industry `alpha_c=[1.0]`,
+  `io_matrix=[[1.0]]`; empty for multi-industry); `macro_params` and `demographic_params` are `{}`
+  and `e` is `None`. Count what it actually sets: OG-JPN delivered seven parameters where
+  thirty-four mattered. The packaged JSON is what makes the whole surface visible. **[net-new: JPN]**
 - **uv, not conda, through the official installer.** Install with OG-Core's `scripts/install.sh`
   (it runs `uv sync --extra dev` for you), then run the shipped example from that install
   (`../OG_RUN_RULES.md`). `AGENTS.md` is the source of truth for anything the installer does not
@@ -53,8 +58,8 @@ The rules are in og-run-rules.md. The evidence behind them:
   serial (~38s vs ~6s per GE evaluation **[JPN]**; 12+ min vs 66s **[PHL]**). They came from older
   ogcore, which re-sent the parameters to the workers on every evaluation. If the SS through the
   client is slow on a current ogcore, report it as a finding rather than building a serial driver.
-  A two-phase hand driver (SS serial → pickle → TPI with the client) was used on PHL for speed; it is
-  not the example pattern and is not used for official runs.
+  A two-phase hand driver (SS serial → pickle → TPI with the client) was once used for speed
+  **[PHL]**; it is not the example pattern and is not used for official runs.
 - **Why Anderson.** The M=1 PHL transition went from ~30–70 damped iterations (~20 min) to 11–12
   (~2–2.5 min) with monotonically falling distances **[PHL]**; OG-Core's own changelog reports a
   stiff multi-industry reform converging in 53 outer iterations vs 126 under constant `nu = 0.1`. It
@@ -81,7 +86,7 @@ forbid. Two things it is not:
 Two habits make the loop debuggable. **Log every solve** to a named file with its settings echoed
 first (`logs/tune_r04.log`): a stalled solve read only through a filtered console cannot be
 diagnosed afterwards (og-solver-diagnosis, log discipline). And **seed every solve from the last
-converged one** (the warm start, SKILL.md step 11): on KOR the same calibration took 394 s from
+converged one** (the warm start, SKILL.md step 11; OG-JPN's `warm_start.py` is the pattern): on KOR the same calibration took 394 s from
 uniform seeds and 32 s warm. A dial move that breaks a warm-started solve is a calibration
 signal; one that breaks a cold-started solve is usually the seed. **[KOR]**
 

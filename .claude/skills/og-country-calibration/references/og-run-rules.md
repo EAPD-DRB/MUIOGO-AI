@@ -23,8 +23,8 @@ og-eth, og-zaf, og-idn, og-phl, og-bra). It clones the repo, installs uv if need
 into its own folder: `--repo-url <git URL> --branch <branch>`. A local clone works as the URL,
 which is how a new country repo not yet in the catalog is installed. The installer names the
 package from the last part of the URL (lowercased, hyphens dropped) and checks that it imports, so
-install from a clone whose folder is named like the repo (`.../OG-KOR`, `.../OG-Core`), not from a
-worktree or a demo folder (`OG-Core.fix`, `OG-KOR-demo`): those install but fail the import check.
+install from a clone whose folder is named like the repo (`.../OG-<XXX>`, `.../OG-Core`), not from a
+worktree or a demo folder (`OG-Core.fix`, `OG-<XXX>-demo`): those install but fail the import check.
 Do not build an environment by hand
 for a reported run: no conda environment, no `uv sync` inside an ad-hoc worktree, no `PYTHONPATH`
 or `sys.path` shadowing, no `pip install` of another build. If the installer cannot produce what the
