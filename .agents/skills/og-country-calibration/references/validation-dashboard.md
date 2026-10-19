@@ -66,8 +66,13 @@ tier with a written reason.
 | `w·L/Y` (solved labour share) | validates `gamma` and `epsilon` | PWT `labsh`. JPN solved 0.5700 against 0.571, a real free check, since nothing forces it when `epsilon != 1` |
 | wealth Gini / top shares | the `e` matrix, `beta` | household wealth surveys. Distinct from the income Gini the tilt targets, and a much sharper test of an OG model |
 | `g_n_ss` | the demographic window | the UN projection's own implied CAGR |
+| wealth by age (mean net worth of 60+ and of under-40s, relative to 50-59) | `chi_b` (old end); the shape of initial wealth | household wealth surveys by age of head. The steady-state profile is what initial wealth is built from |
 
-**[net-new: JPN]**
+**[net-new: JPN]** Wealth by age **[KOR]**: the solved profile had 60+ at 1.86× the 50-59 level
+against 0.97 in the survey, and under-30s at 0.02 against 0.2-0.3. `chi_b` moves the old end
+(1.86 at 80, 1.60 at 20, 1.26 at 5) but also `K/Y` (4.31, 3.71, 3.47) and bequest revenue, so
+re-tune `beta` and `tau_bq` with it. The young end is leveraged housing, which OG-Core does not
+model; document it rather than tune for it.
 
 ## Two traps when adding rows
 

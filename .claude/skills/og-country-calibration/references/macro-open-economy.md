@@ -248,20 +248,22 @@ into smaller PRs starting with #1251. With KOR's capital-side target 4.43 and th
 in-loop rescaling oscillated for ten damped iterations without decaying (1.47 … 0.64 … 1.55 … 1.10)
 where the same calibration without it converged steadily. PR #1189 (a static anchor on
 steady-state GDP, set before the solve; reforms inherit the baseline's B(0)) converged normally and
-delivered 4.39. Neither removed KOR's early consumption spike: it sits in the second year,
-concentrated in ages 60+ (2.3× steady-state consumption under #1189, 1.9× under the old default),
-and it *grew* when the level rose to the data. So for an old population the level anchor is not
-the fix; the age shape of initial wealth is the next suspect (Korean survey data give net worth by
-age of household head), and why the spike lands in year 2 rather than year 1 is not yet explained.
-Record which build each result came from, and do not adopt an unreleased initial-wealth build for a
-country unless it measurably fixes that country's symptom. **[KOR]**
+delivered 4.39. Neither removed KOR's early consumption spike, because initial wealth was not its
+cause: a third of the households alive in the first year had not been solved at all
+(PSLmodels/OG-Core#1247; og-solver-diagnosis, class M). With the solve fixed, C/Y ran 50.4, 50.5,
+50.7% in the first three years under the default initial condition, against 48.6, 62.9, 53.3%
+before. So rule out unsolved start cohorts before attributing an early-year spike to initial
+wealth. Record which build each result came from, and do not adopt an unreleased initial-wealth
+build for a country unless it measurably fixes that country's symptom. **[KOR]**
 
 **Diagnose first.** Before setting anything, see what initial condition your ogcore imposes by
 default and what it does to the first years. Older ogcore rescaled the steady-state profile so
 aggregate B(0) = B_ss, which hands every initial household a uniform windfall when the initial
 population is younger than the stationary one (confiscation when older); the per-household scale is
 `B_ss / get_B(b_sp1, p, "SS", True)`. The default above avoids that windfall but gives an aggregate
-B(0) set by demographics, not data. Either way the fingerprint of a wrong initial condition is a
+B(0) set by demographics, not data. On KOR the two differ by that factor, 1.53: B(0)/Y(0) is 2.72
+with each household at its steady-state wealth and 4.17 rescaled, against a data target of 4.43.
+The rescaled value landing near the target is luck, not method; take the level from data. Either way the fingerprint of a wrong initial condition is a
 violent year-1-or-2 consumption spike concentrated in ages 60+ across all j, an investment
 collapse, a `tau_c` revenue pulse and a spurious debt paydown (or the mirror images). It is
 invisible in reform-minus-baseline tables, because both paths share the initial condition.
