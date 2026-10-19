@@ -95,7 +95,7 @@ nothing in the dicts that is not in the data.
 
 Unchecked mappings ship silently wrong, because `isin` and `groupby` skip what they cannot match:
 ZAF had two misspelled commodity codes that dropped out of every sum; PHL's food group lists a code
-the SAM does not have. A test catches the class (BRA's: lengths equal the activity and product
+the SAM does not have (`ccott`, checked 2026-10-19 on its multi-industry branch). A test catches the class (BRA's: lengths equal the activity and product
 counts, value sets equal the group keys, no product in the data has an unmapped code). Add a
 run-time assert as well, since a new data vintage can introduce codes the test fixture does not.
 
@@ -228,7 +228,8 @@ Z_m = Y_m / ( K_m^gamma_m · L_m^(1 − gamma_m − gamma_g) )
   normalisation; use the private `gamma_m` (after the carve-out).
 - **Allocate `K_m` by the same capital income that defines `gamma_m`.** If `gamma` uses the
   mixed-income split, so must the allocation. BRA allocates by operating surplus plus all mixed
-  income while its `gamma` takes only phi of it, which is inconsistent.
+  income while its `gamma` takes only phi of it, which is inconsistent (checked 2026-10-19 on its
+  multi-industry branch).
 - **The capital-output ratio** from PWT for the SAM year (case notes: PHL, ZAF, BRA). Its level
   matters little: under the normalisation it enters relative Z only through the dispersion of
   `gamma`. Take it from PWT and move on; on PHL, the ranking held across ratios from 2.9 to 5.3.

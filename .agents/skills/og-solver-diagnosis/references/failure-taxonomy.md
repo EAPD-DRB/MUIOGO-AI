@@ -43,7 +43,8 @@ strings to grep for. When you hit a class not listed here, add it.
   Chinn-Ito only as a prior (`og-country-calibration`). Treat the warning as a calibration smell
   even when the run converges.
 - **Provenance**: OG-IDN hit and fixed the 0.9; OG-PHL fixed it later; its older logs show the
-  guard firing (case notes: PHL).
+  guard firing (case notes: PHL). OG-ZAF's and OG-BRA's upstream `main` still ship 0.9 (checked
+  2026-10-19), so expect it there.
 
 ## C. Oscillation / slow outer-loop convergence
 

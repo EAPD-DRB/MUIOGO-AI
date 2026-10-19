@@ -43,8 +43,8 @@ The bequest tax is a recurring statutory-for-effective error in this family: ZAF
 estate and donor collections of ~0.07%.
 Deductions, exemptions and non-filing put effective estate taxation one to two orders of magnitude
 below statutory nearly everywhere. Always compute `tau_bq` from collections ÷ model bequest flows,
-and grep every new port for this parameter. IDN, ETH and BRA had not been checked when this was
-written.
+and grep every new port for this parameter. On upstream `main` (checked 2026-10-19), IDN and ETH
+ship 0 and BRA ships 0.2, ZAF's statutory-style value, not yet derived from collections.
 
 ## PIT functional form: three paths
 
@@ -72,7 +72,9 @@ the shape, the collections target pins the level. Both use the same parameters f
 **GS** (`tax_func_type = "GS"`, params `(φ0, φ1, φ2)`): `T(y) = φ0·(y − (y^−φ1 + φ2)^(−1/φ1))` on
 total income. ETR = 0 at the bottom and tends to `φ0` at the top.
 
-- Set `φ0` = the statutory top marginal rate (an anchor, not a fit).
+- Set `φ0` = the statutory top marginal rate (an anchor, not a fit). If tuning `φ2` cannot reach
+  collections, a small, documented lift of `φ0` above the statutory rate is the fallback **[ZAF]**;
+  say so in the docs, because the top rate then no longer equals the law's.
 - Fit `φ1` (curvature) to the schedule's shape.
 - Tune `φ2` (scale) in-model to the PIT/GDP collections target. The effective-rate and informality
   wedge enters here, pulling the level down to actual collections. (case notes: ZAF, PHL)

@@ -173,7 +173,8 @@ OG-Core supports `"US-Style Social Security"` (the default), `"Defined Benefits"
   by 1,000,000 on the assumption that `factor` is dollar-sized. The unit is otherwise arbitrary:
   rescale the GS scale parameter `φ2` by `unit^φ1` and nothing else (the wealth tax works in model
   units; DB benefits are rates). Check the factor seed sits in the validator range before the first
-  solve; IDN's ships at the 500,000 cap against a far larger true factor. **[KOR, after JPN]**
+  solve; on upstream `main` (checked 2026-10-19) IDN's and ETH's both ship exactly the 500,000 cap,
+  IDN's against a far larger true factor. **[KOR, after JPN]**
 - `replacement_rate_adjust` applied only to US-style Social Security in older ogcore; recent ogcore
   applies it to all four systems. Check before relying on it outside the US system. The pension
   code is newer and less tested than the core model, so look at OG-Core's open issues before leaning

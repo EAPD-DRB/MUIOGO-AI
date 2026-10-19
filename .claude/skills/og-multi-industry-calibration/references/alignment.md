@@ -169,7 +169,7 @@ fiscal moments the single model targets. BRA also checks how well the model's la
 tracks the table's labour income by industry, as a correlation (case notes: BRA).
 
 **Same reform through both models:** same signs, similar magnitudes in the percent-change tables.
-Run the same reform in both examples; PHL's single and multi examples ran different reforms, which
+Run the same reform in both examples; PHL's single and multi examples ran different reforms (checked 2026-10-19), which
 makes the comparison impossible.
 
 **Interpretation caveats to state:** the numeraire industry's inflated nominal share; `L_m` is in
@@ -213,4 +213,4 @@ open OG-Core work touching `io_matrix`, `get_ptilde` or the numeraire, and plan 
 - The equivalence test.
 
 None of the repos yet tests the continuation solve, the example, or the calibrated steady state
-against data. Say so in the PR rather than implying coverage.
+against data (checked 2026-10-19; BRA's one solving test checks only the M=1 equivalence). Say so in the PR rather than implying coverage.
