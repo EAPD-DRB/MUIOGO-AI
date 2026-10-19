@@ -1,7 +1,7 @@
 # Macro and open-economy block
 
 Method, pitfall and exemplar for each parameter, then the capital share and the gross-vs-net `K_f`
-question. The `K/Y` closed form these rows refer to is in SKILL.md, Step zero.
+question. The `K/Y` closed form these rows refer to is in method.md, Step zero.
 
 Contents
 - start_year
@@ -97,7 +97,7 @@ it and fixed it.
 **Method.** Open, investment-grade: risk-free (~4%) plus the country's sovereign spread.
 Near-closed or distressed: leave it at the ~4% benchmark and route country risk through a low
 `zeta_K` and the debt-elastic premium instead. At high `zeta_K` this constant sets `r`, so source it
-(SKILL.md, default sweep).
+(method.md, default sweep).
 
 **Pitfall.** Adding a spread for a defaulted or restructuring sovereign (wrong model); leaving it
 undocumented.
@@ -326,7 +326,7 @@ the implied `r` about 0.9pp below the world rate). **[KOR]** (history: KOR)
 
 ## beta_annual
 
-**Method.** Not observable; calibrate it to the capital-output ratio through the firm FOC (SKILL.md,
+**Method.** Not observable; calibrate it to the capital-output ratio through the firm FOC (method.md,
 Step zero). With `gamma` and `delta` sourced, `K/Y` is a function of `r`, and `r` is what `beta`
 moves; two or three SS solves bracket it. `beta` is one of eleven levers on `K/Y`, so check Step
 zero before concluding it is the binding one. Order matters: sourced parameters first, then look at

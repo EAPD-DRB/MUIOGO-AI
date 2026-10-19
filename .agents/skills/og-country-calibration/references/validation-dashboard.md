@@ -24,7 +24,7 @@ Contents
 
 ## Completeness: an unscored moment cannot pull its parameter
 
-The general form of the `zeta_K` failure (SKILL.md, finding every lever): it sat at a placeholder because `K_f/K` was not a
+The general form of the `zeta_K` failure (method.md, finding every lever): it sat at a placeholder because `K_f/K` was not a
 row on the dashboard, and the loop optimised what it could see. Four rules, all checkable:
 
 1. **Every tuned parameter's identifying moment must be on the dashboard.** Grep the tuned dials,
@@ -52,6 +52,10 @@ governing sentence: "most parameters are only weakly identified on their own, so
 whether the steady state they jointly produce resembles the economy." Tier the rows: fiscal first,
 then production, preference and earnings moments; `r` and `K/Y` against the PWT go in a ballpark
 tier with a written reason.
+
+`r` is open-economy modelling latitude; `K_f/K` is not, so it belongs in the first tier. `factor` is
+a fiscal diagnostic too: it sets the currency income at which tax functions are evaluated, so a
+`factor` gap mis-collects tax.
 
 ## Moments most often tuned for but never scored
 
@@ -188,7 +192,7 @@ denominator.
 The model's endogenous `K/Y` runs high against the PWT across the family (on ZAF, model 4.5 against
 PWT 3.7), a structural feature of the saving and return block, not a country calibration error.
 Report it with a written reason in the ballpark tier; do not distort a country parameter to chase it.
-But before calling any gap a trait, run the four lever rules in SKILL.md: one apparent "family
+But before calling any gap a trait, run the four lever rules in method.md: one apparent "family
 trait" `K/Y` miss was an untuned `zeta_K` **[JPN]**. (history: PHL)
 
 ## Note derived quantities honestly
