@@ -15,6 +15,9 @@ fiscal inconsistencies, calibration placeholders, or the wrong code running.
 
 ## Which world
 
+This applies when you work through MUIOGO. For a standalone OG repo installed with OG-Core's
+installer (no `muiogo-ai` involved), skip it: the checkout you were given is the world. **[KOR]**
+
 This skill diagnoses a solve in **one** world: the runtime installation reached by
 `muiogo-ai`, unless the user explicitly asked about their own live one
 (`muiogo-live`). Never use bare `muiogo`, and never fall back to it. Every command
@@ -25,6 +28,13 @@ other, and diagnosing the wrong copy sends you after a bug that is not there. Fu
 rules: `../WORLD_DISCIPLINE.md`.
 
 ## Phase 0 — Rule out contamination
+
+First establish that the failure comes from a real run: a copy installed with OG-Core's official
+installer, running its shipped example script unchanged, with nothing injected (`og-run` and
+`../OG_RUN_RULES.md`). A failure seen only in a test fixture, a saved pickle, a serial or partial
+run, or a driver you wrote is a lead. Reproduce it the official way before calling it a model
+failure, and do not tell the user the model fails until you have. Measure such a run afterwards,
+from its saved output, never by altering it.
 
 If the failing result is surprising, or reproduces a previously-known-buggy number: suspect the
 wrong code ran before suspecting the model. Run the `og-run-preflight` skill's checks (branch+HEAD,
@@ -123,6 +133,11 @@ Two auxiliary techniques from the mined history:
   calibration block causes ill-conditioning, substitute the generic OG-Core default for just that
   block and see if the symptom disappears.
 
+**Probes find leads; official runs confirm them.** Harnesses, bisection scripts and fixture
+replays are how you find a suspect. Before you report it as the cause, confirm it on an
+installer-installed copy running the shipped example, and label anything not yet confirmed that
+way as a lead.
+
 **Re-decide after every probe.** Two failed fixes on the same hypothesis = the diagnosis is wrong;
 go back to Phase 1 with the new evidence. Three failed fixes = stop and question the setup itself
 (calibration, model version, or test fixture), and discuss with the user before a fourth.
@@ -162,8 +177,10 @@ pattern above applies, with four checks first:
 4. **Does the run reach the changed code?** A baseline may never touch it; add the reform that
    does.
 
-Each variant gets its own OG-Core worktree and venv; never switch a branch under a running
-battery. How to install an unreleased ogcore without the environment silently using another
+Each variant gets its own install from OG-Core's official installer (`--repo-url <URL> --branch
+<branch>` for the change, a plain install for the control), in its own folder; never switch a
+branch under a running battery. Test suites for each variant run inside that same install, with
+the repo's own pytest command, never in a development worktree. How to install an unreleased ogcore without the environment silently using another
 build: `references/solve-procedures.md`, "Running against an unreleased ogcore". Report per country: the expected value, master, and the change, with the
 resource-constraint error at t=0 and beyond. The whole battery is one itemised proposal; launch
 only after the user's go.

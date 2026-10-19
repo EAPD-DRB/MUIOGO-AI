@@ -14,14 +14,65 @@ the transition path about 5–7 minutes. Much longer means something is wrong (t
 solver settings, a stale ogcore, a cold start, or the calibration), not that the model is slow.
 Stop and diagnose (og-solver-diagnosis); do not wait it out.
 
-**Run the way the example scripts do, from the repo's own environment.** `uv sync --extra dev`,
-then `uv run python examples/run_og_<xxx>.py`. Nothing bespoke for an official run. Code the repo
-itself ships (a warm-start helper, a multi-industry continuation solver in its example) is part of
-how that repo runs; an ad-hoc driver or patch outside the repo is not. The lockfile is what the repo
-runs: if the environment has drifted from it (an older ogcore in `.venv` than `uv.lock` names), sync
-it with `uv sync --extra dev` and re-run the preflight; do not run the stale environment to avoid the
-sync. The one exception is a deliberately installed unreleased ogcore (og-solver-diagnosis covers the pattern), which
-uses `.venv/bin/python`, because `uv run` would re-sync it away.
+**Install with the official installer.** Every OG model a run will report on is installed with
+OG-Core's own installer, as `scripts/QUICK_INSTALL.md` in PSLmodels/OG-Core describes: download
+`scripts/install.sh` (Windows: `install.ps1`) from OG-Core `master`, then
+`bash install.sh --repo <key> --dest <new parent folder> --yes` (`--list` shows the keys: og-core,
+og-eth, og-zaf, og-idn, og-phl, og-bra). It clones the repo, installs uv if needed, runs
+`uv sync --extra dev`, and checks the import. To test a branch or a fork, install it the same way
+into its own folder: `--repo-url <git URL> --branch <branch>`. A local clone works as the URL,
+which is how a new country repo not yet in the catalog is installed. The installer names the
+package from the last part of the URL (lowercased, hyphens dropped) and checks that it imports, so
+install from a clone whose folder is named like the repo (`.../OG-KOR`, `.../OG-Core`), not from a
+worktree or a demo folder (`OG-Core.fix`, `OG-KOR-demo`): those install but fail the import check.
+Do not build an environment by hand
+for a reported run: no conda environment, no `uv sync` inside an ad-hoc worktree, no `PYTHONPATH`
+or `sys.path` shadowing, no `pip install` of another build. If the installer cannot produce what the
+task needs, stop and ask.
+
+**Run the shipped example script, unchanged.** From the installed folder, activate the environment
+and run the example: `source .venv/bin/activate`, then `python examples/run_og_<xxx>.py`
+(`uv run python examples/run_og_<xxx>.py` from that folder is equivalent). Nothing bespoke: no
+driver script of your own, no edited copy of the example, no settings changed in the script, no
+monkeypatching, and nothing injected into the run to observe it (wrappers, counters,
+`sitecustomize`, worker plugins). Code the repo itself ships (a warm-start helper, a
+multi-industry continuation solver in its example) is part of how that repo runs. If a task seems
+to need a different setting or a change to the run, ask the user first, and say in the report
+exactly what differed from the shipped example. The lockfile is what the repo runs: if the
+environment has drifted from it, re-run the installer (or `uv sync --extra dev` in the installed
+folder) and re-run the preflight; do not run the stale environment. The one remaining exception
+is testing an unreleased ogcore under a country model (og-solver-diagnosis covers the pattern),
+and only when the user asked for it.
+
+**Calibration tuning runs through repo code too.** Tuning a dial takes many steady-state solves,
+and the example always runs the full transition. So the repo ships a small tuning script (for
+example `examples/tune_ss.py`): it loads the packaged JSON plus an overrides dict, builds the
+example's worker pool, calls `runner(p, time_path=False, client=client)` and prints the dashboard.
+Because the repo ships it, it runs from the installed copy like any repo code; it is never an
+ad-hoc driver in a scratch folder. Its output sets dials and nothing more: fold the settled values
+into the JSON, commit, re-install, and take every reported number from the shipped example.
+
+**Tests run in an installer copy too.** Any OG test run whose result you will report (the CI
+selection, the slow `local` tests, a single test file) runs inside a copy made by the installer,
+for the exact commit under test: `bash install.sh --repo-url <git URL or local clone> --branch
+<branch> --dest <new folder> --yes`, then `uv run python -m pytest ...` (or `pytest` with the
+environment activated) from that copy's folder, with the repo's own command (the contributor
+guide's `pytest`, CI's `-m "not local and not benchmark"`, or `-m local`). Not from a development
+worktree, not from an environment you synced by hand. When the code changes, re-install before
+re-testing; a copy is tied to one commit. Tests that solve the model use the example's
+parallelism: OG-Core's test files build a smaller Dask pool (`test_TPI.py`: 4 workers x 2
+threads), so in the test copy only, set it to the example's `min(cpu_count(), 7)` workers x 1
+thread before launching, and say so in the report (the model owner's call, 2026-10-12). Never
+commit that edit.
+
+**Evidence about the model comes only from such a run.** A claim that the model fails, is wrong,
+has a bug, or got faster must come from an installer-installed copy running its shipped example.
+Test fixtures, saved test pickles, serial runs, partial reproductions and your own drivers give
+leads, not findings: label them as leads and do not report a model failure from them. Measure
+after the run, not during it: diagnostics read the saved output (`OUTPUT_BASELINE`,
+`OUTPUT_REFORM`) with the installed package's own functions and change nothing in the run. To
+compare a code change, install `master` and the branch separately with the installer, run the
+same shipped example in each, and compare the saved outputs.
 
 **Everything as parallel as possible**, the steady state and tuning loops included. The examples
 build one dask `Client(n_workers=min(cpu_count(), 7), threads_per_worker=1)` and call
@@ -30,7 +81,9 @@ full parallelism when `J = 7`. Do not build a serial steady-state driver for spe
 state is a symptom. `runner` always re-solves the steady state, so `runner(time_path=False)`
 followed by `runner(time_path=True, client=client)` solves it twice.
 
-**Anderson every run, with `nu` 0.2 or lower**, set in the packaged parameters, not the script:
+**Anderson every run, with `nu` 0.2 or lower**, set in the packaged parameters, not the script
+(if the repo does not set them, run the example as shipped and tell the user; change nothing
+without their go):
 `TPI_outer_method = "anderson"`. OG-Core's default is still damped iteration with `nu` 0.4, and
 some repos set Anderson but leave `nu` at 0.4, so check both. `nu` still matters under Anderson:
 the trust region is anchored to the damped step. Solver field names change between ogcore

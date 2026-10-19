@@ -15,8 +15,10 @@ Contents
 
 ## Environment
 
-- **uv, not conda.** `uv sync --extra dev`, then `uv run <cmd>`. `AGENTS.md` is the source of truth
-  for setup; `docs/book/content/contributing/contributor_guide.md` is stale (still conda) in most
+- **uv, not conda, through the official installer.** Install with OG-Core's `scripts/install.sh`
+  (it runs `uv sync --extra dev` for you), then run the shipped example from that install
+  (`../OG_RUN_RULES.md`). `AGENTS.md` is the source of truth for anything the installer does not
+  cover; `docs/book/content/contributing/contributor_guide.md` is stale (still conda) in most
   repos. **[family]**
 - **Never commit a `uv.lock` change from calibration work.** The lock is Dependabot-managed; if a
   local `uv sync` touches it, `git restore uv.lock`. Confirm `uv.lock` and `.python-version` are not
@@ -63,15 +65,25 @@ The rules are in og-run-rules.md. The evidence behind them:
 **[PHL]** The tuning loop is cheap: use real solves, not algebra. A warm-guess SS solve takes
 seconds, so *solve → read the revenue dashboard → adjust dials → re-solve* converges in 3–5
 iterations for half a dozen simultaneous dials (GS φ2, `tau_c`, CIT adjustment, `p_wealth`,
-`r_gov_shift`, `zeta_K`). Keep a small driver that loads the packaged JSON plus an overrides dict,
-builds the same worker pool as the example script, calls `runner(..., time_path=False,
-client=client)`, and prints model vs target by instrument. Two things it is not:
+`r_gov_shift`, `zeta_K`). Ship a small tuning script in the repo (`examples/tune_ss.py`) that loads
+the packaged JSON plus an overrides dict, builds the same worker pool as the example script, calls
+`runner(..., time_path=False, client=client)`, and prints model vs target by instrument. Because the
+repo ships it, it runs from the installed copy like any repo code (og-run-rules.md, "Calibration
+tuning runs through repo code too"); a driver in a scratch folder is the departure the run rules
+forbid. Two things it is not:
 
 - not an official run: once the dials settle, fold the overrides into the JSON and run the example
   script through the client;
 - not the last solve: always finish with a standalone solve of the packaged JSON itself (no
   overrides). It catches schema errors and seed problems the overrides path hides. If it fails, go
   back to the overrides you just folded in.
+
+Two habits make the loop debuggable. **Log every solve** to a named file with its settings echoed
+first (`logs/tune_r04.log`): a stalled solve read only through a filtered console cannot be
+diagnosed afterwards (og-solver-diagnosis, log discipline). And **seed every solve from the last
+converged one** (the warm start, SKILL.md step 11): on KOR the same calibration took 394 s from
+uniform seeds and 32 s warm. A dial move that breaks a warm-started solve is a calibration
+signal; one that breaks a cold-started solve is usually the seed. **[KOR]**
 
 ## Tuning-loop order: sourced parameters first
 
