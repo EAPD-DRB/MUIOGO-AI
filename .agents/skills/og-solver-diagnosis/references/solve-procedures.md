@@ -96,7 +96,20 @@ Recent ogcore logs a diagnosis when the TPI outer loop stops improving over
 
 ## Running against an unreleased ogcore
 
-**[PHL]** `uv run --with-editable <ogcore-checkout>` can silently resolve ogcore from the uv cache,
+**Preferred: keep the official installer, pin ogcore by commit on a test branch** **[KOR; ETH's
+main already pins this way]**. On a throwaway branch of the country repo, add
+`[tool.uv.sources] ogcore = { git = "<URL>", rev = "<full sha>" }` (a fork URL, or
+`file:///<path to an OG-Core clone>` for a local integration commit that is not pushed), run
+`uv lock`, commit, and install that branch with OG-Core's installer like any other. The run is then
+the shipped example from an installer copy; og-run-preflight reports the ogcore source and commit,
+and `--params-json` proves the JSON loads on it. Keep the pin off the calibration branch.
+
+Before installing an integration build (master plus a PR), **check it carries the PR**: grep the
+built `default_parameters.json` for the new parameter. A stale local copy of the PR branch merged
+into master cleanly and silently contained none of the PR's code (KOR); merge the PR's actual head
+(`gh pr view <n> --json headRefOid`). Conflicts in CHANGELOG and tests only are routine.
+
+**Fallback, the older pattern:** **[PHL]** `uv run --with-editable <ogcore-checkout>` can silently resolve ogcore from the uv cache,
 and probing with `python -c` from the checkout root masks it through cwd shadowing, so do not use
 it. The pattern: put the unreleased ogcore in its own worktree, built from the released base plus
 the one PR's diff (not a branch carrying unrelated upstream merges, which once broke the steady
