@@ -16,7 +16,7 @@ Contents
   a single-scalar exponential tilt `e_country = e_USA · exp(a·e_USA)`, solving the one scalar `a` by
   bisection so the model Gini matches the country's target Gini. One number per country, no bespoke
   data collection. It is solved in `income.py`'s `get_e_interp(gini_to_match=...)`.
-- **The method has two halves and the repos ship one.** EAPD-DRB/OG-ZAF#18 specifies (1) an
+- **The method has two halves; check that your repo ships both.** EAPD-DRB/OG-ZAF#18 specifies (1) an
   age-shape adjustment from NTA income by age and (2) the Gini tilt. Shipping only the tilt leaves the
   US age profile in place, which is wrong wherever the country's age-earnings shape differs
   structurally (seniority pay, mandatory retirement, informality). Japan's factor is 1.09 at 55 and
@@ -32,7 +32,7 @@ Contents
     type "Smooth Mean") and `ogjpn/income.py`'s `get_age_shape_factor` / `apply_age_shape`
     (normalise over ages 20–64, hold the factor flat above 72, latest target-country year against
     the nearest US year). It ports to another country by changing only the country name and year
-    windows. **[KOR]** (case notes: KOR)
+    windows. **[KOR]** (history: KOR)
 - **Do not use OG-ZAF's hard-coded-coefficient method** (`get_e_orig`, a WID-then-NTA two-step
   with hand-tuned arctan extrapolation). It needs per-country re-derivation and is not a drop-in.
 - **Gini-concept trap [issue #33; family-wide risk].** The target-country Gini and the US reference
@@ -56,7 +56,7 @@ Contents
 - **Pitfall [ETH, regressed twice].** `calibrate.py` gets refreshed by copying a sibling, and the
   hard-coded `country_id` literal was wrong (the sibling's code instead of the country's own), twice,
   because a wholesale file copy forgot to swap it. Add a regression test asserting `country_id`
-  matches the country being calibrated. (case notes: ETH)
+  matches the country being calibrated. (history: ETH)
 
 ## The data window sets the long-run growth rate
 
@@ -64,7 +64,8 @@ Contents
 passed `start_year + 1` when this was written, so the model saw two years of UN data and then frozen
 rates forever (ogcore's own default, `start_year + 2`, is barely better). Where projected demographic
 change is the point of the exercise, this decides the answer. On Japan, widening from 2 to 74 years
-moved `g_n_ss` from −1.070%/yr to −0.463% and `pb*` from a surplus to a deficit.
+moved `g_n_ss` from −1.070%/yr to −0.463%, and a wider window turned `pb*` from a surplus to a
+deficit.
 
 **The check:** compare the model's `g_n_ss` with the UN projection's own implied CAGR. A value well
 outside it is a too-short window, not a demographic fact. Use the terminal UN rates: the steady
@@ -78,7 +79,7 @@ UN API token ogcore falls back to the Population-Data archive, and the archive's
 earlier than the API's, so the limit can sit below what ogcore's assert allows. Check the archive's
 last year for your country and set the window to one less. Too late a year fails far from the
 cause, as an `UnboundLocalError` in `pop_rebin`. Put the year in a named constant with this reason
-next to it. **[KOR]** (case notes: KOR)
+next to it. **[KOR]** (history: KOR)
 
 ## Discontinuities: the frozen window and fixper
 
@@ -101,18 +102,18 @@ rather than tuning around it. **[net-new: JPN]**
 
 Check any population before blaming the model: the stored rates must reproduce the stored path,
 `omega[t+1, s+1](1 + g_n[t]) = omega[t, s](1 - rho[t, s]) + imm_rates[t, s+1] omega[t, s+1]`, to
-about 1e-15 in every period. On master it fails at exactly the two break periods. Fixes, local and
-not yet upstream (2026-10-19): project from the last data year (one line), and an opt-in
-`fixper_phase_in` that ramps immigration into the stationary rates. On KOR, together they cut the
-largest resource-constraint error from 9.1e-3 to 1.2e-4; what is left is the last five periods.
-Check whether they have landed in your ogcore before reaching for a loosened `RC_TPI`.
+about 1e-15 in every period; where it fails, at exactly the two break periods, the breaks are in
+your ogcore. Check whether your ogcore projects the population from the last data year and offers
+an opt-in ramp into the stationary population (`fixper_phase_in`); on KOR the two together cut the
+largest resource-constraint error from 9.1e-3 to 1.2e-4, leaving only the last five periods. If it
+has neither, expect the breaks, report them upstream, and do not tune against them. (history: KOR)
 
 **What it does to the run's own check.** `RC_TPI` (ogcore default 1e-4) is the end-of-run tolerance
 on the resource constraint. The two breaks routinely exceed it, so a sibling's JSON may carry a
 loosened value (one sibling ships 100 times the default) that the audit should catch and either
 justify or tighten. Triage by period before accepting it: tabulate the error at each break period,
 at the last period, and the largest everywhere else (and in the first ten years). Keep the loosened
-tolerance only with that table in the docs. **[KOR]** (case notes: PHL, KOR)
+tolerance only with that table in the docs. **[KOR]** (history: PHL, KOR)
 
 ## Cache the processed arrays
 
@@ -173,8 +174,8 @@ OG-Core supports `"US-Style Social Security"` (the default), `"Defined Benefits"
   by 1,000,000 on the assumption that `factor` is dollar-sized. The unit is otherwise arbitrary:
   rescale the GS scale parameter `φ2` by `unit^φ1` and nothing else (the wealth tax works in model
   units; DB benefits are rates). Check the factor seed sits in the validator range before the first
-  solve; on upstream `main` (checked 2026-10-19) IDN's and ETH's both ship exactly the 500,000 cap,
-  IDN's against a far larger true factor. **[KOR, after JPN]**
+  solve; a seed of exactly 500,000 was probably clipped to the cap, so compare it with the solved
+  `factor`. **[KOR, after JPN]** (history: IDN)
 - `replacement_rate_adjust` applied only to US-style Social Security in older ogcore; recent ogcore
   applies it to all four systems. Check before relying on it outside the US system. The pension
   code is newer and less tested than the core model, so look at OG-Core's open issues before leaning
@@ -192,7 +193,7 @@ state. Score steady-state pension outlays against the scheme's own long-run actu
 and score today's spending at t=0 of the transition. Do not tune `alpha_db` down to hit today's
 spending, which understates the system the country has legislated. The t=0 figure can land on
 either side of today's: on KOR it landed below, and the reason was not investigated. **[KOR]**
-(case notes: KOR)
+(history: KOR)
 
 ## Labour supply (chi_n)
 

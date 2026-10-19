@@ -34,10 +34,10 @@ pensions and any UBI. `fiscal.get_G_ss` subtracts all of them:
 alpha_G + alpha_T + alpha_I + agg_pension_outlays/Y + UBI_outlays/Y  =  revenue/Y − pb*
 ```
 
-- Forgetting `alpha_I` mis-sets `alpha_G` by the whole public-investment share; on PHL that was 5pp
-  of GDP. **[PHL]** Check `alpha_I` itself is sourced: OG-ZAF's `main` ships 0.0003, a
+- Forgetting `alpha_I` mis-sets `alpha_G` by the whole public-investment share (on PHL about 5pp
+  of GDP). **[PHL]** Check `alpha_I` itself is sourced: OG-ZAF's `main` ships 0.0003, a
   placeholder. **[ZAF]**
-- Omitting pensions sets `alpha_G` too high by the whole pension bill (JPN: 0.63pp of GDP).
+- Omitting pensions sets `alpha_G` too high by the whole pension bill.
   **[net-new: JPN]** UBI is usually zero; include it when it is not.
 - **The steady state will not tell you.** The closure forces `G` to the consistent level, so the
   steady state solves and reports a `G/Y` below your `alpha_G` input. That silent gap between input
@@ -121,7 +121,7 @@ and scored with the steady-state dashboard, not after it:
   measurement. `initial_debt_ratio` is a measurement, and only the transition starts from it. On
   JPN a shipped `initial_debt_ratio` was 28pp of GDP below the actual ratio, in a file whose own
   `r_gov` derivation used the correct ratio. The steady-state dashboard could not catch it; a
-  debt-path panel would have shown it in period one. (case notes: JPN) **[net-new: JPN]**
+  debt-path panel would have shown it in period one. (history: JPN) **[net-new: JPN]**
 - **It is where a fiscal miscalibration bites.** The steady-state closure protects the steady state;
   the transition holds `alpha_G`/`alpha_T` at their inputs for `tG1` periods.
 
@@ -169,7 +169,7 @@ transition start at today's level and grow toward the steady state's. Holding `a
 steady-state identity value then runs a surplus for years and pays debt down far below target
 before the closure starts. This bites in an ageing country with a maturing pension system. On KOR,
 pensions roughly doubled as a share of GDP over the transition, and the flat value ran primary
-surpluses of 1–1.7% of GDP a year and left debt about 16pp of GDP below plan after a decade (case
+surpluses of 1–1.7% of GDP a year for the first five years and left debt about 16pp of GDP below plan after a decade (case
 notes: KOR). Compute the glide from the transition's own paths, one baseline run back:
 
 ```

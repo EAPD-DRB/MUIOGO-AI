@@ -65,7 +65,7 @@ separately), household expenditure columns, activity and commodity accounts, a r
 account, product-tax rows. Note:
 - **diagonal or rectangular make** (one activity per commodity, or several); it decides the
   `io_matrix` algebra. Check it: compute the make matrix's off-diagonal share (exactly 0 means
-  diagonal) and how many producers the median commodity has (case notes: PHL, ZAF);
+  diagonal) and how many producers the median commodity has (history: PHL, ZAF);
 - **domestic vs total use**: a domestic use table lets you skip import assumptions;
 - **a "total" row or column**: exclude it explicitly, or every sum doubles;
 - **the year**: match it to the employment data and the national accounts.
@@ -94,9 +94,9 @@ commodities to goods (`CONS_DICT`) must partition the data exactly: every code i
 nothing in the dicts that is not in the data.
 
 Unchecked mappings ship silently wrong, because `isin` and `groupby` skip what they cannot match:
-ZAF had two misspelled commodity codes that dropped out of every sum; PHL's food group lists a code
-the SAM does not have (`ccott`, checked 2026-10-19 on its multi-industry branch). A test catches the class (BRA's: lengths equal the activity and product
-counts, value sets equal the group keys, no product in the data has an unmapped code). Add a
+a misspelled code, or one the SAM does not have, drops out of every sum **[ZAF, PHL]** (history:
+ZAF, PHL). A test catches the class (BRA's: lengths equal the activity and product counts, value
+sets equal the group keys, no product in the data has an unmapped code). Add a
 run-time assert as well, since a new data vintage can introduce codes the test fixture does not.
 
 Mapping products to activities by code prefix (BRA: 5-digit product → 4-digit activity) is fine when
@@ -111,13 +111,13 @@ the classification is nested; check it covers every product.
 - **Fold real estate into a broader services or finance group.** Imputed owner-occupier rent is
   booked as operating surplus, not corporate profit. A standalone real-estate industry gets a
   capital share near 1 (degenerate) and a diluted effective CIT. All three repos fold it in (an
-  earlier BRA draft kept it separate and was merged into a group; case notes: BRA). The same goes
+  earlier BRA draft kept it separate and was merged into a group; history: BRA). The same goes
   for any activity whose surplus is mostly imputed or resource rent.
 - **Split out what the policy questions need.** Energy work needs electricity apart from water.
   Watch what else rides along in a split: an electricity industry can also carry piped gas, and a
-  water industry can carry waste (case notes: PHL, ZAF, BRA).
+  water industry can carry waste (history: PHL, ZAF, BRA).
 - **Goods** (`CONS_DICT`): household-relevant groups, typically food, energy, non-durables, durables,
-  services; a finer split can separate electricity, water and fuels (case notes: PHL, ZAF, BRA).
+  services; a finer split can separate electricity, water and fuels (history: PHL, ZAF, BRA).
 - OG-Core has two private factors, so land and resource rent fold into capital. That is one reason
   raw SAM capital shares come out high.
 
@@ -145,7 +145,7 @@ lab_m  = comp_m + (1 − phi) · mixed_m
 gamma_m = cap_m / (cap_m + lab_m)
 ```
 
-(BRA; phi in case notes.) IFPRI and UNU-WIDER SAMs have no separate mixed-income row, so the split
+(BRA; phi in history.) IFPRI and UNU-WIDER SAMs have no separate mixed-income row, so the split
 has already happened inside their labour and capital rows, or not at all; say which.
 
 **Rescale to a level.** Multiply every share by `target / (VA-weighted mean of the raw shares)`, so
@@ -153,14 +153,14 @@ the value-added-weighted mean equals the target and the cross-industry pattern s
 must be the single model's total capital share (its `gamma + gamma_g`), so both models describe the
 same economy. Check it lands exactly: after the carve-out below, the private mean equals the base
 `gamma` [PHL]. A target taken from the table's own share, while the single model uses a share from
-another source, leaves a gap that has to be closed one way or the other [BRA] (case notes: PHL,
+another source, leaves a gap that has to be closed one way or the other [BRA] (history: PHL,
 BRA).
 
 **Carve out public capital after the rescale:** `gamma_m = total_m − gamma_g` (PHL changed to this
 order after maintainer review).
 
 Healthy capital-intensive industries (mining, utilities, with shares below 0.9 [PHL]) solve fine; it
-is the imputed-rent-driven 0.9+ shares that break things (case notes: PHL).
+is the imputed-rent-driven 0.9+ shares that break things (history: PHL).
 
 ## io_matrix
 
@@ -191,7 +191,7 @@ link in the other two.
 
 **Why it matters.** The naive direct-use matrix (commodity rows × activity columns, normalised) is
 not an accounting identity, and it puts most goods on manufacturing. Traced, household energy goes
-mostly to electricity, against a manufacturing-heavy naive split [PHL, ZAF] (case notes: PHL,
+mostly to electricity, against a manufacturing-heavy naive split [PHL, ZAF] (history: PHL,
 ZAF). On BRA, tracing moved the food row's manufacturing share from 73% (direct) to 28%.
 
 **Checks when you build L yourself:** the SAM balances (gross output = intermediate + value added
@@ -227,15 +227,14 @@ Z_m = Y_m / ( K_m^gamma_m · L_m^(1 − gamma_m − gamma_g) )
 - The public-capital term `K_g^gamma_g` is the same for every industry and cancels in the
   normalisation; use the private `gamma_m` (after the carve-out).
 - **Allocate `K_m` by the same capital income that defines `gamma_m`.** If `gamma` uses the
-  mixed-income split, so must the allocation. BRA allocates by operating surplus plus all mixed
-  income while its `gamma` takes only phi of it, which is inconsistent (checked 2026-10-19 on its
-  multi-industry branch).
-- **The capital-output ratio** from PWT for the SAM year (case notes: PHL, ZAF, BRA). Its level
+  mixed-income split, so must the allocation; allocating by all mixed income while `gamma` takes
+  only phi of it is inconsistent. **[BRA]** (history: BRA)
+- **The capital-output ratio** from PWT for the SAM year (history: PHL, ZAF, BRA). Its level
   matters little: under the normalisation it enters relative Z only through the dispersion of
   `gamma`. Take it from PWT and move on; on PHL, the ranking held across ratios from 2.9 to 5.3.
 - **Reject establishment-survey capital stocks.** They omit informal capital and can invert the
   ranking (PHL tried and dropped one).
-- Spot-check the ranking for sense against what is known of the economy's sectors (case notes: PHL,
+- Spot-check the ranking for sense against what is known of the economy's sectors (history: PHL,
   BRA) and watch small industries for outliers, which usually mean a bad employment number.
 
 The level is free under the normalisation; whether to rescale it is in alignment.md.
@@ -247,7 +246,7 @@ heterogeneity the data cannot support (PHL's guide): use the single model's scal
 sector-effective rates are actually published. When they are (BRA):
 
 - `tau_c` per good = taxes on products / (household spending at consumer prices − those taxes),
-  from the use table. Energy goods come out high, services low [BRA] (case notes: BRA).
+  from the use table. Energy goods come out high, services low [BRA] (history: BRA).
 - `cit_rate` per industry = corporate tax collected by sector (BRA: IRPJ + CSLL by CNAE section, a
   three-year mean) / gross operating surplus. Map the tax classification to industries with its own
   concordance.
@@ -257,7 +256,7 @@ sector-effective rates are actually published. When they are (BRA):
 factors to turn a statutory rate into an effective one. A per-industry rate computed as collections
 over operating surplus is already effective, so leaving the base's factors in place discounts it
 twice (on BRA, the two factors cut an average rate of about 9% to about 2%, against about 7% in the
-single model; case notes: BRA). Either set both factors to 1 in the overlay, or express the
+single model; history: BRA). Either set both factors to 1 in the overlay, or express the
 industry pattern as multipliers on the single model's statutory rate.
 
 Then check the aggregates against the single model: the consumption-weighted mean `tau_c` must
@@ -268,7 +267,7 @@ that group's effective CIT (imputed rent sits in the denominator but is not taxe
 
 With `gamma_g > 0` the model needs a public capital stock and the investment that sustains it:
 `initial_Kg_ratio > 0` (OG-Core requires it), `alpha_I` and `delta_g_annual`. PHL inherits them from
-its base; BRA sets them in the overlay from IMF PIMA (case notes: BRA); ZAF uses `gamma_g` = 0.
+its base; BRA sets them in the overlay from IMF PIMA (history: BRA); ZAF uses `gamma_g` = 0.
 Whatever `gamma_g` is, use the same in both models.
 
 ## What the data do not identify

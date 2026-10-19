@@ -38,7 +38,7 @@ Check these against the ogcore you run; the multi-industry design is still being
   formal/informal wage gap is not representable without extending OG-Core.
 - **The composite consumption price is unnormalised:**
   `p_tilde = prod_i ((1 + tau_c_i) · p_i / alpha_c_i)^alpha_c_i`. It carries a units constant
-  `k = prod_i alpha_c_i^(−alpha_c_i)` (1 when I = 1, above 1 with several goods; case notes: PHL).
+  `k = prod_i alpha_c_i^(−alpha_c_i)` (1 when I = 1, above 1 with several goods; history: PHL).
   Because `chi_n` and `chi_b` are fixed numbers, this changes behaviour, not just units.
 - **The TFP level is not a free normalisation in an open economy.** With the world interest rate as
   an absolute anchor, scaling every Z moves the real wage relative to the world return, hence saving
@@ -92,7 +92,7 @@ stay fixed. Invariance of the household first-order conditions gives the exact f
 fitted; pin it in a test.
 
 On PHL, the conversion moved `K_f/K` from 0.528 to 0.336, against 0.257 in the single model (full
-before/after table: case notes, PHL). It closed 44–80% of each gap; the rest are composition
+before/after table: history, PHL). It closed 44–80% of each gap; the rest are composition
 effects. Side effects to expect: aggregate labour moved from +7.7% to −5.8% relative to the single,
 and `factor` drifted 4.7%.
 
@@ -113,7 +113,7 @@ keep them apart:
   progressive tax functions are evaluated, so a factor gap mis-collects PIT; `r`, `r_gov` and `K/Y`
   barely move. Whether the convention lands `factor` close is luck: PHL 0.02% (no rescale); ZAF 23%
   off, fixed by a common Z multiplier found by a log-log root-find on the solved `factor` (two or
-  three solves; on ZAF the slope was about 1.8; case notes: ZAF).
+  three solves; on ZAF the slope was about 1.8; history: ZAF).
 
 ## The equivalence test
 
@@ -129,7 +129,7 @@ in the test. Mark it `local` if it is slow.
 **Try a cold solve first** from the base seeds. It works when relative prices stay near 1 (ZAF's
 M=8, about two minutes). It fails when they spread widely, because OG-Core starts every price at 1
 and its fallback only rescales `r` and `TR` (on PHL and BRA the highest price was about 8 and 16
-times the lowest; case notes: PHL, BRA).
+times the lowest; history: PHL, BRA).
 
 **Continuation** (PHL and BRA, `solve_ss_by_continuation` in the example):
 
@@ -166,11 +166,11 @@ multi-industry transitions are where damping alone fails: PHL's baseline took 25
 
 **Against data:** sector value-added shares, employment shares, the consumption basket, and the
 fiscal moments the single model targets. BRA also checks how well the model's labour allocation
-tracks the table's labour income by industry, as a correlation (case notes: BRA).
+tracks the table's labour income by industry, as a correlation (history: BRA).
 
 **Same reform through both models:** same signs, similar magnitudes in the percent-change tables.
-Run the same reform in both examples; PHL's single and multi examples ran different reforms (checked 2026-10-19), which
-makes the comparison impossible.
+Run the same reform in both examples; different reforms make the comparison impossible.
+**[PHL]** (history: PHL)
 
 **Interpretation caveats to state:** the numeraire industry's inflated nominal share; `L_m` is in
 efficiency units, not heads; exact M-invariance only at `gamma_g` = 0.
@@ -212,5 +212,5 @@ open OG-Core work touching `io_matrix`, `get_ptilde` or the numeraire, and plan 
   CIT lowest).
 - The equivalence test.
 
-None of the repos yet tests the continuation solve, the example, or the calibrated steady state
-against data (checked 2026-10-19; BRA's one solving test checks only the M=1 equivalence). Say so in the PR rather than implying coverage.
+Check whether the repo tests the continuation solve, the example, and the calibrated steady state
+against data. Where it does not, say so in the PR rather than implying coverage. (history: BRA)

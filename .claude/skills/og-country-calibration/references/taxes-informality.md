@@ -43,8 +43,8 @@ The bequest tax is a recurring statutory-for-effective error in this family: ZAF
 estate and donor collections of ~0.07%.
 Deductions, exemptions and non-filing put effective estate taxation one to two orders of magnitude
 below statutory nearly everywhere. Always compute `tau_bq` from collections ÷ model bequest flows,
-and grep every new port for this parameter. On upstream `main` (checked 2026-10-19), IDN and ETH
-ship 0 and BRA ships 0.2, ZAF's statutory-style value, not yet derived from collections.
+and grep every port, new or old, for this parameter: a value equal to a statutory rate, or copied
+from a sibling, is the error. (history: BRA)
 
 ## PIT functional form: three paths
 
@@ -77,7 +77,7 @@ total income. ETR = 0 at the bottom and tends to `φ0` at the top.
   say so in the docs, because the top rate then no longer equals the law's.
 - Fit `φ1` (curvature) to the schedule's shape.
 - Tune `φ2` (scale) in-model to the PIT/GDP collections target. The effective-rate and informality
-  wedge enters here, pulling the level down to actual collections. (case notes: ZAF, PHL)
+  wedge enters here, pulling the level down to actual collections. (history: ZAF, PHL)
 - Tuning mechanics **[PHL]**: revenue's response to `φ2` is concave. Top incomes sit where
   ETR ≈ φ0 regardless of φ2, so halving φ2 cuts revenue by less than half; expect two or three
   in-model iterations, not one proportional step. Lowering φ2 for informality acts like shifting the
@@ -90,7 +90,7 @@ total income. ETR = 0 at the bottom and tends to `φ0` at the top.
 
 **HSV** (`tax_func_type = "HSV"`, `λ = coef0`, `τ = coef1`): `ETR = 1 − λ·y^(−τ)`,
 `MTR = 1 − λ(1−τ)·y^(−τ)`. τ (progressivity) is scale-invariant; fit it to the schedule's shape. λ
-absorbs the income scale; tune it to collections. (case notes: ZAF) Use HSV only where a
+absorbs the income scale; tune it to collections. (history: ZAF) Use HSV only where a
 bottom-end subsidy is harmless. In a tightly balanced fiscal block it bleeds transition revenue; if
 the budget has no slack, use GS.
 
@@ -106,8 +106,10 @@ Choose the rung the data supports:
 3. **Household graded non-compliance** **[ETH, "Option A", fullest]**:
    `labor_income_tax_noncompliance_rate[t,j]`, `capital_income_tax_noncompliance_rate[t,j]` and
    `income_tax_filer[t,j]` grade compliance by lifetime-income group (a proxy for formality: the
-   informal employment share sets how many bottom groups get noncompliance = 1). The compliant-group
-   ETR is solved from a revenue identity and the MTR set to the statutory top rate. Informality is
+   informal employment share sets how many bottom groups get noncompliance = 1). Bring the compliant
+   groups' tax to collections in one of two ways: solve their ETR from a revenue identity (MTR at
+   the statutory top rate), or scale the statutory GS schedule by a compliance factor tuned to
+   collections. Informality is
    non-remittance, not non-filing (filer stays 1). If you later add an informal industry (Option B),
    move the firm-side informality out of the CIT factor to avoid double counting.
 
@@ -143,7 +145,7 @@ that prices the same economic margin, then tune in-model to collections:
   OECD "other taxes" residual) → the wealth tax: `h_wealth = 1` and `m_wealth` small but positive
   (`m = 0` divides 0/0 at `b = 0`; `0.001` works) make `ETR_wealth ≈ p_wealth` flat, zero at zero
   wealth, MTR → `p_wealth`. A recurrent property tax is a flat tax on a form of wealth, so the
-  distortion lands on the right margin (saving). (case notes: PHL)
+  distortion lands on the right margin (saving). (history: PHL)
 - **Government capital income** (SOE and central-bank dividends, state gaming shares, guarantee
   fees, treasury interest income) and **unallocable income taxes** (final withholding on deposits
   etc.) → the CIT adjustment factor; both are government takes from capital income.

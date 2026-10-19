@@ -19,10 +19,10 @@ guidance on any of this; the method here is the family's own.
 multi model inherits every economy-wide value from it, and its fiscal and macro moments are judged
 against it.
 
-**Country tags** (`[PHL]`, `[BRA]`) record where a lesson was learned, not where it applies. A
-country's own results (sector shares, Z values, rates) are kept out of the skill, in Model-tools
-[`docs/og-case-notes/<CODE>.md`](https://github.com/EAPD-DRB/Model-tools/tree/main/docs/og-case-notes); a `(case notes: XXX)` marker points there.
-Derive your own.
+**Country tags** (`[PHL]`, `[BRA]`) record where a lesson was learned, not where it applies. The
+record of what happened, with its numbers and evidence, is in [`docs/og-lessons/<CODE>.md`](https://github.com/EAPD-DRB/Model-tools/tree/main/docs/og-lessons)
+in Model-tools; a `(history: XXX)` marker flags where a lesson's numbers moved there. Derive your
+own values.
 
 **Run rules:** follow [og-run-rules.md](references/og-run-rules.md): under ten minutes for a
 healthy single-industry baseline, the example-script pattern, always parallel, Anderson with

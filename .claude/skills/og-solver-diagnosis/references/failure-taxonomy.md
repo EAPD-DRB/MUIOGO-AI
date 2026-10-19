@@ -10,6 +10,8 @@
 Observed classes from the family's real debugging history (its test scripts and solve logs, the
 OG-ZAF fiscal-runaway work, and the calibration playbook). Signatures are literal
 strings to grep for. When you hit a class not listed here, add it.
+Country tags (`[KOR]`) and `(history: KOR)` markers point to what happened, with evidence, in
+Model-tools [`docs/og-lessons/<CODE>.md`](https://github.com/EAPD-DRB/Model-tools/tree/main/docs/og-lessons).
 
 ## A. Fiscal runaway (TPI debt divergence)
 
@@ -43,8 +45,7 @@ strings to grep for. When you hit a class not listed here, add it.
   Chinn-Ito only as a prior (`og-country-calibration`). Treat the warning as a calibration smell
   even when the run converges.
 - **Provenance**: OG-IDN hit and fixed the 0.9; OG-PHL fixed it later; its older logs show the
-  guard firing (case notes: PHL). OG-ZAF's and OG-BRA's upstream `main` still ship 0.9 (checked
-  2026-10-19), so expect it there.
+  guard firing (history: PHL, ZAF, BRA). Grep any inherited JSON for `zeta_K` 0.9.
 
 ## C. Oscillation / slow outer-loop convergence
 
@@ -64,7 +65,7 @@ strings to grep for. When you hit a class not listed here, add it.
   cleanly to a few times the tolerance, then rises for several iterations in a row (on KOR, from
   2.7e-5 to 4.9e-5 over five iterations, against 1e-5). With `maxiter` 250 it can run for
   hours, so stop it. Damped iteration (`TPI_outer_method="picard"`, `nu` 0.2) from the same
-  calibration went through the same level and converged (case notes: KOR). The fallback is
+  calibration went through the same level and converged (history: KOR). The fallback is
   slower, so it can exceed the run rules' 5–7 minute guide without anything being wrong; record
   the iteration time.
 - **Provenance**: ZAF nu sweeps (`logs_ogzaf_nu06/nu07`), IDN/PHL/ZAF control-vs-treatment logs;
@@ -178,7 +179,7 @@ strings to grep for. When you hit a class not listed here, add it.
 - **Cause**: OG-Core solves households already alive at t=0 with `opt.root` and uses the result
   without checking it (PSLmodels/OG-Core#1247). The reported Euler error covers only cohorts born
   at t=0 or later, so the failures are invisible. On KOR, solving those cohorts moved year-two
-  consumption from 62.9% to 50.5% of GDP (case notes: KOR). It looks exactly like an
+  consumption from 62.9% to 50.5% of GDP (history: KOR). It looks exactly like an
   initial-wealth problem.
 - **Remedy**: check whether your ogcore has the fix (a `_solve_household` retry and a reported
   "cohorts alive at the start" Euler error in the log). If not, recompute those cohorts'

@@ -1,7 +1,7 @@
 # Preparing the calibration PR
 
-What maintainers actually ask for. **[PHL #63 review, jdebacker]** Ask before push and before
-opening the PR, never in the same step; the user merges.
+What maintainers actually ask for **[PHL #63 review, jdebacker]**. The house rule stands apart from
+the review: ask before push and before opening the PR, never in the same step; the user merges.
 
 ## Register: the PR reports what was done; the docs carry the discussion
 

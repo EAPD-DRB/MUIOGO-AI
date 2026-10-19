@@ -32,7 +32,7 @@ row on the dashboard, and the loop optimised what it could see. Four rules, all 
    silently.
 2. **A dial moved to close a residual is a free parameter, not a calibration.** `p_wealth` and
    `tau_bq` nominally tuned to property and inheritance tax, but in practice scaled to close total
-   revenue, absorb every other line's error **[JPN]**. Tune each dial to its own moment; total
+   revenue, absorb every other line's error **[net-new]**. Tune each dial to its own moment; total
    revenue is the check that the parts add up, never the thing you steer.
 3. **Score every component of the resource constraint,** not just the residual. Put `I/Y`, `I_g/Y`,
    `G/Y` and `NX/Y` next to `C/Y`.
@@ -63,7 +63,7 @@ tier with a written reason.
 | `NX/Y` | `zeta_K`, `zeta_D` | the trade balance, not the current account (below) |
 | property / wealth tax / Y | `p_wealth`, `h_wealth` | revenue statistics |
 | bequest tax / Y | `tau_bq` | revenue statistics |
-| `w·L/Y` (solved labour share) | validates `gamma` and `epsilon` | PWT `labsh`. A real free check, since nothing forces it when `epsilon != 1` (case notes: JPN) |
+| `w·L/Y` (solved labour share) | validates `gamma` and `epsilon` | PWT `labsh`. A free check only when `epsilon != 1`; at `epsilon = 1` it equals `1 − gamma` by construction **[JPN]** |
 | wealth Gini / top shares | the `e` matrix, `beta` | household wealth surveys. Distinct from the income Gini the tilt targets, and a much sharper test of an OG model |
 | `g_n_ss` | the demographic window | the UN projection's own implied CAGR |
 | wealth by age (mean net worth of 60+ and of under-40s, relative to 50-59) | `chi_b` (old end); the shape of initial wealth | household wealth surveys by age of head. The steady-state profile is what initial wealth is built from |
@@ -72,7 +72,7 @@ tier with a written reason.
 survey ratios. `chi_b` moves the old end, but it also moves `K/Y` and bequest revenue, so re-tune
 `beta` and `tau_bq` with it. On KOR, the `chi_b` cut that moved the 60+ ratio from 1.86 to 1.26
 also moved `K/Y` from 4.31 to 3.47. Where the young end falls short because young households hold
-leveraged housing, which OG-Core does not model, document it rather than tune for it. (case notes:
+leveraged housing, which OG-Core does not model, document it rather than tune for it. (history:
 KOR)
 
 ## Two traps when adding rows
@@ -189,7 +189,7 @@ The model's endogenous `K/Y` runs high against the PWT across the family (on ZAF
 PWT 3.7), a structural feature of the saving and return block, not a country calibration error.
 Report it with a written reason in the ballpark tier; do not distort a country parameter to chase it.
 But before calling any gap a trait, run the four lever rules in SKILL.md: one apparent "family
-trait" `K/Y` miss was an untuned `zeta_K` **[JPN]**. (case notes: PHL)
+trait" `K/Y` miss was an untuned `zeta_K` **[JPN]**. (history: PHL)
 
 ## Note derived quantities honestly
 
@@ -201,7 +201,7 @@ sector), not a modelled export or import.
 **[PHL, a caught error]** A min-only check on the debt path ("trough on target") passed while the
 path climbed 14 points of GDP above target; the check tested only the direction the previous failure
 pointed. For every path claim, report min and max with their years, and look at the plotted line
-before writing the sentence about it. (case notes: PHL)
+before writing the sentence about it. (history: PHL)
 
 ## Fast value-pinning test
 

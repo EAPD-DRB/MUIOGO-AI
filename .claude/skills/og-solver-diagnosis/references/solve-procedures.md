@@ -21,7 +21,7 @@ types, so the problem below remains, though the scalar can be raised. For a weal
 population a uniform seed is not imprecise, it is catastrophic:
 
 - the bequest seed lands two orders of magnitude low (JPN: 134× in aggregate, 349× for the top income
-  group; case notes: JPN);
+  group; history: JPN);
 - domestic capital `K_d = B − D_d` therefore starts negative (wealth near zero against domestically
   held government debt), so `SS_fsolve` clamps it and substitutes `1e9` residuals, destroying the
   finite-difference Jacobian the default `hybr` root-finder depends on;

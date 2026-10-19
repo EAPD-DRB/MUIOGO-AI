@@ -24,10 +24,10 @@ Two reading rules:
   learned, never which country it applies to. Where a method really is conditional, the condition is
   a country characteristic stated in the item (agrarian or informal, aid- or remittance-dependent,
   distressed sovereign, rectangular vs diagonal make matrix), never a country name.
-  Country results behind a lesson (targets, data years, tuned values) are kept out of the skill,
-  in Model-tools [`docs/og-case-notes/<CODE>.md`](https://github.com/EAPD-DRB/Model-tools/tree/main/docs/og-case-notes); a `(case notes: XXX)` marker
-  points there. You do not need them to apply the method. Do not copy them; derive your country's
-  own.
+  **History.** Every tag points to the record of what happened, with its numbers and evidence:
+  [`docs/og-lessons/<CODE>.md`](https://github.com/EAPD-DRB/Model-tools/tree/main/docs/og-lessons) in Model-tools, one file per country, organised by
+  skill section; a `(history: XXX)` marker flags where a lesson's numbers moved there. The
+  history is for investigation, not input: derive your country's own values.
 - **Best effort on every block, graded honestly.** Most blocks have a ladder from minimal to ideal
   (flat to progressive to microdata PIT; narrative to structural informality; borrowed to re-tilted
   `chi_n`; naive to value-added `io_matrix`; direct solve to continuation). Use the highest rung the
@@ -163,16 +163,17 @@ Copy this into the work log and tick it off. Mechanics throughout: run with
           zeta_K tuned to the IIP K_f/K level, world rate (open vs distressed), g_y per hour and
           consistent with the debt anchor, remittances/aid if material, r_gov shift to the
           treasury's effective real rate (and r_gov_floor if real rates are negative), centered
-          debt-elastic premium, initial_Kg_ratio if gamma_g > 0, initial wealth, delta, alpha_T
-          cash only.
+          debt-elastic premium, initial_Kg_ratio if gamma_g > 0, initial wealth, alpha_T cash only.
+          K/Y target and delta on PRIVATE capital: PWT less public capital, CFC less government's.
 - [ ] 6.  Capital share: 1 - labour share, Gollin-adjusted if agrarian/informal; take gamma out of
           the live-API path.
-- [ ] 7.  Taxes by instrument from the OECD Revenue Statistics country note: GS progressive PIT;
+- [ ] 7.  Taxes: every rate effective = collections / the model's base, by instrument, from the
+          OECD Revenue Statistics country note (never statutory): GS progressive PIT;
           effective VAT/CIT/payroll/bequest; non-tax revenue on nearest-margin instruments;
           informality rung. Close the budget identity:
           alpha_G + alpha_T + alpha_I + pensions/Y + UBI/Y = revenue/Y - pb*.
 - [ ] 8.  Pensions in local currency (alpha_db if DB); chi_n borrowed-and-documented or re-tilted.
-- [ ] 9.  beta against K/Y, only after sourced parameters settle.
+- [ ] 9.  beta against private K/Y, only after sourced parameters settle.
 - [ ] 10. Validate: SS dashboard, revenue by instrument, value-pinning test, AND a baseline TPI
           with the fiscal path panel.
 - [ ] 11. Ship a warm-start seed from the FIRST converged solve, before tuning (OG-JPN's
@@ -219,7 +220,7 @@ fail silently. **[KOR]** Before any solve:
   defaults: ogcore guesses GDP as `initial_guess_TR_SS / alpha_T`, so a sibling's TR seed against
   the new `alpha_T` put KOR's GDP guess 4.6x too high and stalled the solve.
 - **Replace the sibling's example reform** with one that means something for the new country (for
-  example, a reform the new country has enacted, not the sibling's; case notes: KOR).
+  example, a reform the new country has enacted, not the sibling's; history: KOR).
 
 Why the baseline TPI is not optional: the steady state consumes one number from each time-varying
 path (its terminal value), so a whole mis-specified path is invisible to it. On JPN a wrong
