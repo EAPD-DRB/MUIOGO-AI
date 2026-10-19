@@ -362,6 +362,10 @@ provided in kind, which is most of the OECD.
     evidence: a growth-accounting check `gamma = (r+δ)(K/Y)` (an implausible implied return flags a
     wrong share), the Gollin direction-of-bias argument, and country institutions (e.g. state-owned
     land). State the result as a range with a center, not a point.
+  - *A sourcing choice, not a tuning lever.* Make the adjustment once, from the evidence, before
+    tuning. Moving `gamma` to close a `K/Y` gap chases the family's `K/Y` overshoot
+    (validation-dashboard.md, "Know the family traits") and can push `r` below the world rate.
+    **[THA]** (history: THA)
   - *Cross-sectional rescale* **[multi-industry; PHL]**: keep the SAM's per-industry dispersion but
     rescale so the value-added-weighted mean equals the economy-wide capital share. Where the table
     has a mixed-income row, split it per industry first **[BRA]** (og-multi-industry-calibration).

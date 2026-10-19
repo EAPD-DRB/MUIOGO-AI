@@ -195,6 +195,14 @@ spending, which understates the system the country has legislated. The t=0 figur
 either side of today's: on KOR it landed below, and the reason was not investigated. **[KOR]**
 (history: KOR)
 
+**If t=0 spending comes out well above today's, phase the scheme in rather than cutting it.**
+`alpha_db` can be a time path. Set it to rise from the value that reproduces today's spending to
+the mature, legislated value over the scheme's maturing period, and leave the steady state at the
+mature value. Then re-derive the `alpha_G` glide from the transition's own pension path
+(fiscal-consistency.md). On THA the mature rate from the start paid 4.8% of GDP in pensions against
+an actual 2.1%; a 25-year phase-in matched today's spending and removed a debt overshoot. **[THA]**
+(history: THA)
+
 ## Labour supply (chi_n)
 
 - **Honest default state [family].** `chi_n` (the 80-age disutility-of-labour profile) is

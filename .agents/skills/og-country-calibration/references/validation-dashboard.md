@@ -165,6 +165,11 @@ gap is identically the sum of the other gaps. Decompose it; each piece has its o
 trap: `I_total` in the SS output is private investment, while national-accounts GFCF is private plus
 public. Compare `I_total + I_g`, or the gap is overstated by all of public investment.
 
+**Score consumption at producer prices.** The model's `C` excludes the consumption tax, while
+national accounts report household consumption at purchaser prices. Compare like with like, or
+the residual moves into `NX`: on THA a tax-inclusive comparison showed net exports at −11% of GDP
+against about 0% on a consistent basis. **[THA]** (history: THA)
+
 ## g_n is a path; the steady state uses its terminal value
 
 **[net-new: JPN]** For a country mid-demographic-transition these differ a lot (JPN: −0.33% today,
