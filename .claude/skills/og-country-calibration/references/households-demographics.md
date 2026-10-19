@@ -171,11 +171,11 @@ had always existed (`alpha_db` is constant and coverage is complete), so its ste
 *mature* system in the long-run demography. Where the scheme is still maturing (late start, short
 contribution histories, rising coverage), today's spending is the wrong target for the steady
 state. Score steady-state pension outlays against the scheme's own long-run actuarial projection,
-and score today's spending at t=0 of the transition. Expect the t=0 figure to run high, because the
-model cannot represent an immature scheme; report the gap as that limitation, and do not tune
-`alpha_db` down to hit today's spending, which understates the system the country has legislated.
-(KOR: steady state 5.6% of GDP against 3.1% today, with NPS benefits alone projected to rise from
-1.7% toward ~9% by 2080.) **[KOR]**
+and score today's spending at t=0 of the transition. Do not tune `alpha_db` down to hit today's
+spending, which understates the system the country has legislated. The t=0 figure can land on
+either side of today's: KOR's was 2.65% of GDP against 3.1% (steady state 5.6%, with NPS benefits
+alone projected to rise from 1.7% toward ~9% by 2080); the reason it landed below was not
+investigated. **[KOR]**
 
 ## Labour supply (chi_n)
 
