@@ -27,6 +27,13 @@ Contents
   - Both countries must come from NTA on the same variable and variable type; national wage surveys
     are not comparable to NTA levels. Normalise each profile over prime working ages before taking
     the ratio, and cap it at high ages where both approach zero.
+  - **Port the reference implementation rather than rewrite it:** OG-JPN's
+    `scripts/fetch_nta_age_profiles.py` (the session-and-Referer download, variable "Labor Income",
+    type "Smooth Mean") and `ogjpn/income.py`'s `get_age_shape_factor` / `apply_age_shape`
+    (normalise over ages 20–64, hold the factor flat above 72, latest target-country year against
+    the nearest US year). It ported to KOR by changing the country name and year windows; KOR's
+    profile (2019, against US 2011) peaks at 47 and falls to 0.60 of the US shape by 65, the
+    "honorary retirement" and mandatory-retirement-at-60 signature. **[KOR]**
 - **Do not use the ZAF-style hard-coded-coefficient method** (`get_e_orig`, a WID-then-NTA two-step
   with hand-tuned arctan extrapolation). It needs per-country re-derivation and is not a drop-in.
 - **Gini-concept trap [issue #33; family-wide risk].** The target-country Gini and the US reference
@@ -66,6 +73,14 @@ state is a long-run object, so a mid-transition snapshot is a category error. UN
 and ogcore asserts against going beyond `start_year + 74` (and a 2099 cap).
 **[net-new: JPN; worth a fleet sweep]**
 
+**The last usable year is one before the last year of data you actually have.** `get_pop` reads
+`final_data_year + 1` to infer immigration, and which data you have depends on the token: without a
+UN API token ogcore falls back to the Population-Data archive, and the archive's last year can be
+earlier than the API's (it ended at 2099 for KOR, so 2098 was the limit while ogcore's assert
+allows 2099). Check the archive's last year for your country and set the window to one less. Too
+late a year fails far from the cause, as an `UnboundLocalError` in `pop_rebin`. Put the year in a
+named constant with this reason next to it. **[KOR]**
+
 ## Discontinuities: the frozen window and fixper
 
 A finite window leaves a discontinuity, and ogcore adds a second. Where the rates freeze, and again
@@ -74,6 +89,13 @@ with its fixed steady-state one in a single period, the transition's resource co
 On JPN, 318 of 320 periods satisfied `RC_TPI` with a median residual of 7.96e-08; the two that failed
 were exactly those periods. `fixper` is invariant to any country-side setting; report it upstream
 rather than tuning around it. **[net-new: JPN]**
+
+**What it does to the run's own check.** `RC_TPI` (ogcore default 1e-4) is the end-of-run tolerance
+on the resource constraint. The two breaks routinely exceed it, so a sibling's JSON may carry a
+loosened value (OG-PHL ships 0.01) that the audit should catch and either justify or tighten.
+Triage by period before accepting it: KOR's baseline had 0.009 at period 120 and 0.002 at period 74,
+1.9e-4 at the last period, and at most 2.2e-6 everywhere else (3.6e-7 in the first ten years). Keep
+the loosened tolerance only with that table in the docs. **[KOR]**
 
 ## Cache the processed arrays
 
@@ -128,7 +150,13 @@ OG-Core supports `"US-Style Social Security"` (the default), `"Defined Benefits"
   `avg_earn_num_years` of earnings. Check the growth the OECD's own pension modelling assumes
   (1.25%/yr) against yours.
 - Set `mean_income_data` in local currency, and `avg_earn_num_years` to the country's convention
-  (career average vs final salary).
+  (career average vs final salary). **For a high-denomination currency (won, yen, rupiah) express it
+  in millions** (or thousands): ogcore validates `initial_guess_factor_SS` to at most 500,000, while
+  `factor` in such a currency runs to tens of millions, and `SS_fsolve` divides the factor residual
+  by 1,000,000 on the assumption that `factor` is dollar-sized. The unit is otherwise arbitrary:
+  rescale the GS scale parameter `φ2` by `unit^φ1` and nothing else (the wealth tax works in model
+  units; DB benefits are rates). Check the factor seed sits in the validator range before the first
+  solve; IDN's ships at the 500,000 cap against a far larger true factor. **[KOR, after JPN]**
 - `replacement_rate_adjust` applied only to US-style Social Security in older ogcore; recent ogcore
   applies it to all four systems. Check before relying on it outside the US system. The pension
   code is newer and less tested than the core model, so look at OG-Core's open issues before leaning
@@ -137,6 +165,17 @@ OG-Core supports `"US-Style Social Security"` (the default), `"Defined Benefits"
 
 Validate against public pension expenditure as a share of GDP, not against the replacement rate you
 fed in. **[net-new: JPN]**
+
+**A young pension system needs two checks, not one.** OG-Core pays every retiree as if the system
+had always existed (`alpha_db` is constant and coverage is complete), so its steady state is a
+*mature* system in the long-run demography. Where the scheme is still maturing (late start, short
+contribution histories, rising coverage), today's spending is the wrong target for the steady
+state. Score steady-state pension outlays against the scheme's own long-run actuarial projection,
+and score today's spending at t=0 of the transition. Expect the t=0 figure to run high, because the
+model cannot represent an immature scheme; report the gap as that limitation, and do not tune
+`alpha_db` down to hit today's spending, which understates the system the country has legislated.
+(KOR: steady state 5.6% of GDP against 3.1% today, with NPS benefits alone projected to rise from
+1.7% toward ~9% by 2080.) **[KOR]**
 
 ## Labour supply (chi_n)
 
