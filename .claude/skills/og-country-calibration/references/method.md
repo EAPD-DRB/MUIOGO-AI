@@ -84,7 +84,7 @@ households to an unsourced global constant. Run the sweep after the parameters s
 An unscored moment cannot pull its parameter. Every tuned dial needs its own scored moment; never
 steer a dial to close a residual; score every resource-constraint component and the early
 transition, not only the steady state. The four rules and their cases are in
-[validation-dashboard.md](references/validation-dashboard.md). **[net-new: JPN]**
+[validation-dashboard.md](validation-dashboard.md). **[net-new: JPN]**
 
 ## Why the baseline transition is not optional
 
