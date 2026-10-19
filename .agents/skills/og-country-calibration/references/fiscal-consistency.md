@@ -141,6 +141,11 @@ variables with the country's published program and international projections, ov
   derive it from one overlap year of OECD-vs-treasury data and hold it constant);
 - `I_g/Y` vs the program's infrastructure path.
 
+**If the primary balance matches the program but debt does not,** the gap is in interest and growth.
+Compare the model's near-term real `r_gov` and real growth with the program years' own: the model
+uses long-run values, and a low-inflation or slow-growth country pays more in real terms in the
+near term. Report the gap with that cause, or set a near-term rate path. **[THA]** (history: THA)
+
 Sources: the medium-term fiscal framework (deficit, revenue, disbursement and infrastructure paths),
 the budget document (interest projections, to convert deficit to primary), treasury
 cash-operations reports (actuals).

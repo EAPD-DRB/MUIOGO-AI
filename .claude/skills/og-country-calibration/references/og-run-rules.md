@@ -90,7 +90,11 @@ the trust region is anchored to the damped step. Solver field names change betwe
 releases; check the installed version has the fields you set (`hasattr(Specifications(), ...)` in
 that environment, not release tags or memory: some releases were published without a git tag), and
 treat an ogcore bump as its own change. Watch the distance series the first time; if it oscillates or stalls, fall back to damped
-iteration. Anderson works on the transition path only and never fixes a fiscal runaway. Evidence:
+iteration to finish the run, and record the slower time per iteration (15–17 minutes per scenario
+is normal for the fallback; it is not a failure). The shipped default stays Anderson: a stall that
+comes with a drifting debt path points at the fiscal setup, so fix that, then retry Anderson before
+changing the packaged parameters. Anderson works on the transition path only and never fixes a
+fiscal runaway. Evidence:
 it cut PHL's single-industry transition from ~30–70 damped iterations to 11–12.
 
 **Validation runs are offline:** `update_from_api=False`. Some example scripts call

@@ -31,6 +31,8 @@ fail silently. **[KOR]** Before any solve:
   | `K/Y` target, `delta` | private capital: PWT less public capital; CFC less government's |
   | `zeta_K`, world rate, `r_gov_shift` | IIP gross `K_f/K`; a sourced world rate; the treasury's effective rate |
   | `nu`, `TPI_outer_method`, `initial_guess_*` | the run rules; seeds from the new country's own first solve |
+  | the example reform | a change that is real for the new country; check it moves a parameter from its baseline value |
 
 - **Replace the sibling's example reform** with one that means something for the new country (for
-  example, a reform the new country has enacted, not the sibling's; history: KOR).
+  example, a reform the new country has enacted, not the sibling's). A reform that sets a rate to
+  the new country's current value changes nothing. **[KOR, THA]** (history: KOR, THA)

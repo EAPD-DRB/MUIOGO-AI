@@ -68,6 +68,11 @@ Model-tools [`docs/og-lessons/<CODE>.md`](https://github.com/EAPD-DRB/Model-tool
   calibration went through the same level and converged (history: KOR). The fallback is
   slower, so it can exceed the run rules' 5–7 minute guide without anything being wrong; record
   the iteration time.
+- **Variant: a stall with a drifting debt path** **[THA]**. Signature: Anderson stalls near the
+  target while debt climbs well above the program on the way. Treat the fiscal setup as the cause
+  (class A; often pensions paid at the mature rate from t=0): finish with damped iteration if
+  needed, fix the cause, then retry Anderson before shipping damped iteration as the default
+  (history: THA).
 - **Provenance**: ZAF nu sweeps (`logs_ogzaf_nu06/nu07`), IDN/PHL/ZAF control-vs-treatment logs;
   KOR run logs (`example_run_A.log`, `example_run_B.log`).
 
