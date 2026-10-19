@@ -90,6 +90,25 @@ On JPN, 318 of 320 periods satisfied `RC_TPI` with a median residual of 7.96e-08
 were exactly those periods. `fixper` is invariant to any country-side setting; report it upstream
 rather than tuning around it. **[net-new: JPN]**
 
+**Both breaks are OG-Core bookkeeping, not economics. [KOR]**
+
+- *At the final data year:* the downloaded UN rates have one more year than `get_pop_objs` assumes
+  (T0 + 1 rows; user-supplied rates have T0). So it builds the last data year's population with
+  the frozen rates but stores the previous year's rates for that step: population and rates
+  disagree in that one period. It is not mortality improvement stopping (the first guess on KOR).
+- *At `fixper`:* the population is not stationary by period 120 (KOR's age shape takes ~360
+  periods to settle), so the one-period immigration re-solve is a real jump. Freezing the rates
+  earlier does not help and distorts long-run growth.
+
+Check any population before blaming the model: the stored rates must reproduce the stored path,
+`omega[t+1, s+1](1 + g_n[t]) = omega[t, s](1 - rho[t, s]) + imm_rates[t, s+1] omega[t, s+1]`, to
+about 1e-15 in every period. On master it fails at exactly the two break periods. Fixes, local and
+not yet upstream (2026-10-19): project from the last data year (one line), and an opt-in
+`fixper_phase_in` that ramps immigration into the stationary rates. Together on KOR they cut the
+largest resource-constraint error from 9.1e-3 to 1.2e-4 (2.0e-3 → 1.9e-6 at the data year, 9.1e-3
+→ 6.8e-7 at 120); what is left is the last five periods. Check whether they have landed in your
+ogcore before reaching for a loosened `RC_TPI`.
+
 **What it does to the run's own check.** `RC_TPI` (ogcore default 1e-4) is the end-of-run tolerance
 on the resource constraint. The two breaks routinely exceed it, so a sibling's JSON may carry a
 loosened value (OG-PHL ships 0.01) that the audit should catch and either justify or tighten.
