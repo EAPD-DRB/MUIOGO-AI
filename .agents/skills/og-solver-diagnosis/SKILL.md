@@ -120,8 +120,8 @@ your hypothesis:
   same country with exactly one flag/setting flipped, capture both logs, and compare converged
   outputs with an explicit drift threshold (0.1% was the house standard) printing a single
   `NO DRIFT` / `DRIFT DETECTED` verdict — into the log, not just the console. Run the pair across
-  2–3 countries (IDN/PHL/ZAF) to learn whether an effect is country-specific (→ calibration) or
-  engine-wide (→ OG-Core).
+  2–3 countries (IDN/PHL/ZAF in the mined history) to learn whether an effect is country-specific
+  (→ calibration) or engine-wide (→ OG-Core).
 
 Two auxiliary techniques from the mined history:
 

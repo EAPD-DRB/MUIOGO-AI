@@ -21,12 +21,13 @@ types, so the problem below remains, though the scalar can be raised. For a weal
 population a uniform seed is not imprecise, it is catastrophic:
 
 - the bequest seed lands two orders of magnitude low (JPN: 134× in aggregate, 349× for the top income
-  group, against solved savings of ~6.1 vs the seed's 0.07);
+  group; case notes: JPN);
 - domestic capital `K_d = B − D_d` therefore starts negative (wealth near zero against domestically
   held government debt), so `SS_fsolve` clamps it and substitutes `1e9` residuals, destroying the
   finite-difference Jacobian the default `hybr` root-finder depends on;
 - `initial_guess_factor_SS` is validated to a maximum of 500,000, while a low-unit currency needs far
-  more (JPN ~7e6, IDN worse), so the right seed cannot be entered as a parameter.
+  more (on JPN about 14 times the cap, more on IDN), so the right seed cannot be entered as a
+  parameter.
 
 **The failure disguises itself.** `run_SS` does not report failure. It silently restarts down a
 ladder of rescaled seeds (`ogcore.constants.DEV_FACTOR_LIST`), making a separate `opt.root`

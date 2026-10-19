@@ -42,8 +42,8 @@ strings to grep for. When you hit a class not listed here, add it.
 - **Remedy**: recalibrate the placeholder: tune `zeta_K` to the IIP-implied `K_f/K` level, with
   Chinn-Ito only as a prior (`og-country-calibration`). Treat the warning as a calibration smell
   even when the run converges.
-- **Provenance**: OG-IDN hit and fixed the 0.9; OG-PHL fixed it later (it now ships 0.4); its older
-  logs show the guard firing.
+- **Provenance**: OG-IDN hit and fixed the 0.9; OG-PHL fixed it later; its older logs show the
+  guard firing (case notes: PHL).
 
 ## C. Oscillation / slow outer-loop convergence
 
@@ -60,12 +60,12 @@ strings to grep for. When you hit a class not listed here, add it.
   if it oscillates. These treat oscillation only — never class A. Recent ogcore can tell a
   cycling loop from a diverging economy for you (solve-procedures.md, "Stall detection").
 - **Variant: Anderson stalls just above `mindist_TPI`** **[KOR]**. Signature: the distance falls
-  cleanly to a few times the tolerance, then rises for several iterations in a row (KOR: 2.7e-5 at
-  iteration 18, then 3.2, 3.9, 4.4, 4.7, 4.9e-5 against 1e-5). With `maxiter` 250 it can run for
+  cleanly to a few times the tolerance, then rises for several iterations in a row (on KOR, from
+  2.7e-5 to 4.9e-5 over five iterations, against 1e-5). With `maxiter` 250 it can run for
   hours, so stop it. Damped iteration (`TPI_outer_method="picard"`, `nu` 0.2) from the same
-  calibration went through the same level and converged (9.7e-6 at iteration 55, about 28 minutes
-  at ~30 s an iteration on a loaded 10-core machine). The fallback is slower, so it can exceed the
-  run rules' 5–7 minute guide without anything being wrong; record the iteration time.
+  calibration went through the same level and converged (case notes: KOR). The fallback is
+  slower, so it can exceed the run rules' 5–7 minute guide without anything being wrong; record
+  the iteration time.
 - **Provenance**: ZAF nu sweeps (`logs_ogzaf_nu06/nu07`), IDN/PHL/ZAF control-vs-treatment logs;
   KOR run logs (`example_run_A.log`, `example_run_B.log`).
 
@@ -176,9 +176,9 @@ strings to grep for. When you hit a class not listed here, add it.
   solver's seed exactly. The run converges and its reported Euler error is small.
 - **Cause**: OG-Core solves households already alive at t=0 with `opt.root` and uses the result
   without checking it (PSLmodels/OG-Core#1247). The reported Euler error covers only cohorts born
-  at t=0 or later, so the failures are invisible. On KOR a third of the start cohorts failed, with
-  first-order errors up to 7.0, and consumption jumped to 62.9% of GDP in year two (50.5% once
-  solved). It looks exactly like an initial-wealth problem.
+  at t=0 or later, so the failures are invisible. On KOR, solving those cohorts moved year-two
+  consumption from 62.9% to 50.5% of GDP (case notes: KOR). It looks exactly like an
+  initial-wealth problem.
 - **Remedy**: check whether your ogcore has the fix (a `_solve_household` retry and a reported
   "cohorts alive at the start" Euler error in the log). If not, recompute those cohorts'
   first-order conditions from the saved path before changing any initial-wealth setting.

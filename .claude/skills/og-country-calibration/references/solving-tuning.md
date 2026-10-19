@@ -53,8 +53,8 @@ The rules are in og-run-rules.md. The evidence behind them:
   serial (~38s vs ~6s per GE evaluation **[JPN]**; 12+ min vs 66s **[PHL]**). They came from older
   ogcore, which re-sent the parameters to the workers on every evaluation. If the SS through the
   client is slow on a current ogcore, report it as a finding rather than building a serial driver.
-  A two-phase hand driver (SS serial → pickle → TPI with the client) was used on PHL for speed; it is
-  not the example pattern and is not used for official runs.
+  A two-phase hand driver (SS serial → pickle → TPI with the client) was once used for speed
+  **[PHL]**; it is not the example pattern and is not used for official runs.
 - **Why Anderson.** The M=1 PHL transition went from ~30–70 damped iterations (~20 min) to 11–12
   (~2–2.5 min) with monotonically falling distances **[PHL]**; OG-Core's own changelog reports a
   stiff multi-industry reform converging in 53 outer iterations vs 126 under constant `nu = 0.1`. It

@@ -46,7 +46,7 @@ how a reviewer verifies the change does what you claim.
 The maintainer flagged that the SAM books all non-labour income as capital with no public-capital
 attribution, so subtracting `gamma_g` implicitly from labour is wrong. State the construction: rescale
 the SAM's total capital shares to the economy-wide total, then subtract `gamma_g`, so public capital
-comes out of capital (the SAM measures labour's share well). If `gamma_g = 0` (e.g. ZAF), say so
+comes out of capital (the SAM measures labour's share well). If `gamma_g = 0`, say so
 (private = total, no carve-out) so the reviewer need not raise it.
 
 ## PR-explanation visuals are not docs visuals

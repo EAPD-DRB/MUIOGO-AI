@@ -75,9 +75,7 @@ total income. ETR = 0 at the bottom and tends to `φ0` at the top.
 - Set `φ0` = the statutory top marginal rate (an anchor, not a fit).
 - Fit `φ1` (curvature) to the schedule's shape.
 - Tune `φ2` (scale) in-model to the PIT/GDP collections target. The effective-rate and informality
-  wedge enters here, pulling the level down to actual collections.
-- Examples: ZAF `[0.464, 1.39288, 1.43e-8]` → PIT 10.1% of GDP, top MTR 45%. PHL
-  `[0.35, 1.196, 1.9e-8]` → PIT 3.12% of GDP.
+  wedge enters here, pulling the level down to actual collections. (case notes: ZAF, PHL)
 - Tuning mechanics **[PHL]**: revenue's response to `φ2` is concave. Top incomes sit where
   ETR ≈ φ0 regardless of φ2, so halving φ2 cuts revenue by less than half; expect two or three
   in-model iterations, not one proportional step. Lowering φ2 for informality acts like shifting the
@@ -90,9 +88,9 @@ total income. ETR = 0 at the bottom and tends to `φ0` at the top.
 
 **HSV** (`tax_func_type = "HSV"`, `λ = coef0`, `τ = coef1`): `ETR = 1 − λ·y^(−τ)`,
 `MTR = 1 − λ(1−τ)·y^(−τ)`. τ (progressivity) is scale-invariant; fit it to the schedule's shape. λ
-absorbs the income scale; tune it to collections. (ZAF's HSV fit had τ ≈ 0.14 tracking SARS, before
-the GS switch.) Use HSV only where a bottom-end subsidy is harmless. In a tightly balanced fiscal
-block it bleeds transition revenue; if the budget has no slack, use GS.
+absorbs the income scale; tune it to collections. (case notes: ZAF) Use HSV only where a
+bottom-end subsidy is harmless. In a tightly balanced fiscal block it bleeds transition revenue; if
+the budget has no slack, use GS.
 
 ## Informality: the maturity ladder
 
@@ -143,7 +141,7 @@ that prices the same economic margin, then tune in-model to collections:
   OECD "other taxes" residual) → the wealth tax: `h_wealth = 1` and `m_wealth` small but positive
   (`m = 0` divides 0/0 at `b = 0`; `0.001` works) make `ETR_wealth ≈ p_wealth` flat, zero at zero
   wealth, MTR → `p_wealth`. A recurrent property tax is a flat tax on a form of wealth, so the
-  distortion lands on the right margin (saving). PHL: `p_wealth = 0.0035` gives 1.32% of GDP.
+  distortion lands on the right margin (saving). (case notes: PHL)
 - **Government capital income** (SOE and central-bank dividends, state gaming shares, guarantee
   fees, treasury interest income) and **unallocable income taxes** (final withholding on deposits
   etc.) → the CIT adjustment factor; both are government takes from capital income.

@@ -31,10 +31,9 @@ Contents
     `scripts/fetch_nta_age_profiles.py` (the session-and-Referer download, variable "Labor Income",
     type "Smooth Mean") and `ogjpn/income.py`'s `get_age_shape_factor` / `apply_age_shape`
     (normalise over ages 20–64, hold the factor flat above 72, latest target-country year against
-    the nearest US year). It ported to KOR by changing the country name and year windows; KOR's
-    profile (2019, against US 2011) peaks at 47 and falls to 0.60 of the US shape by 65, the
-    "honorary retirement" and mandatory-retirement-at-60 signature. **[KOR]**
-- **Do not use the ZAF-style hard-coded-coefficient method** (`get_e_orig`, a WID-then-NTA two-step
+    the nearest US year). It ports to another country by changing only the country name and year
+    windows. **[KOR]** (case notes: KOR)
+- **Do not use OG-ZAF's hard-coded-coefficient method** (`get_e_orig`, a WID-then-NTA two-step
   with hand-tuned arctan extrapolation). It needs per-country re-derivation and is not a drop-in.
 - **Gini-concept trap [issue #33; family-wide risk].** The target-country Gini and the US reference
   Gini (`gini_usa_data`) must be the same welfare concept. Mixing a World Bank PIP Gini
@@ -55,9 +54,9 @@ Contents
 - The only per-country input is `country_id` (UN M49 code). Use a single named constant
   (`UN_COUNTRY_CODE`) referenced at both call sites, not an inline literal. **[safer: PHL/IDN/BRA]**
 - **Pitfall [ETH, regressed twice].** `calibrate.py` gets refreshed by copying a sibling, and the
-  hard-coded `country_id` literal was wrong (710 = South Africa instead of 231 = Ethiopia), twice,
+  hard-coded `country_id` literal was wrong (the sibling's code instead of the country's own), twice,
   because a wholesale file copy forgot to swap it. Add a regression test asserting `country_id`
-  matches the country being calibrated.
+  matches the country being calibrated. (case notes: ETH)
 
 ## The data window sets the long-run growth rate
 
@@ -76,10 +75,10 @@ and ogcore asserts against going beyond `start_year + 74` (and a 2099 cap).
 **The last usable year is one before the last year of data you actually have.** `get_pop` reads
 `final_data_year + 1` to infer immigration, and which data you have depends on the token: without a
 UN API token ogcore falls back to the Population-Data archive, and the archive's last year can be
-earlier than the API's (it ended at 2099 for KOR, so 2098 was the limit while ogcore's assert
-allows 2099). Check the archive's last year for your country and set the window to one less. Too
-late a year fails far from the cause, as an `UnboundLocalError` in `pop_rebin`. Put the year in a
-named constant with this reason next to it. **[KOR]**
+earlier than the API's, so the limit can sit below what ogcore's assert allows. Check the archive's
+last year for your country and set the window to one less. Too late a year fails far from the
+cause, as an `UnboundLocalError` in `pop_rebin`. Put the year in a named constant with this reason
+next to it. **[KOR]** (case notes: KOR)
 
 ## Discontinuities: the frozen window and fixper
 
@@ -95,7 +94,7 @@ rather than tuning around it. **[net-new: JPN]**
 - *At the final data year:* the downloaded UN rates have one more year than `get_pop_objs` assumes
   (T0 + 1 rows; user-supplied rates have T0). So it builds the last data year's population with
   the frozen rates but stores the previous year's rates for that step: population and rates
-  disagree in that one period. It is not mortality improvement stopping (the first guess on KOR).
+  disagree in that one period. It is not mortality improvement stopping (the natural first guess).
 - *At `fixper`:* the population is not stationary by period 120 (KOR's age shape takes ~360
   periods to settle), so the one-period immigration re-solve is a real jump. Freezing the rates
   earlier does not help and distorts long-run growth.
@@ -104,17 +103,16 @@ Check any population before blaming the model: the stored rates must reproduce t
 `omega[t+1, s+1](1 + g_n[t]) = omega[t, s](1 - rho[t, s]) + imm_rates[t, s+1] omega[t, s+1]`, to
 about 1e-15 in every period. On master it fails at exactly the two break periods. Fixes, local and
 not yet upstream (2026-10-19): project from the last data year (one line), and an opt-in
-`fixper_phase_in` that ramps immigration into the stationary rates. Together on KOR they cut the
-largest resource-constraint error from 9.1e-3 to 1.2e-4 (2.0e-3 → 1.9e-6 at the data year, 9.1e-3
-→ 6.8e-7 at 120); what is left is the last five periods. Check whether they have landed in your
-ogcore before reaching for a loosened `RC_TPI`.
+`fixper_phase_in` that ramps immigration into the stationary rates. On KOR, together they cut the
+largest resource-constraint error from 9.1e-3 to 1.2e-4; what is left is the last five periods.
+Check whether they have landed in your ogcore before reaching for a loosened `RC_TPI`.
 
 **What it does to the run's own check.** `RC_TPI` (ogcore default 1e-4) is the end-of-run tolerance
 on the resource constraint. The two breaks routinely exceed it, so a sibling's JSON may carry a
-loosened value (OG-PHL ships 0.01) that the audit should catch and either justify or tighten.
-Triage by period before accepting it: KOR's baseline had 0.009 at period 120 and 0.002 at period 74,
-1.9e-4 at the last period, and at most 2.2e-6 everywhere else (3.6e-7 in the first ten years). Keep
-the loosened tolerance only with that table in the docs. **[KOR]**
+loosened value (one sibling ships 100 times the default) that the audit should catch and either
+justify or tighten. Triage by period before accepting it: tabulate the error at each break period,
+at the last period, and the largest everywhere else (and in the first ten years). Keep the loosened
+tolerance only with that table in the docs. **[KOR]** (case notes: PHL, KOR)
 
 ## Cache the processed arrays
 
@@ -192,9 +190,8 @@ contribution histories, rising coverage), today's spending is the wrong target f
 state. Score steady-state pension outlays against the scheme's own long-run actuarial projection,
 and score today's spending at t=0 of the transition. Do not tune `alpha_db` down to hit today's
 spending, which understates the system the country has legislated. The t=0 figure can land on
-either side of today's: KOR's was 2.65% of GDP against 3.1% (steady state 5.6%, with NPS benefits
-alone projected to rise from 1.7% toward ~9% by 2080); the reason it landed below was not
-investigated. **[KOR]**
+either side of today's: on KOR it landed below, and the reason was not investigated. **[KOR]**
+(case notes: KOR)
 
 ## Labour supply (chi_n)
 

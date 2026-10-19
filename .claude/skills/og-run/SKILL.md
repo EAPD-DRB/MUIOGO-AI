@@ -71,7 +71,9 @@ If it points elsewhere, stop; that is the finding.
 
 ## Launching a run
 
-Country models ship example scripts that define the baseline and the reform:
+Country models ship example scripts that define the baseline and the reform. OG-PHL is the
+example in this section; other repos name their scripts and folders their own way, so list
+`examples/` in yours:
 
 ```bash
 cd <og-models>/OG-PHL
@@ -134,7 +136,7 @@ For a background run, launch it (after the user's go) under `nohup` or a termina
 multiplexer, with unbuffered output teed to a log so progress survives a disconnect:
 
 ```bash
-nohup uv run python -u examples/run_og_phl.py > og-phl-run.log 2>&1 &
+nohup uv run python -u examples/<example script> > <country>-run.log 2>&1 &
 ```
 
 Then monitor rather than re-launching, and report status to the user at intervals without

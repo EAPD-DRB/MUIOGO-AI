@@ -24,6 +24,10 @@ Two reading rules:
   learned, never which country it applies to. Where a method really is conditional, the condition is
   a country characteristic stated in the item (agrarian or informal, aid- or remittance-dependent,
   distressed sovereign, rectangular vs diagonal make matrix), never a country name.
+  Country results behind a lesson (targets, data years, tuned values) are kept out of the skill,
+  in Model-tools [`docs/og-case-notes/<CODE>.md`](https://github.com/EAPD-DRB/Model-tools/tree/main/docs/og-case-notes); a `(case notes: XXX)` marker
+  points there. You do not need them to apply the method. Do not copy them; derive your country's
+  own.
 - **Best effort on every block, graded honestly.** Most blocks have a ladder from minimal to ideal
   (flat to progressive to microdata PIT; narrative to structural informality; borrowed to re-tilted
   `chi_n`; naive to value-added `io_matrix`; direct solve to continuation). Use the highest rung the
@@ -214,8 +218,8 @@ fail silently. **[KOR]** Before any solve:
   inherited `nu` 0.4 with Anderson from PHL). The seeds are the sibling's solution, not neutral
   defaults: ogcore guesses GDP as `initial_guess_TR_SS / alpha_T`, so a sibling's TR seed against
   the new `alpha_T` put KOR's GDP guess 4.6x too high and stalled the solve.
-- **Replace the sibling's example reform** with one that means something for the new country (KOR:
-  the enacted 2026 corporate-rate rise instead of PHL's CIT cut and debt change).
+- **Replace the sibling's example reform** with one that means something for the new country (for
+  example, a reform the new country has enacted, not the sibling's; case notes: KOR).
 
 Why the baseline TPI is not optional: the steady state consumes one number from each time-varying
 path (its terminal value), so a whole mis-specified path is invisible to it. On JPN a wrong
@@ -289,9 +293,9 @@ anything that shares a lever with what you moved.
 
 ## Finding every lever on a moment
 
-The failure this prevents: OG-JPN's `K/Y` came in at 3.50 against a PWT 3.70. `beta` needed 0.984,
-and at 0.984 the steady state stopped solving. That was written up as an acceptable miss and a
-"family trait". It was neither. `zeta_K`, at a placeholder 0.10 that the repo's own comment
+The failure this prevents: OG-JPN's `K/Y` came in 0.20 below its PWT target. The `beta` that closed
+the gap was one at which the steady state stopped solving. That was written up as an acceptable
+miss and a "family trait". It was neither. `zeta_K`, at a placeholder 0.10 that the repo's own comment
 labelled `NEEDS TUNING ... pending the IIP anchor`, closed 79% of the `K/Y` gap and 85% of a
 separate consumption gap when set from the IIP data. Fourteen tuning rounds ran without touching it.
 
@@ -317,7 +321,7 @@ Four rules:
 **Then sweep the defaults you did not source.** Perturb every unsourced parameter and record which
 target moments move. Anything that moves one materially must be sourced or explicitly declared.
 Relevance depends on settings you have not chosen yet: `world_int_rate` (default 0.04) is invisible
-at `zeta_K = 0.10` and sets `r` at `zeta_K = 0.78`; dropping it to 3.5% moved JPN's `K/Y` from 3.67
+at a low `zeta_K` and sets `r` at a high one; on JPN, dropping it to 3.5% moved `K/Y` from 3.67
 to 3.81 and `K_f/K` from 17% to 27%. High openness hands the interest rate from the country's
 households to an unsourced global constant. Run the sweep after the parameters settle. **[net-new: JPN]**
 

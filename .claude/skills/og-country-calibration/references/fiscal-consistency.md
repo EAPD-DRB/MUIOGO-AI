@@ -34,8 +34,9 @@ pensions and any UBI. `fiscal.get_G_ss` subtracts all of them:
 alpha_G + alpha_T + alpha_I + agg_pension_outlays/Y + UBI_outlays/Y  =  revenue/Y − pb*
 ```
 
-- Forgetting `alpha_I ≈ 0.05` mis-sets `alpha_G` by 5pp of GDP. **[PHL]** Check `alpha_I` itself is
-  sourced: OG-ZAF's `main` ships 0.0003, a placeholder. **[ZAF]**
+- Forgetting `alpha_I` mis-sets `alpha_G` by the whole public-investment share; on PHL that was 5pp
+  of GDP. **[PHL]** Check `alpha_I` itself is sourced: OG-ZAF's `main` ships 0.0003, a
+  placeholder. **[ZAF]**
 - Omitting pensions sets `alpha_G` too high by the whole pension bill (JPN: 0.63pp of GDP).
   **[net-new: JPN]** UBI is usually zero; include it when it is not.
 - **The steady state will not tell you.** The closure forces `G` to the consistent level, so the
@@ -48,8 +49,8 @@ alpha_G + alpha_T + alpha_I + agg_pension_outlays/Y + UBI_outlays/Y  =  revenue/
 - **Frame the residual honestly.** After capturing all recurring revenue, the remaining gap between
   model `G/Y` and observed government consumption should be about (actual primary balance − `pb*`),
   the country's real consolidation distance, plus measurement differences. Name it in the docs as
-  what the stable-debt steady state embeds. (PHL: actual pb −2.8% vs `pb*` −0.7%, so ~2pp embedded
-  consolidation.) **[ZAF; the alpha_I identity and consolidation-gap framing: PHL]**
+  what the stable-debt steady state embeds. (On PHL the embedded consolidation was ~2pp of GDP; case
+  notes: PHL.) **[ZAF; the alpha_I identity and consolidation-gap framing: PHL]**
 
 ## Why it bites the transition, not the steady state
 
@@ -117,10 +118,10 @@ and scored with the steady-state dashboard, not after it:
   framework. A model that reproduces them is credible in a way a stylised long run never is.
 - **It is the only test that can see the debt level.** In the steady state `D/Y` is
   `debt_ratio_ss`, a policy anchor you chose, so scoring it there compares a choice against a
-  measurement. `initial_debt_ratio` is a measurement, and only the transition starts from it. JPN
-  shipped `initial_debt_ratio = 0.864` against an actual 1.148, a 28pp-of-GDP error, for a full day,
-  in a file whose own `r_gov` derivation used the correct 114.8%. The steady-state dashboard could
-  not catch it; a debt-path panel would have shown it in period one. **[net-new: JPN]**
+  measurement. `initial_debt_ratio` is a measurement, and only the transition starts from it. On
+  JPN a shipped `initial_debt_ratio` was 28pp of GDP below the actual ratio, in a file whose own
+  `r_gov` derivation used the correct ratio. The steady-state dashboard could not catch it; a
+  debt-path panel would have shown it in period one. (case notes: JPN) **[net-new: JPN]**
 - **It is where a fiscal miscalibration bites.** The steady-state closure protects the steady state;
   the transition holds `alpha_G`/`alpha_T` at their inputs for `tG1` periods.
 
@@ -148,8 +149,8 @@ cash-operations reports (actuals).
 
 Put the transition on the government's consolidation schedule. A flat identity-value `alpha_G` makes
 the model consolidate at once (pb jumps to `pb*` in year one, typically years ahead of the actual
-plan), which pays debt far below target early (PHL: down to ~48% vs a 58–61% program band) before
-the closure brings it back. Instead set `alpha_G` as a declining path:
+plan), which pays debt far below target early (on PHL, about 10–13pp of GDP below the program band)
+before the closure brings it back. Instead set `alpha_G` as a declining path:
 
 ```
 alpha_G(t) = SS_revenue_share − pb_program(t) − alpha_T − alpha_I(t)
@@ -166,9 +167,10 @@ in the docs. Re-tune the glide after fixing the initial-wealth condition.
 number.** `alpha_G` is held at its input for the first `tG1` periods, but pension outlays in the
 transition start at today's level and grow toward the steady state's. Holding `alpha_G` at the
 steady-state identity value then runs a surplus for years and pays debt down far below target
-before the closure starts (KOR, an ageing country with a maturing pension system: pensions 2.7% of
-GDP in 2025 rising toward 5.6%, pb +1% to +1.7% a year, debt 49.6% → 35.7% by 2036 against a plan
-near 52%). Compute the glide from the transition's own paths, one baseline run back:
+before the closure starts. This bites in an ageing country with a maturing pension system. On KOR,
+pensions roughly doubled as a share of GDP over the transition, and the flat value ran primary
+surpluses of 1–1.7% of GDP a year and left debt about 16pp of GDP below plan after a decade (case
+notes: KOR). Compute the glide from the transition's own paths, one baseline run back:
 
 ```
 alpha_G(t) = revenue(t)/Y − pb_target(t) − alpha_T − alpha_I(t) − pensions(t)/Y,   t < tG1

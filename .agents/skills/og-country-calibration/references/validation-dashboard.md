@@ -30,15 +30,15 @@ row on the dashboard, and the loop optimised what it could see. Four rules, all 
 1. **Every tuned parameter's identifying moment must be on the dashboard.** Grep the tuned dials,
    grep the dashboard rows, and require a one-to-one match. A dial with no scored moment drifts
    silently.
-2. **A dial moved to close a residual is a free parameter, not a calibration.** OG-JPN's `p_wealth`
-   and `tau_bq` were nominally tuned to property and inheritance tax but in practice scaled to close
-   total revenue, so they absorbed every other line's error. Tune each dial to its own moment; total
+2. **A dial moved to close a residual is a free parameter, not a calibration.** `p_wealth` and
+   `tau_bq` nominally tuned to property and inheritance tax, but in practice scaled to close total
+   revenue, absorb every other line's error **[JPN]**. Tune each dial to its own moment; total
    revenue is the check that the parts add up, never the thing you steer.
 3. **Score every component of the resource constraint,** not just the residual. Put `I/Y`, `I_g/Y`,
    `G/Y` and `NX/Y` next to `C/Y`.
 4. **Score the first-tier moments early in the transition too,** not only at the steady state.
    Report each at t=0–10 as well: a steady state can land close while the first years miss badly
-   (OG-JPN's consumption share in 2025, from a mis-set initial wealth). **[JPN]**
+   (for example the first-year consumption share, from a mis-set initial wealth). **[JPN]**
 
 The moments most often tuned for but never scored, and the traps when adding rows, follow.
 **[net-new: JPN]**
@@ -63,16 +63,17 @@ tier with a written reason.
 | `NX/Y` | `zeta_K`, `zeta_D` | the trade balance, not the current account (below) |
 | property / wealth tax / Y | `p_wealth`, `h_wealth` | revenue statistics |
 | bequest tax / Y | `tau_bq` | revenue statistics |
-| `w·L/Y` (solved labour share) | validates `gamma` and `epsilon` | PWT `labsh`. JPN solved 0.5700 against 0.571, a real free check, since nothing forces it when `epsilon != 1` |
+| `w·L/Y` (solved labour share) | validates `gamma` and `epsilon` | PWT `labsh`. A real free check, since nothing forces it when `epsilon != 1` (case notes: JPN) |
 | wealth Gini / top shares | the `e` matrix, `beta` | household wealth surveys. Distinct from the income Gini the tilt targets, and a much sharper test of an OG model |
 | `g_n_ss` | the demographic window | the UN projection's own implied CAGR |
 | wealth by age (mean net worth of 60+ and of under-40s, relative to 50-59) | `chi_b` (old end); the shape of initial wealth | household wealth surveys by age of head. The steady-state profile is what initial wealth is built from |
 
-**[net-new: JPN]** Wealth by age **[KOR]**: the solved profile had 60+ at 1.86× the 50-59 level
-against 0.97 in the survey, and under-30s at 0.02 against 0.2-0.3. `chi_b` moves the old end
-(1.86 at 80, 1.60 at 20, 1.26 at 5) but also `K/Y` (4.31, 3.71, 3.47) and bequest revenue, so
-re-tune `beta` and `tau_bq` with it. The young end is leveraged housing, which OG-Core does not
-model; document it rather than tune for it.
+**[net-new: JPN]** Wealth by age **[KOR]**: score the solved wealth-by-age profile against the
+survey ratios. `chi_b` moves the old end, but it also moves `K/Y` and bequest revenue, so re-tune
+`beta` and `tau_bq` with it. On KOR, the `chi_b` cut that moved the 60+ ratio from 1.86 to 1.26
+also moved `K/Y` from 4.31 to 3.47. Where the young end falls short because young households hold
+leveraged housing, which OG-Core does not model, document it rather than tune for it. (case notes:
+KOR)
 
 ## Two traps when adding rows
 
@@ -82,15 +83,15 @@ model; document it rather than tune for it.
   and `lambdas`, and sanity-check every new row against a plausible magnitude before believing a gap.
 - **`NX` is the trade balance; the current account is a different object.** For a country with a
   large net international investment position, most of the current account is primary income, not
-  trade. Japan's CA surplus is ~3.8% of GDP against a goods-and-services balance near zero, so a model
-  `NX/Y` of 0.000 is right, and scoring it against 3.8% would be a concept error.
+  trade, so a model `NX/Y` near zero can be right while the current account shows a large surplus,
+  and scoring `NX/Y` against the current account would be a concept error. On JPN the current
+  account ran about 3.8 points of GDP above the trade balance. **[JPN]**
 - **A steady state cannot run a trade surplus and own net foreign assets at once.** In a steady
   state a net creditor (`K_f < 0`) spends its foreign income, so `NX` is negative; a country
   observed with both a trade surplus and a positive NIIP is still accumulating, which only the
   transition can show. Score `NX/Y` in the early transition, and in the steady state compare only its
   sign with the sign of `K_f`. Then decompose the consumption gap (below): most of it will be this
-  `NX` term. (KOR: data `NX/Y` +5.5% with NIIP +47%; model steady state −3.1%, accounting for 8.5
-  of an 11-point `C/Y` gap.) **[KOR]**
+  `NX` term. On KOR the `NX` term accounted for 8.5 points of an 11-point `C/Y` gap. **[KOR]**
 - **Use the model's own `K` concept.** `K/Y` targets private capital: subtract public capital from
   the PWT ratio (macro-open-economy.md, `delta_annual`). **[KOR]**
 
@@ -184,11 +185,11 @@ denominator.
 
 ## Know the family traits before fixing them
 
-The model's endogenous `K/Y` runs high against the PWT across the family (ZAF 4.5 vs 3.7; PHL 4.3),
-a structural feature of the saving and return block, not a country calibration error. Report it with
-a written reason in the ballpark tier; do not distort a country parameter to chase it. But before
-calling any gap a trait, run the four lever rules in SKILL.md: JPN's "family trait" `K/Y` miss was an
-untuned `zeta_K`.
+The model's endogenous `K/Y` runs high against the PWT across the family (on ZAF, model 4.5 against
+PWT 3.7), a structural feature of the saving and return block, not a country calibration error.
+Report it with a written reason in the ballpark tier; do not distort a country parameter to chase it.
+But before calling any gap a trait, run the four lever rules in SKILL.md: one apparent "family
+trait" `K/Y` miss was an untuned `zeta_K` **[JPN]**. (case notes: PHL)
 
 ## Note derived quantities honestly
 
@@ -197,10 +198,10 @@ sector), not a modelled export or import.
 
 ## Verify both tails of every path
 
-**[PHL, a caught error]** A min-only check on the debt path ("trough = 60.0, stays on target")
-passed while the path climbed to 74%; the check tested only the direction the previous failure
+**[PHL, a caught error]** A min-only check on the debt path ("trough on target") passed while the
+path climbed 14 points of GDP above target; the check tested only the direction the previous failure
 pointed. For every path claim, report min and max with their years, and look at the plotted line
-before writing the sentence about it.
+before writing the sentence about it. (case notes: PHL)
 
 ## Fast value-pinning test
 
