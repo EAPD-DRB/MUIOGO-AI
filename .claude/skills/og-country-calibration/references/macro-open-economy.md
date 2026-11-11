@@ -231,18 +231,18 @@ only matters when `gamma_g > 0`.
 
 ## Initial household wealth
 
-The family uses rickecon's approach (OG-Core's draft on calibrating the initial wealth
-distribution; parameter names may still change in review, so check what your build has). Work built
-on earlier designs migrates to it: carry over the data target (the initial wealth-to-GDP ratio and
-its construction), not the old parameter value, which was scaled differently. Two pieces:
+Released ogcore (0.24.1 and later) sets the initial condition with two parameters; check that your
+build has them:
 
-- **Shape.** An S×J matrix of factors on the steady-state wealth profile:
-  `b(s, j, t=1) = factor(s, j) × b_ss(s, j)`. All ones (the default) starts every household at its
-  steady-state wealth. Valid range 0.4–2.0.
-- **Level.** An optional target for initial aggregate household wealth / initial-year GDP
-  (`initial_BY_ratio`, switched on by `use_initial_BY_ratio`; valid range 0.8–7.0). Because
-  first-year GDP is endogenous, the transition rescales the whole initial distribution by a common
-  factor each iteration until `B_1/Y_1` hits the target.
+- **Level: `initial_wealth_ratio`**, aggregate household wealth over GDP in the start year (valid
+  0.8–7.0). Because first-year GDP is endogenous, the transition rescales the initial distribution
+  until `B_1/Y_1` equals it.
+- **Shape: `initial_hhwealth_dist`**, an S×J matrix of the shares of that wealth held by each age
+  and lifetime-income group (the cell's total, not per household; OG-Core divides by the
+  population, PSLmodels/OG-Core#1272). Unset, the steady-state profile is used.
+
+Work built on an earlier draft (a factor matrix on the steady-state profile and `initial_BY_ratio`)
+migrates the data target, not the old values, which were scaled differently.
 
 **Test an initial-wealth build on your country before adopting it.** Two designs have been tried.
 Rescaling the initial distribution inside the transition loop can oscillate: on an old population
@@ -278,10 +278,11 @@ the start year. Two ways to measure it, and they differ:
 Prefer the capital-side number, cross-check against the balance-sheet one, and write down which you
 used and why. Expect initial < steady-state wealth ratio for a fast-growing economy.
 
-**The shape.** Ones is a defensible start. If survey data gives wealth by age (and income group),
-set the factors to data relative to the model's steady-state profile, so the young and old start
-where they actually are. Check the result stays inside the valid range; a factor pinned at a bound
-means the steady-state profile itself is far from the data, which is a finding.
+**The shape.** The steady-state profile is a defensible start. For an age shape from data, the
+National Transfer Accounts' private asset income by age (the same download as the labour-income
+profile) works where wealth surveys are thin: multiply each age's weight by the steady-state split
+across income groups, and normalise. A shape far from the steady-state profile is a finding about
+the steady state, not only about the start (see `beta_annual`). **[PHL]** (history: PHL)
 
 **Check the solve, not just the target.**
 - Confirm the solved `B_1/Y_1` equals the target.
@@ -289,8 +290,7 @@ means the steady-state profile itself is far from the data, which is a finding.
   (PSLmodels/OG-Core#1189): it drove the initial cohorts into negative-consumption solutions that satisfied the extended
   first-order conditions and passed OG-Core's constraint checker, which watches a different object.
   Always read minimum household consumption from the pickle, and watch that the outer-loop distance
-  still falls. If the targeted run misbehaves, a fixed level reached by tuning the factor matrix over
-  a few runs (target off) is the static alternative.
+  still falls.
 - **Report the initial foreign capital share** `K_f(0)/K(0)` against the IIP; it is untargeted.
   Where the model's `K/Y` overshoots the PWT, measured household wealth and the measured foreign
   share cannot both be hit: the model fills its larger capital stock with foreign inflows. Keep the
@@ -332,6 +332,15 @@ moves; two or three SS solves bracket it. `beta` is one of eleven levers on `K/Y
 zero before concluding it is the binding one. Order matters: sourced parameters first, then look at
 `K/Y`. If it already sits on the PWT value, `beta` has no room and moving it is curve-fitting; if
 `K/Y` is off, `beta` is the right instrument.
+
+**When the initial wealth is anchored to data.** Applies when the population is far from
+stationary (young or fast-ageing) and `initial_wealth_ratio` is set from data. Then a `beta` tuned to
+the steady-state `K/Y` can be wrong for today: the same patience implies more wealth relative to GDP
+once the population has aged, so a steady state tuned to today's ratio makes households too
+impatient, and starting from measured wealth they consume a windfall in the first years. Check the
+first transition year: `C/Y` and `(I+I_g)/Y` against the data. If they miss, tune `beta` to the
+first-year investment share instead, and report the steady-state `K/Y` as an outcome. **[PHL]**
+(history: PHL)
 
 **Pitfall.** Leaving OG-USA's 0.96 unexamined, or moving `beta` while `K/Y` is already on target.
 Re-ask after any change to `gamma`, `delta` or `g_y`; on JPN the answer flipped twice.
