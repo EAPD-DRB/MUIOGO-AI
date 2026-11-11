@@ -154,7 +154,9 @@ being asked:
   third of the machine there means too few workers or a serial run. On older ogcore the main
   process is the bottleneck during the steady state and idle workers are expected (each
   evaluation re-sent the parameters to the workers); a slow steady state there points to the
-  ogcore version or a cold start, not the worker count.
+  ogcore version or a cold start, not the worker count. If one worker stays busy while the
+  others wait for most of each iteration, the run is held up by a straggler (og-solver-diagnosis,
+  failure class N).
 - **On time?** Past about ten minutes for a baseline, check the setup before waiting longer.
 
 To change what is solved (only when the user asked for a different scenario or setting),

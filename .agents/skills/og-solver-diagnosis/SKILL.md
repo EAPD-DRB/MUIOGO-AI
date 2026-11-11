@@ -137,7 +137,9 @@ Two auxiliary techniques from the mined history:
 **Probes find leads; official runs confirm them.** Harnesses, bisection scripts and fixture
 replays are how you find a suspect. Before you report it as the cause, confirm it on an
 installer-installed copy running the shipped example, and label anything not yet confirmed that
-way as a lead.
+way as a lead. A probe that starts its own dask client needs an `if __name__ == "__main__":`
+guard (each worker re-imports the script), and code meant to run on the workers is changed there
+with `client.run`. Do not time an official run while probes are running.
 
 **Re-decide after every probe.** Two failed fixes on the same hypothesis = the diagnosis is wrong;
 go back to Phase 1 with the new evidence. Three failed fixes = stop and question the setup itself

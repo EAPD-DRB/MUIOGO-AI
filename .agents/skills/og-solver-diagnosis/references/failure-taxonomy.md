@@ -5,7 +5,7 @@
 - D. Basin flip · E. NaN propagation · F. Stale expected-output fixture · G. Infrastructure noise
 - H. Cold-start seed failure · I. Resource-constraint error by timing · J. Single-threaded run
 - K. Government rate at its floor · L. Slow steady state on older ogcore
-- M. Unsolved start cohorts · Known engine bugs
+- M. Unsolved start cohorts · N. Slow transition from a straggler worker · Known engine bugs
 
 Observed classes from the family's real debugging history (its test scripts and solve logs, the
 OG-ZAF fiscal-runaway work, and the calibration playbook). Signatures are literal
@@ -189,6 +189,25 @@ Model-tools [`docs/og-lessons/<CODE>.md`](https://github.com/EAPD-DRB/Model-tool
 - **Remedy**: check whether your ogcore has the fix (a `_solve_household` retry and a reported
   "cohorts alive at the start" Euler error in the log). If not, recompute those cohorts'
   first-order conditions from the saved path before changing any initial-wealth setting.
+
+## N. Slow transition from a straggler worker
+
+- **Signature**: the transition converges in a normal number of iterations, but each iteration
+  takes far longer than the household solves explain. For most of an iteration one worker is busy
+  while the others wait, or the workers start their tasks seconds apart.
+- **Cause**: state kept on one worker, not the economics. Two seen so far: each worker caches the
+  sparsity pattern of the household Jacobian from the first problem it solves, and older ogcore
+  could build a pattern that misses real links (for a high-productivity income group, or groups
+  with and without a pension), so every solve on that worker falls back to Levenberg-Marquardt
+  (fixed by PSLmodels/OG-Core#1276); and dask's memory manager can delete the workers' copies of
+  the broadcast parameters between iterations, so they fetch them again before starting.
+- **Check**: time each income group's task per iteration, with its count of residual evaluations
+  and fallbacks (dask's task stream, or a probe that records them). A slow task that follows one
+  worker whatever group it is given points to the pattern; tasks that start apart after a
+  "transfer" point to the memory manager. Then check whether your ogcore has the fix.
+- **Why**: a calibration change can move which worker gets the bad pattern, so switching a block
+  off (pensions, say) can make the run slower and point the wrong way. On PHL the same household
+  solve took 3–4 s alone and up to a minute on the affected worker (history: PHL).
 
 ## Engine bugs seen before (check whether your ogcore still has them)
 
