@@ -205,18 +205,21 @@ an actual 2.1%; a 25-year phase-in matched today's spending and removed a debt o
 
 ## Labour supply (chi_n)
 
-- **Honest default state [family].** `chi_n` (the 80-age disutility-of-labour profile) is
-  byte-identical to OG-USA's values in every country repo, never recalibrated to a country's own
-  labour data. The estimation machinery is broken or absent everywhere (USA's is commented out; most
-  repos have no `labor.py`; ETH's `labor.py` is orphaned ZAF QLFS code with a missing
-  `estimate_chi_n` module).
-- So treat "chi_n borrowed from OG-USA, uncalibrated" as the default state of any port and say so;
-  never present it as calibrated.
-- **Before assuming the borrow is harmless, compare total labour input per working-age person with
-  the US** (hours per worker × employment rate). Japan is within 1% (10.5% fewer hours offset by a
-  much higher employment rate), which makes the borrow defensible rather than merely conventional. A
-  country far off that ratio has a real problem. **[net-new: JPN]**
-- To calibrate it: either (a) a single-scalar re-tilt like the earnings Gini trick, matching an
-  aggregate hours or participation target; or (b) wire the labour force survey through a rewritten
-  `labor.py` and a real `estimate_chi_n.py`.
+- **Default state [family].** Most ports ship OG-USA's 80 `chi_n` values unchanged. Say so; never
+  present them as calibrated.
+- **Check the age profile, not only the total.** Compare the model's labour supply by age with hours
+  per person by age from the labour force survey. A matching total can hide a wrong profile: Japan's
+  total labour input is within 1% of the US **[JPN]**, but on PHL a total 7% above the US hid a
+  model that worked as much at 75 as the data do at 50 (history: PHL).
+- **Calibrate to hours per person by age** **[ETH, PHL]**. The target is hours per person
+  (employment rate × hours of the employed; ILOSTAT has both by age), not per worker, because the
+  model has no extensive margin. Rescale each age's `chi_n` toward the ratio of marginal disutility
+  at the model's and the target's hours, re-solve the steady state, and repeat. Warm-start each
+  solve from the previous one (og-solver-diagnosis, solve-procedures.md): a cold start that fails
+  after a step is the seed, not the calibration. Ages where `chi_n` reaches OG-Core's upper bound
+  cannot hit the target; leave them out of the fit and report them. Reference implementation:
+  OG-PHL `ogphl/labor.py`.
+- **When hours are calibrated, make the earnings profile per hour.** The NTA labour-income profile
+  that shapes `e` is income per person, which already contains hours. Divide it by hours per person
+  by age before taking the country-to-US ratio, or hours count twice, in `e` and in `n`.
 - In a multi-industry model, `chi_n`/`chi_b` also take the units conversion (og-multi-industry-calibration).

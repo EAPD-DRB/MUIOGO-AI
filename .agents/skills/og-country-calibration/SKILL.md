@@ -107,7 +107,7 @@ Copy this into the work log and tick it off.
           effective VAT/CIT/payroll/bequest; non-tax revenue on nearest-margin instruments;
           informality rung. Close the budget identity:
           alpha_G + alpha_T + alpha_I + pensions/Y + UBI/Y = revenue/Y - pb*.
-- [ ] 8.  Pensions in local currency (alpha_db if DB); chi_n borrowed-and-documented or re-tilted.
+- [ ] 8.  Pensions in local currency (alpha_db if DB); chi_n calibrated to hours by age, or borrowed and documented.
 - [ ] 9.  beta against private K/Y, only after sourced parameters settle.
 - [ ] 10. Validate: SS dashboard, revenue by instrument, value-pinning test, AND a baseline TPI
           with the fiscal path panel. Before reading the first years, check the start cohorts

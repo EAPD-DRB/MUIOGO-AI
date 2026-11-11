@@ -145,10 +145,19 @@ When the statistics office rebases GDP, every `x/GDP` ratio moves without anythi
 old, same year). Compare model and data ratios on one consistent GDP vintage, and say which. A
 calibration tuned to an old-vintage ratio looks ~2–3pp off against current data for no real reason.
 
+**Mind the price basis too.** OG-Core's `Y` is output at producer prices: the consumption tax is
+paid on top of it, so `Y` excludes it, while the data's ratios are to GDP at market prices. Check
+the model's `(Y + cons_tax_revenue)/Y`. Where it is more than a few percent above one, compare model
+and data on one basis (for example, model ratios over `Y` plus the consumption tax), apply the same
+basis to the parameters OG-Core sets as shares of its own `Y` (spending, transfers, public
+investment, debt, remittances), and say which basis you used. Labour shares from the ILO and the PWT
+are shares of market-price GDP as well. The family has no settled convention; on PHL, with a
+consumption tax near 8% of GDP, every fiscal ratio sat about 8% off (history: PHL).
+
 ## Read the model side from the solved pickles
 
 Use `ogcore.utils.safe_read_pickle` on `SS_vars.pkl`; do not eyeball it. Fiscal ratios are revenue
-lines over `Y`: PIT `iit_revenue/Y`, CIT `business_tax_revenue/Y`, indirect `cons_tax_revenue/Y`,
+lines over `Y` (or over the basis chosen above): PIT `iit_revenue/Y`, CIT `business_tax_revenue/Y`, indirect `cons_tax_revenue/Y`,
 total `total_tax_revenue/Y`. `D/Y`, `D_f/D`, `K/Y` from the aggregates over `Y`; `r`, `r_gov`,
 `factor` directly; consumption share as `p_tilde·C/Y` (never raw `C/Y` when `I > 1`). Transition
 paths come from `TPI_vars.pkl`, parameters from `model_params.pkl`.
