@@ -97,6 +97,12 @@ full parallelism when `J = 7`. Do not build a serial steady-state driver for spe
 state is a symptom. `runner` always re-solves the steady state, so `runner(time_path=False)`
 followed by `runner(time_path=True, client=client)` solves it twice.
 
+**One model job at a time.** Parallel means within a run, never across jobs. Finish each run,
+tuning step or test suite that solves the model before starting the next; to compare two
+installed copies, run them one after the other on an otherwise idle machine. Two jobs at once
+oversubscribe the cores (seven workers each), slow both, and leave timings that cannot be
+compared (history: ETH).
+
 **Anderson every run, with `nu` 0.2 or lower**, set in the packaged parameters, not the script
 (if the repo does not set them, run the example as shipped and tell the user; change nothing
 without their go):
