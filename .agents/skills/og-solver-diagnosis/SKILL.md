@@ -33,7 +33,7 @@ rules: `../WORLD_DISCIPLINE.md`.
 First establish that the failure comes from a real run: a copy installed with OG-Core's official
 installer, running its shipped example script unchanged, with nothing injected (`og-run` and
 `../OG_RUN_RULES.md`). A failure seen only in a test fixture, a saved pickle, a serial or partial
-run, or a driver you wrote is a lead. Reproduce it the official way before calling it a model
+run is a lead. Reproduce it the official way before calling it a model
 failure, and do not tell the user the model fails until you have. Measure such a run afterwards,
 from its saved output, never by altering it.
 
@@ -118,7 +118,9 @@ your hypothesis:
   (`get_L`, `get_K`, `get_B`, `get_BQ`, `get_C`, `get_I`) under the good and bad configs and diff
   the outputs. Finds which function diverges without running the solver at all.
 - **Control/treatment harness** (pattern: `run_country.py` + `run_country_compare.py`): run the
-  same country with exactly one flag/setting flipped, capture both logs, and compare converged
+  same country with exactly one flag/setting flipped (one installer copy per side; the flip is a
+  branch of the repo or an overrides file the repo's own script reads, never a wrapper or a patch
+  at run time), capture both logs, and compare converged
   outputs with an explicit drift threshold (0.1% was the house standard) printing a single
   `NO DRIFT` / `DRIFT DETECTED` verdict — into the log, not just the console. Run the pair across
   2–3 countries (IDN/PHL/ZAF in the mined history) to learn whether an effect is country-specific
@@ -135,7 +137,11 @@ Two auxiliary techniques from the mined history:
   block and see if the symptom disappears.
 
 **Probes find leads; official runs confirm them.** Harnesses, bisection scripts and fixture
-replays are how you find a suspect. Before you report it as the cause, confirm it on an
+replays are how you find a suspect. They still run in an installer copy, through the repo's own
+scripts or the installed package's own functions, with the preflight's GO: "it is only a lead" is
+never a reason to build an environment by hand, install another ogcore into a copy, wrap or patch a
+script, or launch one step of a sequence by hand (`../OG_RUN_RULES.md`). Those shortcuts
+are how invalid results arise in the first place (history: ETH). Before you report it as the cause, confirm it on an
 installer-installed copy running the shipped example, and label anything not yet confirmed that
 way as a lead. A probe that starts its own dask client needs an `if __name__ == "__main__":`
 guard (each worker re-imports the script), and code meant to run on the workers is changed there

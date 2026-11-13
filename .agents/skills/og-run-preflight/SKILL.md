@@ -45,9 +45,11 @@ python3 scripts/preflight.py \
   Comma-separated extras (e.g. `ogcore`) must resolve inside the repo or its venv — never a
   sibling checkout.
 - `<venv-python>` defaults to `<REPO>/.venv/bin/python`.
-- Always pass `--run-cwd` and (when the run executes a script) `--entry-script`: a plain `-c`
-  probe alone does **not** reproduce script-dir shadowing, so probe with the run's own invocation
-  style. Console scripts are immune to cwd shadowing; `python script.py` and `python -c` are not.
+- Always pass `--run-cwd` and `--entry-script` (required when the first `--check` names
+  `ogcore`): a plain `-c` probe alone does **not** reproduce script-dir shadowing, so probe with
+  the run's own invocation style. Console scripts are immune to cwd shadowing; `python script.py`
+  and `python -c` are not. The entry script must be inside the first repo and tracked by git: one
+  of the repo's own example or tuning scripts, never a driver, wrapper or copy of your own.
 
 Single-repo example (a country model; `<country-repo>` is the absolute path of the checkout
 under test, OG-PHL here):
@@ -59,6 +61,19 @@ python3 scripts/preflight.py \
   --entry-script <country-repo>/examples/run_og_phl.py \
   --params-json <country-repo>/ogphl/ogphl_default_parameters.json
 ```
+
+`--installer-log` points at the OG-Core installer's `.install-*.log` when it is not in the
+checkout's parent folder or the current directory. The installer writes the log beside
+`install.sh`, so download `install.sh` into the new parent folder and run it from there: the log
+then sits beside the copy. For an OG model checkout (a `--check` that names `ogcore`) these fail,
+with no probe-only exception:
+
+- no installer log names this checkout as a clone destination (a hand-built environment);
+- the checkout has moved since the installer cloned it (a `git pull`, checkout or reset in the
+  installed copy): re-install the new commit into a new folder instead;
+- ogcore is an editable or local-folder install, or is not the commit or version the repo's
+  `uv.lock` pins (another build put in by hand, or an environment that drifted from the lock).
+  An unreleased ogcore goes in through the repo's own pin on a branch, then the installer.
 
 `--params-json` loads the packaged parameters into `Specifications` the way the example does.
 Pass it whenever the run loads a packaged JSON: a JSON that carries a parameter the resolved
@@ -107,9 +122,12 @@ loud before launching: "running with N uncommitted changes in <repo>."
   assert catches a bad *re*-launch weeks later.
 - **Run as a user would**: the documented CLI from the checkout's own env. If the preflight only
   passes under some ad-hoc invocation, the environment is wrong, not the preflight.
+- **Every run comes from an installer copy, probes included.** "It is only a probe" or "it
+  is only a lead" never licenses a dev checkout, an environment you synced by hand, another
+  ogcore installed into a copy, a wrapper, or a step launched by hand outside the repo's
+  sequence: each has produced invalid results (history: ETH).
 - **The checkout itself must come from OG-Core's official installer** (`scripts/install.sh`, see
-  og-run). A GO on a hand-built environment (a worktree you made and `uv sync`ed, a conda env, a
-  `PYTHONPATH` shadow) is not a GO for a reported run: install it properly and preflight that.
+  og-run), and the preflight now fails one that does not: install it properly and preflight that.
   Also confirm the entry script is the shipped example, unchanged (`git status` clean in the
   install), and that nothing is injected (`PYTHONPATH` unset, no `sitecustomize` on the path).
 - **A GO is a precondition, not an authorization.** This skill never launches the run itself.

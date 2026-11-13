@@ -8,24 +8,30 @@ OG repos, including the AGENTS.md estimate that a full example run takes "~35 mi
 
 **A healthy baseline takes under ten minutes.** The steady state takes seconds to a minute or two;
 the transition path about 5–7 minutes. Much longer means something is wrong (the worker pool, the
-solver settings, a stale ogcore, a cold start, or the calibration), not that the model is slow.
-Stop and diagnose (og-solver-diagnosis); do not wait it out.
+solver settings, a stale ogcore, a cold start, one worker holding up every iteration, or the
+calibration), not that the model is slow. Stop and diagnose (og-solver-diagnosis); do not wait it
+out. Time runs with nothing else running on the machine.
 
 **Install with the official installer.** Every OG model a run will report on is installed with
 OG-Core's own installer, as `scripts/QUICK_INSTALL.md` in PSLmodels/OG-Core describes: download
 `scripts/install.sh` (Windows: `install.ps1`) from OG-Core `master`, then
 `bash install.sh --repo <key> --dest <new parent folder> --yes` (`--list` shows the keys: og-core,
 og-eth, og-zaf, og-idn, og-phl, og-bra). It clones the repo, installs uv if needed, runs
-`uv sync --extra dev`, and checks the import. To test a branch or a fork, install it the same way
-into its own folder: `--repo-url <git URL> --branch <branch>`. A local clone works as the URL,
+`uv sync --extra dev`, and checks the import. Download `install.sh` into the new parent folder
+and run it from there, so its log (`.install-*.log`, which the preflight reads) sits beside the
+copy. To test a branch or a fork, install it the same way into its own folder:
+`--repo-url <git URL> --branch <branch>`. A copy is tied to the commit it cloned: when the branch
+moves, install the new commit into a new folder; never `git pull` inside an installed copy. A local clone works as the URL,
 which is how a new country repo not yet in the catalog is installed. The installer names the
 package from the last part of the URL (lowercased, hyphens dropped) and checks that it imports, so
 install from a clone whose folder is named like the repo (`.../OG-<XXX>`, `.../OG-Core`), not from a
 worktree or a demo folder (`OG-Core.fix`, `OG-<XXX>-demo`): those install but fail the import check.
-Do not build an environment by hand
-for a reported run: no conda environment, no `uv sync` inside an ad-hoc worktree, no `PYTHONPATH`
-or `sys.path` shadowing, no `pip install` of another build. If the installer cannot produce what the
-task needs, stop and ask.
+Do not build an environment by hand,
+for a reported run or a probe: no conda environment, no `uv sync` inside an ad-hoc worktree, no
+`PYTHONPATH` or `sys.path` shadowing, no `pip install` (editable or not) of another build into an
+installed copy. An unreleased ogcore goes in through the country repo's own pin on a branch, then
+the installer (og-solver-diagnosis, "Running against an unreleased ogcore"). If the installer cannot
+produce what the task needs, stop and ask.
 
 **Run the shipped example script, unchanged.** From the installed folder, activate the environment
 and run the example: `source .venv/bin/activate`, then `python examples/run_og_<xxx>.py`
@@ -37,17 +43,24 @@ multi-industry continuation solver in its example) is part of how that repo runs
 to need a different setting or a change to the run, ask the user first, and say in the report
 exactly what differed from the shipped example. The lockfile is what the repo runs: if the
 environment has drifted from it, re-run the installer (or `uv sync --extra dev` in the installed
-folder) and re-run the preflight; do not run the stale environment. The one remaining exception
-is testing an unreleased ogcore under a country model (og-solver-diagnosis covers the pattern),
-and only when the user asked for it.
+folder) and re-run the preflight; do not run the stale environment. Testing an unreleased
+ogcore under a country model is not an exception to any of this: pin it on a branch of the country
+repo and install that branch (og-solver-diagnosis covers the pattern), and only when the user asked
+for it.
 
 **Calibration tuning runs through repo code too.** Tuning a dial takes many steady-state solves,
 and the example always runs the full transition. So the repo ships a small tuning script (for
 example `examples/tune_ss.py`): it loads the packaged JSON plus an overrides dict, builds the
 example's worker pool, calls `runner(p, time_path=False, client=client)` and prints the dashboard.
 Because the repo ships it, it runs from the installed copy like any repo code; it is never an
-ad-hoc driver in a scratch folder. Its output sets dials and nothing more: fold the settled values
-into the JSON, commit, re-install, and take every reported number from the shipped example.
+ad-hoc driver in a scratch folder. One tuning step is one invocation of that script, and the
+overrides it writes for the next step carry every override forward, so rounds chain with no glue.
+If a round needs something the script cannot do (an override it drops, a rule the calibration
+does not have yet), change the repo's code on the work branch, re-install and run it: never a
+wrapper, a patch applied at run time, a script of your own that merges or edits its files, or a
+step launched by hand outside the sequence. Each of those has produced invalid tuning rounds
+(history: ETH). Its output sets dials and nothing more: fold the settled values into the JSON,
+commit, re-install, and take every reported number from the shipped example.
 
 **Tests run in an installer copy too.** Any OG test run whose result you will report (the CI
 selection, the slow `local` tests, a single test file) runs inside a copy made by the installer,
@@ -64,8 +77,11 @@ commit that edit.
 
 **Evidence about the model comes only from such a run.** A claim that the model fails, is wrong,
 has a bug, or got faster must come from an installer-installed copy running its shipped example.
-Test fixtures, saved test pickles, serial runs, partial reproductions and your own drivers give
-leads, not findings: label them as leads and do not report a model failure from them. Measure
+Test fixtures, saved test pickles, serial runs and partial reproductions give leads, not
+findings: label them as leads and do not report a model failure from them. That a result would only
+be a lead never licenses a hand-built environment, a wrapper, a patch or a driver of your own: a
+probe runs in an installer copy through the repo's own scripts like everything else, and only
+reads, never alters, what it measures. Measure
 after the run, not during it: diagnostics read the saved output (`OUTPUT_BASELINE`,
 `OUTPUT_REFORM`) with the installed package's own functions and change nothing in the run. To
 compare a code change, install `master` and the branch separately with the installer, run the
