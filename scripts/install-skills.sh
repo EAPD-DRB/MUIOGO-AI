@@ -192,13 +192,8 @@ fi
 
 if [[ $DO_RELINK -eq 1 ]]; then
     section "Refreshing .claude/skills from .agents/skills"
-    # Never delete a tree to rebuild it. The old copy is moved aside so a
-    # mistake is always reversible, and its location is printed.
-    if [[ -d "$CLAUDE_LINK_DIR" ]]; then
-        ASIDE="$CLAUDE_LINK_DIR.previous-$STAMP"
-        mv "$CLAUDE_LINK_DIR" "$ASIDE" || err "cannot move $CLAUDE_LINK_DIR aside"
-        printf '  previous copy kept at %s\n' "$ASIDE"
-    fi
+    # The copies are tracked by git, so rebuilding them from .agents/skills is safe.
+    rm -rf -- "${CLAUDE_LINK_DIR:?}"
     mkdir -p "$CLAUDE_LINK_DIR" || err "cannot create $CLAUDE_LINK_DIR"
     copy_shared_files "$CLAUDE_LINK_DIR"
     for s in "${AVAILABLE[@]}"; do
@@ -339,7 +334,6 @@ fi
 # ── Install ───────────────────────────────────────────────────────────────────
 START_TIME="$(date +%s)"
 INSTALLED=0
-BACKED_UP=0
 FAILED=0
 
 IFS=',' read -ra DESTS <<< "$TARGET_DIRS"
@@ -355,44 +349,18 @@ for dest in "${DESTS[@]}"; do
         continue
     fi
     copy_shared_files "$dest"
-    # Anything moved aside goes OUTSIDE the skills folder: both assistants load
-    # every sub-folder that holds a SKILL.md, whatever its name, so an old copy
-    # left inside would still load.
-    ASIDE_DIR="$(dirname "$dest")/$(basename "$dest")-moved-aside-$STAMP"
-    # Skills and files earlier versions installed that no longer ship: move them
-    # aside (never delete) so an old copy cannot shadow or duplicate a current one.
+    # Skills and files earlier versions installed that no longer ship: remove them,
+    # so an old copy cannot shadow or duplicate a current one.
     while IFS= read -r old; do
         [[ -z "$old" || "$old" == \#* ]] && continue
         if [[ -e "$dest/$old" ]]; then
-            if mkdir -p "$ASIDE_DIR" && mv "$dest/$old" "$ASIDE_DIR/$old" 2>/dev/null; then
-                print_note "$old" "no longer ships — moved aside to $ASIDE_DIR"
-            else
-                print_warn "$old" "no longer ships; could not move it aside, remove it by hand"
-            fi
+            rm -rf -- "${dest:?}/${old:?}" && print_note "$old" "no longer ships — removed"
         fi
     done < "$PROJECT_ROOT/scripts/RETIRED_SKILLS"
+    # Each skill replaces any existing copy: these skills are edited at their
+    # source, never in an installed copy.
     for s in "${SELECTED[@]}"; do
-        # An existing skill of the same name may be the user's own work — edited
-        # in place, or written by hand. Deleting it outright to "update cleanly"
-        # destroys that with no way back, so anything that differs from what we
-        # are about to write is moved aside first and its location reported.
-        if [[ -e "$dest/$s" ]]; then
-            if diff -rq "$SKILLS_DIR/$s" "$dest/$s" >/dev/null 2>&1; then
-                print_pass "$s"                   # already identical: leave it alone
-                INSTALLED=$((INSTALLED + 1))
-                continue
-            else
-                BACKUP="$ASIDE_DIR/$s"
-                if mkdir -p "$ASIDE_DIR" && mv "$dest/$s" "$BACKUP" 2>/dev/null; then
-                    print_note "$s" "your version differs — kept in $ASIDE_DIR"
-                    BACKED_UP=$((BACKED_UP + 1))
-                else
-                    print_fail "$s" "could not move your existing copy aside; left untouched"
-                    FAILED=$((FAILED + 1))
-                    continue
-                fi
-            fi
-        fi
+        rm -rf -- "${dest:?}/${s:?}"
         if cp -R "$SKILLS_DIR/$s" "$dest/$s" 2>/dev/null; then
             print_pass "$s"
             INSTALLED=$((INSTALLED + 1))
@@ -401,15 +369,6 @@ for dest in "${DESTS[@]}"; do
             FAILED=$((FAILED + 1))
         fi
     done
-    # Record what was installed and from which commits, so a later check can
-    # tell an up-to-date copy from a stale one.
-    {
-        printf 'installed_by=MUIOGO-AI scripts/install-skills.sh\n'
-        printf 'date=%s\n' "$STAMP"
-        printf 'muiogo_ai_commit=%s\n' "$(git -C "$PROJECT_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
-        grep '^commit=' "$PROJECT_ROOT/scripts/MODEL_TOOLS_PIN" | sed 's/^commit=/model_tools_commit=/'
-        printf 'skills=%s\n' "${SELECTED[*]}"
-    } > "$dest/.muiogo-ai-installed" 2>/dev/null || print_warn "manifest" "could not write $dest/.muiogo-ai-installed"
 done
 
 # ── Summary ───────────────────────────────────────────────────────────────────

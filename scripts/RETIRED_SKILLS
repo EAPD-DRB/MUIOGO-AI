@@ -1,5 +1,5 @@
 # Skills and shared files that earlier versions installed and that no longer ship.
-# install-skills.sh moves any it finds in a target folder aside (never deletes).
+# install-skills.sh removes any it finds in a target folder.
 og-run-preflight
 calibration-provenance
 og-repo-fleet-sync
