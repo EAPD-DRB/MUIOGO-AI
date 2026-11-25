@@ -174,5 +174,5 @@ og-solver-diagnosis rather than re-running on a guess.
 ## Related skills
 
 og-country-calibration (which parameters to set and why), og-scenario-report (designing reforms,
-presenting results), og-solver-diagnosis, og-clews-linked-run (coupling to the energy system). Inside
+presenting results), og-solver-diagnosis, og-clews-linked-run (coupling to the energy system; it ships with MUIOGO-AI). Inside
 a MUIOGO installation, start with muiogo-workspace to find the installed models.

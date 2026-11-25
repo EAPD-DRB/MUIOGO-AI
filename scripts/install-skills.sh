@@ -36,7 +36,7 @@ CLAUDE_LINK_DIR="$PROJECT_ROOT/.claude/skills"
 # Each entry: KEY|DISPLAY NAME|SKILLS DIRECTORY
 ASSISTANTS=(
     "claude|Claude Code|$HOME/.claude/skills"
-    "codex|Codex|$HOME/.codex/skills"
+    "codex|Codex|$HOME/.agents/skills"
 )
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
@@ -191,6 +191,9 @@ if [[ $DO_CHECK -eq 1 ]]; then
 fi
 
 if [[ $DO_RELINK -eq 1 ]]; then
+    if [[ -n "$(git -C "$PROJECT_ROOT" status --porcelain -- .claude/skills 2>/dev/null)" ]]; then
+        err ".claude/skills has uncommitted changes; commit or move them before --sync (it rebuilds the folder)"
+    fi
     section "Refreshing .claude/skills from .agents/skills"
     # The copies are tracked by git, so rebuilding them from .agents/skills is safe.
     rm -rf -- "${CLAUDE_LINK_DIR:?}"
@@ -342,7 +345,13 @@ for dest in "${DESTS[@]}"; do
     dest="${dest/#\~/$HOME}"
     [[ -z "$dest" ]] && continue
 
-    section "Installing ${#SELECTED[@]} skills into $dest"
+    # Refresh any catalogue skill already installed here too, so a folder is never
+    # left half old, half new (an older skill may link to a file that changed).
+    TO_INSTALL=("${SELECTED[@]}")
+    for a in "${AVAILABLE[@]}"; do
+        [[ -e "$dest/$a" && " ${TO_INSTALL[*]} " != *" $a "* ]] && TO_INSTALL+=("$a")
+    done
+    section "Installing ${#TO_INSTALL[@]} skills into $dest"
     if ! mkdir -p "$dest" 2>/dev/null; then
         print_fail "$dest" "cannot create folder"
         FAILED=$((FAILED + 1))
@@ -368,7 +377,7 @@ for dest in "${DESTS[@]}"; do
         [[ -e "$dest/$old" ]] && move_old "$old" "no longer ships"
     done < "$PROJECT_ROOT/scripts/RETIRED_SKILLS"
     # Each skill replaces any installed copy; a copy that differs is moved first.
-    for s in "${SELECTED[@]}"; do
+    for s in "${TO_INSTALL[@]}"; do
         if [[ -e "$dest/$s" ]]; then
             if diff -rq "$SKILLS_DIR/$s" "$dest/$s" >/dev/null 2>&1; then
                 print_pass "$s"; INSTALLED=$((INSTALLED + 1)); continue
@@ -384,6 +393,19 @@ for dest in "${DESTS[@]}"; do
         fi
     done
 done
+
+# Earlier versions installed Codex skills into ~/.codex/skills. Codex also reads
+# that folder, so old copies there would load next to the new ones: move any
+# catalogue or retired skill found there to ~/.codex/skills-old/<date>/.
+if [[ "$TARGET_DIRS" == *"$HOME/.agents/skills"* && -d "$HOME/.codex/skills" ]]; then
+    LEGACY="$HOME/.codex/skills"
+    for n in "${AVAILABLE[@]}" $(grep -v '^#' "$PROJECT_ROOT/scripts/RETIRED_SKILLS"); do
+        if [[ -e "$LEGACY/$n" ]]; then
+            mkdir -p "$HOME/.codex/skills-old/$STAMP" && mv "$LEGACY/$n" "$HOME/.codex/skills-old/$STAMP/$n" \
+                && print_note "$n" "old Codex copy moved to ~/.codex/skills-old/$STAMP"
+        fi
+    done
+fi
 
 # ── Summary ───────────────────────────────────────────────────────────────────
 ELAPSED=$(( $(date +%s) - START_TIME ))
@@ -404,7 +426,7 @@ if [[ $INSTALLED -gt 0 && $FAILED -eq 0 ]]; then
     printf "    ${DIM}\"assess the calibration of this CLEWs model\"${RESET}\n"
     printf "    ${DIM}\"run the preflight checks before I start this solve\"${RESET}\n"
     echo
-    printf "  Catalogue and descriptions : skills/README.md\n"
+    printf "  Catalogue and descriptions : SKILLS.md\n"
     exit 0
 elif [[ $INSTALLED -gt 0 ]]; then
     printf "  ${YELLOW}${BOLD}Some skills did not install -- review the output above.${RESET}\n"

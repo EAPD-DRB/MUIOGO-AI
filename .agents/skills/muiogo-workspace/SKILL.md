@@ -143,8 +143,16 @@ the environment's own instructions first. Here those are:
 - The OG run rules (official installer, the repo's example unchanged, Anderson
   with `nu` 0.2 or lower, the check before a run) apply inside the installation
   as they do anywhere.
-- Name the setup with every OG result, as for CLEWs results
-  (`WORLD_DISCIPLINE.md`).
+- Name the setup with every OG result, as for CLEWs results: read the `world:`
+  line each `muiogo-ai` command prints (`WORLD_DISCIPLINE.md`). The same OG model
+  can sit at different commits in the installation and in the user's checkouts,
+  so a failure in one may not exist in the other; diagnose the copy the user meant.
+- The approval gates in this repository's `AGENTS.md` apply to OG work too:
+  propose a solve with its expected duration and wait for the user's go.
+- The OG skills here are vendored from Model-tools; if one is wrong, the fix (or
+  the lesson) goes to Model-tools, not into the copy. After updating MUIOGO-AI,
+  rerun `./scripts/install-skills.sh` so copies installed in your user folders
+  are refreshed.
 
 ## Where to go next
 

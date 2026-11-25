@@ -128,7 +128,7 @@ Loop-backs:
   and the calibration PR format.
 - `og-run`: installing, checking and launching solves.
 - `og-solver-diagnosis`: a solve that will not converge.
-- `og-clews-linked-run`: coupled OG-CLEWS work needs a multi-industry model with an electricity
+- `og-clews-linked-run` (ships with MUIOGO-AI): coupled OG-CLEWS work needs a multi-industry model with an electricity
   industry.
 
 If one is not available to you, do the job directly and say which skill would have covered it.
