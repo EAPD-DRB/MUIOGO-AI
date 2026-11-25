@@ -52,7 +52,7 @@ for Codex) and restart the assistant.
 | Skill | What it does |
 |---|---|
 | `muiogo-provision` | Installs an OG country model, imports a case archive or Excel workbook, exports a shareable zip, and validates inputs before a long solve. |
-| `pull-handoff` | Clones or fast-forwards the CLEWs country repos, unzips their current MUIO cases into repository-local working trees, and maintains the MUIOGO DataStorage symlinks. |
+| `pull-handoff` | Clones or fast-forwards the CLEWs country repos, unzips their current MUIO cases into repository-local working trees, and maintains the MUIOGO DataStorage symlinks, keeping or backing up any local work it would replace. |
 | `push-handoff` | Zips the repository-local cases without solver results, checks their symlinks and SHA-256, then commits and pushes the intended country-repo changes. |
 
 ## MUIOGO — running models and analysing results

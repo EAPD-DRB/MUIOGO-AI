@@ -133,8 +133,8 @@ it from the request, not from the country name:
 ### OG work in this installation
 
 The OG skills (`og-run`, `og-solver-diagnosis`, `og-country-calibration`,
-`og-multi-industry-calibration`, `og-scenario-report`) come unchanged from
-Model-tools and are written for any machine; they tell the assistant to follow
+`og-multi-industry-calibration`, `og-scenario-report`), like the CLEWs and
+handoff skills, come unchanged from Model-tools and are written for any machine; they tell the assistant to follow
 the environment's own instructions first. Here those are:
 
 - Find the OG country model in the installation's registry (`muiogo-ai status`)

@@ -199,7 +199,8 @@ if [[ $DO_CHECK -eq 1 ]]; then
 fi
 
 if [[ $DO_RELINK -eq 1 ]]; then
-    # Tracked files can always be restored from git; refuse only if the folder
+    # The folder holds generated copies: uncommitted edits to tracked files are
+    # discarded (git still has the committed version); refuse only if the folder
     # holds files git does not know about, which a rebuild would lose.
     if git -C "$PROJECT_ROOT" status --porcelain --untracked-files=all -- .claude/skills 2>/dev/null | grep -q '^??'; then
         err ".claude/skills holds files git does not track; move them before --sync (it rebuilds the folder)"
