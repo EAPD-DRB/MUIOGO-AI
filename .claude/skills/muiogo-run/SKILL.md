@@ -208,7 +208,7 @@ results first, so if a comparison matters, download before re-running.
 - Creating a new scenario or combination to run → `muiogo-scenarios`.
 - The model will not solve and you suspect its structure → `clews-model-review`.
 - OG-Core solves are a different family entirely and are not run through
-  `muiogo` — see `og-run-preflight` before launching one.
+  `muiogo` — see `og-run` (and its check before a run) before launching one.
 
 ## Approval gates
 

@@ -29,7 +29,7 @@ Check these against the ogcore you run; the multi-industry design is still being
 - **The last industry is the numeraire and the only non-consumption producer.** Prices are
   normalised by it, and all non-consumption demand (private and public investment, government
   consumption, net capital outflows, remittances, aid) lands on it. Its nominal output share is
-  therefore inflated and never comparable to a value-added share. Industries 1..M−1 produce only
+  therefore inflated and not comparable to a value-added share. Industries 1..M−1 produce only
   consumption goods.
 - **Consumption mapping.** `alpha_c` (length I, sums to 1) are Cobb-Douglas budget shares;
   `io_matrix` (I × M) maps goods to industries through `io_matrix.T @ C`. `tau_c` is per good;
@@ -56,8 +56,8 @@ Check these against the ogcore you run; the multi-industry design is still being
 1. **Economy-wide values come from the base**, verbatim: demographics, preferences, fiscal ratios,
    open-economy dials, `g_y`, statutory rates. The two-step load does this; any difference is a bug.
 2. **`gamma_m`:** keep the data's dispersion, impose the single's level (inputs.md).
-3. **`Z_m`:** relative values from data, last industry = 1. Test whether the level needs moving;
-   do not assume (below).
+3. **`Z_m`:** relative values from data, last industry = 1. Test, rather than assume, whether the
+   level needs moving (below).
 4. **Convert `chi_n` and `chi_b`** for the units change (below). In PHL this was the lever that
    mattered.
 5. **What the data do not identify stays uniform** at the single's value (inputs.md).
@@ -65,8 +65,8 @@ Check these against the ogcore you run; the multi-industry design is still being
 7. **Solver seeds: one set, in the base, shared.** The multi's continuation anchor (flat `gamma`,
    Z = 1) is the shared aggregate economy and cold-starts from the base seeds. If they are stale,
    the anchor fails exactly as the single would. The anchor's own solved `r`, `TR` and `factor`
-   reproduce the seeds to within a few percent, so the multi can refresh them. Never give the
-   overlay its own copy.
+   reproduce the seeds to within a few percent, so the multi can refresh them. Keep them out of
+   the overlay.
 
 ## Direction B: trust the multi, set the single
 
@@ -99,8 +99,8 @@ and `factor` drifted 4.7%.
 PHL's composite-price experiment (two identical industries) separates two problems. Investment
 landing only on the numeraire industry is small. The units effect is large, and the chi-converted
 run matches a run with a normalised price index to every digit. So the conversion is exactly a
-correction for the unnormalised index: if OG-Core ever normalises it, the conversion must come out
-of every overlay in the same change, or it double-corrects.
+correction for the unnormalised index: if OG-Core ever normalises it, remove the conversion from
+every overlay in the same change, or it double-corrects.
 
 ## The Z level
 
@@ -118,7 +118,7 @@ keep them apart:
 ## The equivalence test
 
 With identical industries (flat `gamma` at the single's value, Z = 1, `gamma_g` = 0), the multi
-model must reproduce M=1 to solver precision: `r`, `w`, total K and L, nominal consumption, every
+model should reproduce M=1 to solver precision: `r`, `w`, total K and L, nominal consumption, every
 `p_m` = 1 (BRA: relative 1e-8). It is the cleanest proof the plumbing (overlay, chi conversion,
 mapping) is right, and it isolates calibration effects from structure. It holds exactly only at
 `gamma_g` = 0, because public capital enters each industry's production non-rivalrously; say so
@@ -161,7 +161,7 @@ multi-industry transitions are where damping alone fails: PHL's baseline took 25
 - *Close* (single-digit %): `K/Y`, `p_tilde·C/Y`, aggregate `L`, `factor`.
 - *Ballpark with a written reason* (1–2pp on rates, 10–15% on ratios): `r`, `r_p`, `K_f/K`, `B/Y`.
   The multi usually sits a little higher on `r` and the foreign share; know why.
-- *Never compare raw:* Y, w, C levels (different units); raw C/Y in the multi; the numeraire
+- *Not comparable raw:* Y, w, C levels (different units); raw C/Y in the multi; the numeraire
   industry's nominal output share.
 
 **Against data:** sector value-added shares, employment shares, the consumption basket, and the
@@ -170,7 +170,7 @@ tracks the table's labour income by industry, as a correlation (history: BRA).
 
 **Same reform through both models:** same signs, similar magnitudes in the percent-change tables.
 Run the same reform in both examples; different reforms make the comparison impossible.
-**[PHL]** (history: PHL)
+[PHL] (history: PHL)
 
 **Interpretation caveats to state:** the numeraire industry's inflated nominal share; `L_m` is in
 efficiency units, not heads; exact M-invariance only at `gamma_g` = 0.

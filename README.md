@@ -184,7 +184,7 @@ by hand instead:
 ## For contributors
 
 - Layout: `docs/` (scope and design), `.agents/skills/` (the skills;
-  `.claude/skills/` holds one symlink each), [SKILLS.md](SKILLS.md) (the
+  `.claude/skills/` holds an identical copy of each), [SKILLS.md](SKILLS.md) (the
   catalogue), `client/` (Python client + `muiogo` CLI), `clews/` (country
   catalog), `experiments/` (studies).
 - Start with [docs/SCOPE.md](docs/SCOPE.md); install details are in

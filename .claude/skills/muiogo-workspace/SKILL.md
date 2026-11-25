@@ -130,6 +130,30 @@ it from the request, not from the country name:
   `muiogo-ai status`, e.g. *"the CLEWs energy model `Philippines_v12_…` or the
   macro model `OG-PHL`?"*
 
+### OG work in this installation
+
+The OG skills (`og-run`, `og-solver-diagnosis`, `og-country-calibration`,
+`og-multi-industry-calibration`, `og-scenario-report`) come unchanged from
+Model-tools and are written for any machine; they tell the assistant to follow
+the environment's own instructions first. Here those are:
+
+- Find the OG country model in the installation's registry (`muiogo-ai status`)
+  and work in that installed copy, with its own environment. A copy of the same
+  repo elsewhere on the machine is the user's, and is touched only when they ask.
+- The OG run rules (official installer, the repo's example unchanged, Anderson
+  with `nu` 0.2 or lower, the check before a run) apply inside the installation
+  as they do anywhere.
+- Name the setup with every OG result, as for CLEWs results: read the `world:`
+  line each `muiogo-ai` command prints (`WORLD_DISCIPLINE.md`). The same OG model
+  can sit at different commits in the installation and in the user's checkouts,
+  so a failure in one may not exist in the other; diagnose the copy the user meant.
+- The approval gates in MUIOGO-AI's `AGENTS.md` apply to OG work too:
+  propose a solve with its expected duration and wait for the user's go.
+- The OG skills here are vendored from Model-tools; if one is wrong, the fix (or
+  the lesson) goes to Model-tools, not into the copy. After updating MUIOGO-AI,
+  rerun `./scripts/install-skills.sh` so copies installed in your user folders
+  are refreshed.
+
 ## Where to go next
 
 Once you know the layout, hand off to the skill that owns the job:
@@ -151,9 +175,9 @@ Once you know the layout, hand off to the skill that owns the job:
 | calibrate an OG country model | `og-country-calibration` |
 | build or align a multi-industry OG calibration | `og-multi-industry-calibration` |
 | design an OG reform, report on a finished run, or analyse it further | `og-scenario-report` |
-| check before launching a long OG solve | `og-run-preflight` |
+| check before launching a long OG solve | `og-run` (its check before a run) |
 | diagnose an OG solve that will not converge | `og-solver-diagnosis` |
-| trace a calibrated parameter to its source | `calibration-provenance` |
+| trace a calibrated parameter to its source | `og-country-calibration` (its provenance reference) |
 
 If a skill in that table is not available to you, the user installed only some
 of them; do the job directly and say which skill would have covered it.

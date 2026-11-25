@@ -1,254 +1,178 @@
 ---
 name: og-run
-description: Installs an OG-Core model (OG-Core or a country repo) with OG-Core's official installer and runs its shipped example script unchanged - baseline and reform from that install's own environment, in parallel, with the Anderson solver - builds a multi-industry calibration, monitors the run and collects the output. Use when asked to run, solve or re-run an OG model (OG-Core, OG-USA/PHL/ZAF/IDN/BRA/ETH/JPN/FJI or any other OG country repo), to produce a baseline or reform, to benchmark or test a code change, to check whether the model fails or misbehaves, or when another skill needs OG output that does not exist yet.
+description: >-
+  Installs and runs an OG-Core model (OG-Core or a country repo such as OG-USA, PHL, ZAF, IDN, BRA,
+  ETH) the way its users do, checks the environment before a run, monitors it and collects the
+  output with its provenance. Use when asked to run, solve or re-run an OG model, produce a
+  baseline or reform, test or benchmark a code change, or check whether the model fails, or when
+  another task needs OG output that does not exist yet. Calibrating is og-country-calibration; a
+  failing solve is og-solver-diagnosis; presenting results is og-scenario-report.
 ---
 
-# Run an OG-Core country model
+# Run an OG-Core model
 
-An OG solve is a different animal from a CLEWs solve: minutes rather than seconds, parallel
-worker processes, and a two-stage structure (steady state, then transition path). Treat
-launching one as a decision the user makes.
+## Running the model
 
-The model owner's run rules are in `../OG_RUN_RULES.md` and win over anything older,
-including the AGENTS.md estimate of "~35 min – 2 hr" for a full example run. In short: a healthy
-baseline takes **under ten minutes** (steady state in seconds to a minute or two, transition path
-about 5–7 minutes); **install with OG-Core's official installer** (`scripts/install.sh`) and run
-**the shipped example script unchanged** from that install's environment, with nothing added;
-**always parallel**; the **Anderson** solver with `nu` 0.2 or lower, checking both values, since
-some repos set Anderson but leave `nu` at 0.4; validation runs offline; launch only on the user's
-explicit go.
+Install each model with OG-Core's installer, one copy per commit, and run the repo's example script
+unchanged from that copy's environment. Tuning uses the repo's own tuning script, and tests run in
+such a copy with the repo's own test command. A run outside this path cannot be reproduced or
+compared, so its numbers do not count; to investigate, read the saved output. A baseline takes
+under ten minutes. Record with every result the repo, commit, ogcore version, script and whether
+it ran online. Detail, and what to do when it is tempting to step off this path:
+[og-run-rules.md](references/og-run-rules.md).
 
-## Which world
+An OG solve takes minutes, uses parallel worker processes, and has two stages (steady state, then
+transition path). Say what you are about to run and how long it should take before starting it.
 
-This skill acts on **one** world: the runtime installation reached by `muiogo-ai`,
-unless the user explicitly asked for their own live one (`muiogo-live`). Never use
-bare `muiogo`, and never fall back to it. Every command prints a `world:` line to
-stderr — read it, and name that world when you report a run or a number. Worlds
-hold different OG model registries, so a model installed in one is invisible in
-the other. Full rules: `../WORLD_DISCIPLINE.md`.
+## Install
 
-Orient first with `muiogo-ai status` (see `muiogo-workspace`) to find the installed
-country models. Each lives in its own checkout with its own `.venv`.
-
-## Install first, with the official installer
-
-Every run whose result you will report starts from a copy installed by OG-Core's installer, as
-`scripts/QUICK_INSTALL.md` in PSLmodels/OG-Core describes. Do not build the environment by hand
-(conda, `uv sync` in a worktree you made, `PYTHONPATH`, `pip install -e` of another checkout).
+Follow `scripts/QUICK_INSTALL.md` in OG-Core:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/PSLmodels/OG-Core/master/scripts/install.sh -o install.sh
 mkdir -p <new parent folder>
 bash install.sh --repo <key> --dest <new parent folder> --yes     # --list shows the keys
-# a branch or fork under test, into its own folder:
-bash install.sh --repo-url <git URL> --branch <branch> --dest <another new folder> --yes
+# a branch, fork or local clone, into its own folder:
+bash install.sh --repo-url <git URL or clone> --branch <branch> --dest <another new folder> --yes
 ```
 
-The installer clones the repo, runs `uv sync --extra dev`, and checks the import. It refuses a
-parent folder that does not exist, so create it first. Use a new folder: never install over a
-checkout that holds someone's work.
+The installer clones the repo, runs `uv sync --extra dev` and checks the import. Create the parent
+folder first and run the installer from it, so its log sits beside the copy. Use a new folder for
+every commit; never install over a checkout that holds someone's work.
 
-## The rule that matters most
+The installer names the package from the last part of the URL (lowercased, hyphens dropped) and
+checks that it imports, so install from a clone whose folder is named like the repo (`OG-<XXX>`),
+not from a worktree or a folder such as `OG-<XXX>-demo`, which installs but fails the import check.
+A copy is tied to the commit it cloned: when the branch moves, install the new commit into a new
+folder rather than pulling inside the copy.
 
-**Run the shipped example, unchanged, from the installed copy's own environment and directory.**
-No driver script of your own, no edited copy, no changed settings, no monkeypatching, and nothing
-injected to observe the run (wrappers, counters, `sitecustomize`, dask worker plugins). To learn
-something about a run, read its saved output afterwards. A result from anything else is a lead,
-not a finding: say so, and never report a model failure from it.
+## Check before a run
 
-**Run the model from its own environment, from its own directory.** Never import
-an OG package into another environment, and never run a country model with
-another checkout's interpreter — the packages shadow each other and you will
-solve the wrong model without any error.
+Confirm the run will use the code you mean:
 
-Before launching anything, run the preflight in `og-run-preflight`. It exists
-because a battery once ran silently against stale code. A passing preflight is a
-precondition, never an authorization.
+- the branch and commit of every repo involved are the ones the task names;
+- the model's interpreter (`<copy>/.venv/bin/python`) imports the country package and ogcore from
+  inside that copy, from the folder the run starts in;
+- the entry script is the repo's own example or tuning script, unchanged (`git status` clean), with
+  nothing on `PYTHONPATH`;
+- the packaged parameters load against the installed ogcore.
 
-If the preflight cannot run, the minimum by hand is: print the branch and HEAD of the
-checkout, and confirm the model's own interpreter imports the package from inside that checkout.
-If it points elsewhere, stop; that is the finding.
-
-## Launching a run
-
-Country models ship example scripts that define the baseline and the reform. OG-PHL is the
-example in this section; other repos name their scripts and folders their own way, so list
-`examples/` in yours:
+`scripts/preflight.py` (standard library only, read-only) does these checks in one call and prints
+GO or NO-GO:
 
 ```bash
-cd <og-models>/OG-PHL
-ls examples/
-#   run_og_phl.py                   single-industry baseline + reform
-#   run_og_phl_multi_industry*.py   multi-industry: a demo or a calibration, by branch
+python3 scripts/preflight.py \
+  --check <copy>/OG-PHL::ogphl,ogcore \
+  --run-cwd <copy>/OG-PHL \
+  --entry-script <copy>/OG-PHL/examples/run_og_phl.py \
+  --params-json <copy>/OG-PHL/ogphl/ogphl_default_parameters.json
 ```
 
-They take no arguments; the reform is expressed inside the script as parameter
-updates. Run one from the installed folder with its own environment, exactly as the
-installer's instructions say:
+For a coupled run with a second environment (ogclews-link), pass one `--check` per environment,
+with the OG side's interpreter from the model registry; the link's environment must not import
+ogcore. A NO-GO names what to fix; fix the environment rather than working around it with
+`sys.path` or `PYTHONPATH`. If a fresh run reproduces a number from a run known to be buggy, assume
+the wrong code ran and check again before using it.
+
+## Launch
+
+Country repos ship example scripts that define the baseline and the reform; list `examples/` to
+see them (`run_og_<xxx>.py`, and a multi-industry script on some branches). They take no
+arguments. From the installed folder:
 
 ```bash
-cd <installed folder>/OG-PHL
+cd <copy>/OG-PHL
 source .venv/bin/activate
-python examples/run_og_phl.py          # or, equivalently: uv run python examples/run_og_phl.py
+python examples/run_og_phl.py          # or: uv run python examples/run_og_phl.py
 ```
 
-What it does: starts a pool of worker processes (`min(cpu_count, 7)`, one thread each),
-solves the **baseline** into `examples/OG-PHL-Example/OUTPUT_BASELINE/`, applies the
-reform's parameter changes, solves the **reform** into `.../OUTPUT_REFORM/`, and closes the
-pool. The paths are built from the script's own location, so they do not depend on the
-working directory. Each stage writes `SS/SS_vars.pkl`, `TPI/TPI_vars.pkl` and
-`model_params.pkl` under its output directory.
+The script starts `min(cpu_count, 7)` workers, solves the baseline into
+`examples/<...>/OUTPUT_BASELINE/`, applies the reform, solves it into `OUTPUT_REFORM/`, and stops
+the workers. Each stage writes `SS/SS_vars.pkl`, `TPI/TPI_vars.pkl` and `model_params.pkl`.
 
-Set the solver the way the owner's rules require: `TPI_outer_method="anderson"` and a `nu` of
-0.2 or lower belong in the repo's packaged parameters, not in a one-off script
-(`og-country-calibration` covers this). If the repo does not set them yet, run the example as
-shipped and say so, and ask whether to propose the parameter change. Do not make a copy of the
-example with different settings unless the user asks for one.
+Solver settings belong in the repo's packaged parameters: `TPI_outer_method="anderson"` and `nu`
+0.2 or lower (some repos set Anderson but leave `nu` at 0.4). If the repo does not set them, run the
+example as shipped and say so.
 
-Propose the run with its expected duration (under ten minutes for a healthy baseline, the
-reform about the same) and wait for the user's explicit go. There is no cheap smoke version: the
-repo's `test_run_example.py` only checks the process is still alive after five minutes and
-produces no usable output.
+Things that bite in a session with no one at the keyboard:
 
-Things that bite in a headless session:
+- **The UN population token.** ogcore looks for it in order (check `ogcore/demographics.py` in your
+  build): the `un_token` argument, `UN_API_TOKEN`, a per-user file (managed with `og-token`), a
+  `un_api_token.txt` in the working folder (deprecated), then prompts when interactive or falls back
+  to the EAPD-DRB Population-Data archive. A run that hangs early with no output:
+  check this first.
+- **Live data.** When online, some examples call `Calibration(p, update_from_api=True)`, which can
+  overwrite curated values. Say whether the run was online.
+- **`uv run` re-syncs to the lockfile.** In an installer copy that changes nothing. Where ogcore
+  differs from the lockfile, `uv run` silently swaps it; use `.venv/bin/python` and check
+  `ogcore.__version__, ogcore.__file__` first.
 
-- **The UN population token.** Recent ogcore (0.20 and later) looks for it in the
-  `UN_API_TOKEN` environment variable, then a per-user file, then a deprecated
-  `un_api_token.txt` in the working directory. It never prompts when no one is at the
-  keyboard: it falls back to the EAPD-DRB Population-Data archive instead. Older ogcore
-  reads only the working-directory file and can prompt. If a run seems to hang early with
-  no output, check this first.
-- **A run makes live API calls.** Whenever the machine is online, the example calls
-  `Calibration(p, update_from_api=True)`, which refreshes parameters from live sources and
-  can overwrite curated values (`og-country-calibration` covers the risk). Say so when
-  proposing the run, and note whether it ran online.
-- **`uv run` re-syncs the environment to the lockfile.** In an installer copy run as installed
-  this changes nothing: its environment is the lockfile's, so `uv run` and the activated `python`
-  above are the same (an unreleased ogcore pinned in `pyproject.toml` is in the lockfile too). It
-  bites when ogcore was changed by hand after install (a local build or a branch the lockfile does
-  not name): `uv run` silently swaps it out. In a
-  repo with no `uv.lock`, `uv run` resolves and installs fresh, with the same effect. Use
-  `.venv/bin/python` in both cases, or create the environment deliberately first.
-  Invoke `.venv/bin/python examples/...` directly in that case, and check
-  `import ogcore; print(ogcore.__version__, ogcore.__file__)` first.
-- **Custom drivers and relative paths.** If you ever drive the model from your own script,
-  note that `Specifications` defaults `baseline_dir` to the relative string
-  `OUTPUT_BASELINE`. The shipped examples set absolute paths and are not affected.
-
-For a background run, launch it (after the user's go) under `nohup` or a terminal
-multiplexer, with unbuffered output teed to a log so progress survives a disconnect:
+For a long run, start it in the background with output to a log, and monitor rather than
+relaunching:
 
 ```bash
-nohup uv run python -u examples/<example script> > <country>-run.log 2>&1 &
+nohup .venv/bin/python -u examples/run_og_phl.py > run.log 2>&1 &
 ```
 
-Then monitor rather than re-launching, and report status to the user at intervals without
-being asked:
-
-- **Running or finished?** The transition path logs `Time path iteration complete.` when it
-  ends. Otherwise compare the log's last-modified time and the process's CPU time between
-  two checks. When matching the process with `pgrep -f`, use a pattern that cannot match
-  your own check command, or you will read your own `pgrep` as the run.
-- **Healthy?** Add up the CPU of all the worker processes, not just the main Python
-  process. During the transition path they should keep the machine close to fully busy; a
-  third of the machine there means too few workers or a serial run. On older ogcore the main
-  process is the bottleneck during the steady state and idle workers are expected (each
-  evaluation re-sent the parameters to the workers); a slow steady state there points to the
-  ogcore version or a cold start, not the worker count. If one worker stays busy while the
-  others wait for most of each iteration, the run is held up by a straggler (og-solver-diagnosis,
-  failure class N).
+- **Finished?** The transition logs `Time path iteration complete.` at the end.
+- **Healthy?** Add up the CPU of all worker processes: during the transition they should keep the
+  machine nearly full. One busy worker while the others wait points to a straggler
+  (og-solver-diagnosis, class N).
 - **On time?** Past about ten minutes for a baseline, check the setup before waiting longer.
 
-To change what is solved (only when the user asked for a different scenario or setting),
-do not edit the shipped example in place. Copy it and change only what the run needs: the reform's parameter dictionary, the solver settings above, and
-the output folder. Keep the example's structure (the worker pool, the calibration call, the
-runner), because the owner's rule is to run the way the examples do. Say which parameters
-you changed. `og-country-calibration` covers which parameters are defensible to
-change and the traps in each block.
+To solve a different scenario, copy the example and change only the reform's parameters, the solver
+settings or the output folder, keeping its structure (worker pool, calibration call, runner); say
+what changed.
 
-## Building a multi-industry calibration
+## Multi-industry runs
 
-A freshly installed country model is single-industry. Coupled OG-CLEWS work needs
-multi-industry, because a single-industry model has no electricity industry for an
-energy price to act on — the link reports this as `couplable=0`.
+A freshly installed country model is single-industry. Coupled OG-CLEWS work needs multi-industry,
+because a single-industry model has no electricity industry for an energy price to act on. The
+calibrated multi-industry script usually lives on a repo's multi-industry branch; the default branch
+may carry only a demo under a similar name. Check what it loads, and use
+og-multi-industry-calibration to judge whether the calibration is real. It may first solve its
+steady state by continuation, and baseline plus reform take tens of minutes.
 
-Which multi-industry script you have depends on the repo and branch. The calibrated
-work lives on each repo's multi-industry branch; the default branch may carry only a
-demo or an upstream placeholder under a similar name (OG-PHL's main has a hand-coded
-two-industry demo). Check what the script loads before running it, and use
-`og-multi-industry-calibration` to judge whether a calibration is real and to build one.
+## Testing a code change
 
-Running the calibrated example follows the same rules, with two differences: it may
-first solve its steady state by continuation (a couple of minutes), and the baseline
-plus reform take tens of minutes rather than ten. Propose before launching, monitor by
-log. Afterwards register it with the link and confirm the calibration is recognised
-(see `og-clews-linked-run`).
+For a change to a country repo or to OG-Core itself: commit it on a branch, install that branch into
+its own folder, and run the example there; install the base the same way and compare the saved
+outputs. Tests run in the same installed copies with the repo's own command (CI's `-m "not local"`,
+or `-m local` for the slow ones). Run one solve at a time when you compare timings.
+
+To test an unreleased OG-Core under a country model, pin it on a branch of the country repo
+(`[tool.uv.sources]` with the commit, `uv lock`, commit) and install that branch; installing it into
+an existing copy runs something nobody else can reproduce (og-solver-diagnosis, "Running against an
+unreleased ogcore").
+
+To check that an OG-Core change keeps the country models working:
+
+1. **Can each country load on both sides?** Check each country's packaged parameters against the
+   base and the changed ogcore (`--params-json` above). A country that does not load on one side
+   cannot be compared; report it.
+2. **Which base?** The commit the change starts from, not today's master, so that unrelated upstream
+   changes stay out of the comparison.
+3. **Same inputs on both sides:** run offline (`update_from_api=False`).
+4. **Does the run reach the changed code?** A baseline may never touch it; add a reform that does.
+
+Report per country the expected value, the base and the change, with the resource-constraint
+error in the first period and after. A run that fails or differs goes to og-solver-diagnosis.
+Writing the PR follows the repo's own contribution conventions.
 
 ## Collecting the results
 
-A completed run leaves two directories, and they are what every downstream skill
-consumes:
-
-```
-OUTPUT_BASELINE/    the baseline steady state and transition path
-OUTPUT_REFORM/      the same under the reform
-```
-
-Keep them together and record what produced them: the country repo, its branch
-and commit, the ogcore version, which example script, which parameters were changed
-(solver settings included), whether it ran online, and the run date. Without that, a comparison months later cannot be defended — the same
-discipline the CLEWs side gets automatically from its `RUN.json`.
-
-Never edit files inside an OUTPUT directory. To redo a run, re-solve.
-
-## Checklist
-
-Copy this and work through it:
-
-```
-- [ ] Installed with OG-Core's official installer (scripts/install.sh) into a new folder;
-      a branch under test gets its own install (--repo-url ... --branch ...).
-- [ ] The run is the shipped example script, unchanged, nothing injected. Any deviation was
-      asked for by the user and will be named in the report.
-- [ ] Tests for the change (CI selection, `local`, or one file) also run in an installer
-      copy of the exact commit, with the repo's own pytest command, never in a dev worktree.
-- [ ] og-run-preflight reports GO for the repo and branch the task names.
-      If NO-GO: fix what it names and run it again. Do not launch.
-- [ ] Solver set: TPI_outer_method="anderson", nu 0.2 or lower (repo default or the copy).
-- [ ] Proposed to the user: exact command, expected duration, online or not. Launch only
-      after the user's explicit go (or the user launches it).
-- [ ] Monitor the log. If it dies at once: back to the preflight (environment, not economics).
-      If it runs far past ten minutes or the distance stops falling: og-solver-diagnosis.
-- [ ] Provenance written next to the output folders (see above).
-```
+A completed run leaves `OUTPUT_BASELINE/` and `OUTPUT_REFORM/`. Keep them together, write the
+provenance next to them (repo, branch, commit, ogcore version, script, parameters changed, online
+or not, date), and never edit files inside them; to redo a run, re-solve.
 
 ## When a solve misbehaves
 
-Do not restart it and hope. A solve that fails to converge, oscillates, or
-returns implausible aggregates has a diagnosable cause — hand off to
-`og-solver-diagnosis`, which carries the protocol and a real failure taxonomy.
-Re-running a long solve on a guess wastes hours.
+A run that dies at once is almost always the environment (interpreter, branch, data): check again.
+One that will not converge, oscillates or returns implausible numbers has a diagnosable cause: use
+og-solver-diagnosis rather than re-running on a guess.
 
-If the run dies immediately, it is almost always environment rather than
-economics: wrong interpreter, wrong branch, missing data. Re-run the preflight.
+## Related skills
 
-## Handing off
-
-- Before launching: `og-run-preflight`.
-- Which parameters to set, and why: `og-country-calibration`.
-- Designing the reform, the standard deliverable, and bespoke analysis of finished OUTPUT
-  dirs: `og-scenario-report`.
-- A solve that will not converge: `og-solver-diagnosis`.
-- Tracing a calibrated number to its source: `calibration-provenance`.
-- Coupling to the energy system: `og-clews-linked-run`.
-- Explaining what the model and its calibration mean: `muiogo-explain`.
-
-## Approval gates
-
-Propose, draft, and prepare; the user decides. Inspecting a model, running the
-preflight, and reading finished output are free. **Stop and ask before launching
-any solve** — state the command and the expected duration, and launch only after the user's
-explicit go. (A steady-state-only check that takes seconds, inside a calibration task the user
-has already started, follows `og-country-calibration`; a full baseline or reform needs the go.) One go can cover an itemised batch (say, the same example in five listed
-countries); it never extends to runs that were not on the list. Stop before pushing,
-PR-ing, merging, or deleting anything.
+og-country-calibration (which parameters to set and why), og-scenario-report (designing reforms,
+presenting results), og-solver-diagnosis, og-clews-linked-run (coupling to the energy system; it ships with MUIOGO-AI). Inside
+a MUIOGO installation, start with muiogo-workspace to find the installed models.

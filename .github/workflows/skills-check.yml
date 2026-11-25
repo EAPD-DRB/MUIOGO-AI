@@ -1,0 +1,17 @@
+name: skills-check
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: .claude/skills equals .agents/skills
+        run: ./scripts/install-skills.sh --check
+      - name: Vendored Model-tools skills equal the pinned commit
+        run: python scripts/model_tools_skills.py --check

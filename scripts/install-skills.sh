@@ -3,8 +3,8 @@
 # MUIOGO-AI skills installer for macOS and Linux.
 #
 # You do NOT need this to use the skills inside this repository: they live in
-# .agents/skills/ (read by Codex) with .claude/skills/ symlinks (read by Claude
-# Code), so both assistants pick them up automatically when you work here.
+# .agents/skills/ (read by Codex) with identical copies in .claude/skills/ (read
+# by Claude Code), so both assistants pick them up automatically when you work here.
 #
 # Use this script to make the skills available EVERYWHERE ELSE — your own model
 # repositories, or every project you open:
@@ -14,15 +14,16 @@
 #   4. Report what was installed
 #
 # Skills are plain folders of Markdown and helper scripts. Nothing is installed
-# system-wide, nothing is downloaded, and nothing outside the target folder is
-# touched.
+# system-wide and nothing is downloaded. Besides the target folder, the script
+# writes only <target>-old/<date>/ beside it (old copies it moved aside) and, for
+# Codex, moves old copies out of ~/.codex/skills into ~/.codex/skills-old/<date>/.
 #
 # Usage:
 #   ./scripts/install-skills.sh                      # interactive
 #   ./scripts/install-skills.sh --tool claude        # skip the menu
 #   ./scripts/install-skills.sh --tool both --yes    # hands-free
-#   ./scripts/install-skills.sh --only og-run-preflight,og-solver-diagnosis
-#   ./scripts/install-skills.sh --relink             # rebuild in-repo symlinks
+#   ./scripts/install-skills.sh --only og-run,og-solver-diagnosis
+#   ./scripts/install-skills.sh --sync               # refresh the in-repo .claude copies
 #   ./scripts/install-skills.sh --help
 # ──────────────────────────────────────────────────────────────────────────────
 set -uo pipefail
@@ -36,7 +37,7 @@ CLAUDE_LINK_DIR="$PROJECT_ROOT/.claude/skills"
 # Each entry: KEY|DISPLAY NAME|SKILLS DIRECTORY
 ASSISTANTS=(
     "claude|Claude Code|$HOME/.claude/skills"
-    "codex|Codex|$HOME/.codex/skills"
+    "codex|Codex|$HOME/.agents/skills"
 )
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
@@ -76,7 +77,7 @@ Examples:
   $0 --tool claude                            # menu skipped
   $0 --tool both --yes                        # hands-free, both assistants
   $0 --dir ~/.config/myassistant/skills       # somewhere else
-  $0 --only og-run-preflight --tool claude    # one skill
+  $0 --only og-run --tool claude              # one skill
 EOF
 }
 
@@ -116,12 +117,19 @@ copy_shared_files() {
     for f in "$SKILLS_DIR"/*.md; do
         [[ -f "$f" ]] || continue
         n="$(basename "$f")"
+        # A differing copy is moved aside first, like a skill, never overwritten.
+        if [[ -e "$dest/$n" ]] && ! cmp -s "$f" "$dest/$n"; then
+            local old_dir
+            old_dir="$(dirname "$dest")/$(basename "$dest")-old/$STAMP"
+            mkdir -p "$old_dir" && mv "$dest/$n" "$old_dir/$n" \
+                && print_note "$n" "updated — old copy in $old_dir"
+        fi
         cp "$f" "$dest/$n" 2>/dev/null || print_fail "$n" "copy failed"
     done
 }
 
 STAMP="$(date +%Y%m%d-%H%M%S)"
-print_note() { printf '  \033[33m~\033[0m %-34s %s\n' "$1" "$2"; }
+print_note() { printf "  ${YELLOW}~${RESET} %-34s %s\n" "$1" "$2"; }
 print_fail() { printf "  ${RED}[FAIL]${RESET} %s%s\n" "$1" "${2:+  ${DIM}($2)${RESET}}"; }
 print_warn() { printf "  ${YELLOW}[WARN]${RESET} %s%s\n" "$1" "${2:+  ${DIM}($2)${RESET}}"; }
 print_skip() { printf "  ${YELLOW}[SKIP]${RESET} %s%s\n" "$1" "${2:+  ${DIM}($2)${RESET}}"; }
@@ -191,14 +199,12 @@ if [[ $DO_CHECK -eq 1 ]]; then
 fi
 
 if [[ $DO_RELINK -eq 1 ]]; then
-    section "Refreshing .claude/skills from .agents/skills"
-    # Never delete a tree to rebuild it. The old copy is moved aside so a
-    # mistake is always reversible, and its location is printed.
-    if [[ -d "$CLAUDE_LINK_DIR" ]]; then
-        ASIDE="$CLAUDE_LINK_DIR.previous-$STAMP"
-        mv "$CLAUDE_LINK_DIR" "$ASIDE" || err "cannot move $CLAUDE_LINK_DIR aside"
-        printf '  previous copy kept at %s\n' "$ASIDE"
+    if [[ -n "$(git -C "$PROJECT_ROOT" status --porcelain -- .claude/skills 2>/dev/null)" ]]; then
+        err ".claude/skills has uncommitted changes; commit or move them before --sync (it rebuilds the folder)"
     fi
+    section "Refreshing .claude/skills from .agents/skills"
+    # The copies are tracked by git, so rebuilding them from .agents/skills is safe.
+    rm -rf -- "${CLAUDE_LINK_DIR:?}"
     mkdir -p "$CLAUDE_LINK_DIR" || err "cannot create $CLAUDE_LINK_DIR"
     copy_shared_files "$CLAUDE_LINK_DIR"
     for s in "${AVAILABLE[@]}"; do
@@ -339,7 +345,7 @@ fi
 # ── Install ───────────────────────────────────────────────────────────────────
 START_TIME="$(date +%s)"
 INSTALLED=0
-BACKED_UP=0
+AGENTS_INSTALLED=()
 FAILED=0
 
 IFS=',' read -ra DESTS <<< "$TARGET_DIRS"
@@ -348,34 +354,45 @@ for dest in "${DESTS[@]}"; do
     dest="${dest/#\~/$HOME}"
     [[ -z "$dest" ]] && continue
 
-    section "Installing ${#SELECTED[@]} skills into $dest"
+    # Refresh any catalogue skill already installed here too, so a folder is never
+    # left half old, half new (an older skill may link to a file that changed).
+    TO_INSTALL=("${SELECTED[@]}")
+    for a in "${AVAILABLE[@]}"; do
+        [[ -e "$dest/$a" && " ${TO_INSTALL[*]} " != *" $a "* ]] && TO_INSTALL+=("$a")
+    done
+    [[ "$dest" == "$HOME/.agents/skills" ]] && AGENTS_INSTALLED=("${TO_INSTALL[@]}")
+    section "Installing ${#TO_INSTALL[@]} skills into $dest"
     if ! mkdir -p "$dest" 2>/dev/null; then
         print_fail "$dest" "cannot create folder"
         FAILED=$((FAILED + 1))
         continue
     fi
     copy_shared_files "$dest"
-    for s in "${SELECTED[@]}"; do
-        # An existing skill of the same name may be the user's own work — edited
-        # in place, or written by hand. Deleting it outright to "update cleanly"
-        # destroys that with no way back, so anything that differs from what we
-        # are about to write is moved aside first and its location reported.
+    # Old copies are moved, never deleted, to <skills folder>-old/<date>/ beside the
+    # skills folder: outside it, because both assistants load every sub-folder that
+    # holds a SKILL.md, whatever its name.
+    OLD_DIR="$(dirname "$dest")/$(basename "$dest")-old/$STAMP"
+    move_old() {   # move_old NAME WHY
+        if mkdir -p "$OLD_DIR" && mv "$dest/$1" "$OLD_DIR/$1" 2>/dev/null; then
+            print_note "$1" "$2 — old copy in $OLD_DIR"
+            return 0
+        fi
+        print_fail "$1" "could not move the old copy aside; left untouched"
+        FAILED=$((FAILED + 1))
+        return 1
+    }
+    # Skills and files earlier versions installed that no longer ship.
+    while IFS= read -r old; do
+        [[ -z "$old" || "$old" == \#* ]] && continue
+        [[ -e "$dest/$old" ]] && move_old "$old" "no longer ships"
+    done < "$PROJECT_ROOT/scripts/RETIRED_SKILLS"
+    # Each skill replaces any installed copy; a copy that differs is moved first.
+    for s in "${TO_INSTALL[@]}"; do
         if [[ -e "$dest/$s" ]]; then
             if diff -rq "$SKILLS_DIR/$s" "$dest/$s" >/dev/null 2>&1; then
-                print_pass "$s"                   # already identical: leave it alone
-                INSTALLED=$((INSTALLED + 1))
-                continue
-            else
-                BACKUP="$dest/$s.replaced-$STAMP"
-                if mv "$dest/$s" "$BACKUP" 2>/dev/null; then
-                    print_note "$s" "your version differs — kept at $(basename "$BACKUP")"
-                    BACKED_UP=$((BACKED_UP + 1))
-                else
-                    print_fail "$s" "could not move your existing copy aside; left untouched"
-                    FAILED=$((FAILED + 1))
-                    continue
-                fi
+                print_pass "$s"; INSTALLED=$((INSTALLED + 1)); continue
             fi
+            move_old "$s" "updated" || continue
         fi
         if cp -R "$SKILLS_DIR/$s" "$dest/$s" 2>/dev/null; then
             print_pass "$s"
@@ -386,6 +403,21 @@ for dest in "${DESTS[@]}"; do
         fi
     done
 done
+
+# Earlier versions installed Codex skills into ~/.codex/skills. Codex also reads
+# that folder, so old copies there would load next to the new ones: move any
+# catalogue or retired skill found there to ~/.codex/skills-old/<date>/.
+if [[ "$TARGET_DIRS" == *"$HOME/.agents/skills"* && -d "$HOME/.codex/skills" ]]; then
+    LEGACY="$HOME/.codex/skills"
+    # Only what was just installed in ~/.agents/skills, plus retired names, so an
+    # --only run never takes away a skill Codex could still see.
+    for n in "${AGENTS_INSTALLED[@]}" $(grep -v '^#' "$PROJECT_ROOT/scripts/RETIRED_SKILLS"); do
+        if [[ -e "$LEGACY/$n" ]]; then
+            mkdir -p "$HOME/.codex/skills-old/$STAMP" && mv "$LEGACY/$n" "$HOME/.codex/skills-old/$STAMP/$n" \
+                && print_note "$n" "old Codex copy moved to ~/.codex/skills-old/$STAMP"
+        fi
+    done
+fi
 
 # ── Summary ───────────────────────────────────────────────────────────────────
 ELAPSED=$(( $(date +%s) - START_TIME ))
@@ -406,7 +438,7 @@ if [[ $INSTALLED -gt 0 && $FAILED -eq 0 ]]; then
     printf "    ${DIM}\"assess the calibration of this CLEWs model\"${RESET}\n"
     printf "    ${DIM}\"run the preflight checks before I start this solve\"${RESET}\n"
     echo
-    printf "  Catalogue and descriptions : skills/README.md\n"
+    printf "  Catalogue and descriptions : SKILLS.md\n"
     exit 0
 elif [[ $INSTALLED -gt 0 ]]; then
     printf "  ${YELLOW}${BOLD}Some skills did not install -- review the output above.${RESET}\n"

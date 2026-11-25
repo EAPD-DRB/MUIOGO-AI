@@ -1,69 +1,58 @@
-# Preparing the calibration PR
+# The calibration PR
 
-What maintainers actually ask for **[PHL #63 review, jdebacker]**. The house rule stands apart from
-the review: ask before push and before opening the PR, never in the same step; the user merges.
+A calibration PR reports how the calibrated model fits the country's data. Reviewers and later
+users take it as the baseline's description, so it shows the fit; it does not tell how the
+calibration was reached. Follow the repo's own PR conventions and the maintainers' earlier
+calibration PRs for length and layout.
 
-## Register: the PR reports what was done; the docs carry the discussion
+## What it contains
 
-State each change and its anchor in a line or two ("unmodelled recurring revenue is carried by the
-nearest-equivalent instruments: property-type taxes on the wealth tax, state-asset income on the CIT
-adjustment, fees on `tau_c`") and point to the calibration chapter for the derivation, the
-alternatives and the caveats. Design-justification paragraphs ("worth review", "the honest carrier",
-why-not-X) belong in the PR only when you are asking the maintainers to decide something; otherwise
-they read as asking for a debate nobody requested. **[owner feedback on the PHL PR text]**
+**Rule.** In this order, in plain language:
+1. One paragraph: what the calibration is anchored to (the start year, the GDP basis, the main
+   sources) and where the docs give each derivation.
+2. A table of the calibration: each block, what sets it, and the source.
+3. The fit: model against data for every scored moment, each with its source
+   (validation-dashboard.md), steady state and early transition labelled; then the gaps that
+   remain, each with its measured cause.
+4. The figures that show the fit: the fiscal path panel, and by-age fits (hours, consumption,
+   wealth) where calibrated.
+5. The changed parameters, old value against new; for a changed array or matrix (`io_matrix`,
+   `gamma` by industry, tax parameters) a side-by-side with the largest shifts explained by
+   mechanism, since the packaged JSON's diff is unreadable. [PHL]
+6. What it requires (an unreleased ogcore change, a data file), if anything.
 
-PR style: narrative, plain language, the why first, detail pushed to the docs. Include a
-changed-parameters table, the goodness-of-fit table, and an example macro-results table.
+**Check.**
+- Every number and figure comes from the final run and the packaged JSON through the repo's doc
+  tooling; none is typed by hand.
+- Parameter changes are shown old against new (item 5); results are not compared with earlier
+  runs, tuning rounds, other countries or alternatives tried, unless the maintainers' convention
+  asks for a comparison with the previous release; no
+  reform results (a calibration is judged by its fit; reform results belong to scenario work); no
+  internal labels ("round", "dial", "official run"); no test counts or run times (the repo's CI
+  reports them).
+- Every term a reader outside the project would not know is explained where it first appears.
+- Before the push, an independent reviewer checks every number and claim against the run and the
+  sources, and the findings are fixed. [ETH]
 
-## Always include the goodness-of-fit table
+**Why.** A fit report lets a reviewer judge the baseline quickly; history, alternatives and policy
+results invite debates nobody asked for and go stale. A review of a text its author had already
+checked found a dozen problems, two serious. [ETH, PHL]
 
-The standard close for any calibration PR: every calibrated moment, `Model | Target | Source`, one
-row per anchor, revenue lines first, then the external and fiscal anchors. Read the model column from
-the solved SS pickle, never from memory.
+## What the docs carry
 
-| Moment | Model | Target | Source |
-|---|---|---|---|
-| PIT/Y … each revenue instrument … | | | collections source (e.g. OECD RevStats) |
-| total revenue/Y | | | |
-| RM/Y, K_f/K, D/Y, D_f/D, r_gov | | | central bank / treasury anchors |
+The calibration chapters hold the derivations, alternatives considered and caveats; the PR points
+to them. Docs describe the calibration as it is: a figure annotated to show what a PR changed
+belongs in the PR conversation, not in the committed docs. [PHL]
 
-Follow it with the tested block (suite count, SS RC error, TPI RC error vs tolerance, debt-path
-behaviour vs target, with min and max) and the reform percent-change table (Y/C/K/L/r/w by year +
-SS), in the same format across the family (PHL #68/#85 are examples).
+## Explaining a derived correction
 
-## Show the before/after of every calibrated object the PR changes
+For a non-obvious fix (a units conversion, a rescaled level), state what was off, the arithmetic
+that causes it, and that the constant is derived, not fitted. For a fix forced by an ogcore
+upgrade, say what broke and give the resource-constraint error before and after.
 
-Upfront; do not make them ask. On PHL #63 the maintainer's first request was a new-vs-old
-side-by-side of the `io_matrix`. For each changed array or matrix (`io_matrix`, `gamma`, `Z`, tax
-parameters), put an old → new table in the PR (or a reply thread) with the largest shifts called out
-and explained by mechanism. Example: household energy spending moving off manufacturing onto
-electricity (54% → 4% / 11% → 74%), because the value-added method traces demand to the industry
-that makes it, not to the numeraire. The diff of a packaged JSON is unreadable; the side-by-side is
-how a reviewer verifies the change does what you claim.
+## The multi-industry overlay
 
-## Pre-empt the gamma_g question
-
-The maintainer flagged that the SAM books all non-labour income as capital with no public-capital
-attribution, so subtracting `gamma_g` implicitly from labour is wrong. State the construction: rescale
-the SAM's total capital shares to the economy-wide total, then subtract `gamma_g`, so public capital
-comes out of capital (the SAM measures labour's share well). If `gamma_g = 0`, say so
-(private = total, no carve-out) so the reviewer need not raise it.
-
-## PR-explanation visuals are not docs visuals
-
-The maintainer asked that a figure's "what's changing in this PR" annotation (a dashed old-vs-new
-line) be removed from the version committed to the docs. Keep before/after annotations in the PR
-conversation; the docs figure shows the calibrated state cleanly, because the docs describe the
-calibration as it is, not the PR's delta.
-
-## Explain derived mechanical corrections in plain language
-
-A non-obvious fix (the chi/`p_tilde` units conversion; a Z-level factor rescale) needs: what was off,
-the arithmetic that causes it, and that the constant is derived, not fitted. The same goes for
-version-driven fixes: if an ogcore bump broke the example and you regenerated demographics or
-parameters to fix it, say so and give the before/after resource-constraint numbers.
-
-## Wrap-up before the PR
-
-`make format`; `uv run python -m pytest -m 'not local' -q`; a CHANGELOG entry (before → after +
-citation); docs with values glued from the JSON; `uv.lock` and `.python-version` out of the diff.
+A multi-industry calibration ships as its own generated file and leaves the single-industry
+default working. Its PR states how the capital shares were built (rescaled to the economy-wide
+share, with public capital taken out of capital, or `gamma_g` zero) so the reviewer need not ask
+(og-multi-industry-calibration). [PHL, ZAF]

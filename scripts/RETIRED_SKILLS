@@ -1,0 +1,7 @@
+# Skills and shared files that earlier versions installed and that no longer ship.
+# install-skills.sh moves any it finds to <skills folder>-old/<date>/.
+og-run-preflight
+calibration-provenance
+og-repo-fleet-sync
+og-analysis-studio
+OG_RUN_RULES.md

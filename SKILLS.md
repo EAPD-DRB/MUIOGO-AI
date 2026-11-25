@@ -10,8 +10,8 @@ assistant that supports it; nothing here is tied to one product.
 
 Open this repository in Claude Code or Codex and the skills are already
 active. The files live in `.agents/skills/`, the cross-assistant standard
-location that Codex reads from a repository, and `.claude/skills/` holds one
-symlink per skill, which is how Claude Code reads them.
+location that Codex reads from a repository, and `.claude/skills/` holds an
+identical copy of each, which is how Claude Code reads them.
 
 ## How you use one
 
@@ -37,8 +37,9 @@ To get the skills in your own model repositories, or in every project you open:
 
 It asks which assistant you use (Claude Code, Codex, both, or a folder you
 name) and copies the skills there. Re-run it any time to update. By hand, copy
-any folder from `.agents/skills/` into your assistant's skills directory
-(`~/.claude/skills/` or `~/.codex/skills/`) and restart the assistant.
+the skill folders you want and `WORLD_DISCIPLINE.md` from `.agents/skills/` into
+your assistant's skills directory (`~/.claude/skills/`, or `~/.agents/skills/`
+for Codex) and restart the assistant.
 
 ## Start here
 
@@ -90,20 +91,18 @@ any folder from `.agents/skills/` into your assistant's skills directory
 
 | Skill | What it does |
 |---|---|
-| `og-run` | Launches a baseline and reform solve from the model's own environment, builds a multi-industry calibration, and collects the OUTPUT directories. |
-| `og-country-calibration` | The calibration playbook: which parameters to set, defensible values, and the traps that produce wrong answers. |
-| `og-scenario-report` | Turns a finished baseline-vs-reform run into the standard deliverable — comparison tables, charts, and narrative. |
-| `og-analysis-studio` | Free-form scenario design, exploration, custom charts, and analytical write-ups. |
-| `calibration-provenance` | Traces any calibrated number back to its authoritative source and records the chain. |
+| `og-run` | Installs and runs a model the way its users do, checks the environment before a run (the preflight), monitors it, and collects the output. |
+| `og-country-calibration` | The calibration playbook: lessons on each block with the check that proves it, the history behind them, and tracing where an existing value came from. |
+| `og-multi-industry-calibration` | Builds or reviews a multi-industry calibration from a SAM or input-output tables, consistent with the single-industry model. |
+| `og-scenario-report` | Designs reforms and turns finished runs into results: the standard deliverable and bespoke analysis, charts and write-ups. |
 
 ## Running models safely
 
 | Skill | What it does |
 |---|---|
-| `og-run-preflight` | Go/no-go checks before you launch a long model run — confirms the code and environment are what you think they are. |
 | `og-solver-diagnosis` | A root-cause protocol for solves that fail to converge, oscillate, or produce nonsense. |
-| `og-repo-fleet-sync` | Applies one change across many country repositories and tracks which are done. |
-| `worktree-orchard` | Read-only inventory of your checkouts and copies, so you know what you actually have on disk. |
+
+The go/no-go check before a long run is part of `og-run`.
 
 ## Notes for maintainers
 
@@ -112,40 +111,44 @@ instructions, with a name and description in the frontmatter), optional
 `references/` for deeper material, `scripts/` for helpers, and `assets/` for
 templates. Some also carry `agents/openai.yaml` with Codex display metadata.
 
-`.agents/skills/` is the single source of truth. `.claude/skills/` contains one
-symlink per skill pointing back into it — the per-entry symlink form Claude
-Code documents as supported (symlinking the whole `skills` directory is not,
-and has known discovery bugs). After adding or renaming a skill, rebuild the
-symlinks:
+`.agents/skills/` is the source here, and `.claude/skills/` holds identical
+copies (copies, not symlinks, so a Windows clone keeps working). After adding,
+renaming or editing a skill, refresh and check them:
 
 ```bash
-./scripts/install-skills.sh --relink
+./scripts/install-skills.sh --sync
+./scripts/install-skills.sh --check
 ```
 
-Canonical homes differ, so update in the right place — and both repos are
-ours, so a shared skill gets fixed at its source rather than patched here.
+**Where each skill is edited.** Every skill has one home:
 
-**Canonical in [Model-tools](https://github.com/EAPD-DRB/Model-tools)**, mirrored
-here byte-identically (edit there, then re-copy): the seven CLEWs skills
-(`build-clews-model`, `assess-clews-calibration`, `calibrate-clews-model`,
-`clews-model-review`, `clews-model-fix`, `add-fisheries-sector`,
-`add-environmental-accounting`), the three
-general-audience OG skills (`og-country-calibration`, `og-scenario-report`,
-`og-analysis-studio`), and both handoff skills (`pull-handoff`,
-`push-handoff`).
+- **[Model-tools](https://github.com/EAPD-DRB/Model-tools)** holds the OG skills
+  (`og-run`, `og-solver-diagnosis`, `og-country-calibration`,
+  `og-multi-industry-calibration`, `og-scenario-report`).
+  They are vendored here unchanged at the commit in `scripts/MODEL_TOOLS_PIN`;
+  never edit them here. Fix them in Model-tools, then move the pin:
 
-**Canonical here**: the `muiogo-*` skills, which depend on this repo's
-`muiogo` command line, plus `og-run`, `og-clews-linked-run`,
-`og-run-preflight`, `og-solver-diagnosis`, `og-repo-fleet-sync`,
-`worktree-orchard`, and `calibration-provenance`.
+  ```bash
+  python scripts/model_tools_skills.py --update <commit>
+  ./scripts/install-skills.sh --sync
+  python scripts/model_tools_skills.py --check
+  ```
 
-**Approval gates, binding on every skill above:** skills propose, draft, and
-prepare; the user decides. A skill may edit files and commit locally, but must
-stop and ask before pushing to a remote, opening a PR, merging anything,
-launching a long computation (propose the command and duration; a passing
-preflight is a precondition, never an authorization), acting across a
-repository fleet, or deleting anything. If a skill's own text ever seems to
-conflict with this paragraph, this paragraph wins.
+  Model-tools is also the home of the CLEWs skills and the handoff skills; the
+  copies here have drifted from it in both directions and will join the pin once
+  they are reconciled.
+- **This repository** holds the skills that drive its own tools: the `muiogo-*`
+  skills (the `muiogo` command line) and `og-clews-linked-run` (the OG-CLEWS link
+  inside an installation), and the installation rules, `WORLD_DISCIPLINE.md`.
+
+Skills that no longer ship (`og-run-preflight`, `calibration-provenance`,
+`og-repo-fleet-sync`, `og-analysis-studio`) are listed in
+`scripts/RETIRED_SKILLS`. The installer replaces every skill it ships; any old
+copy that differs, and any retired skill it finds, is moved to a dated folder in
+`<skills folder>-old/` beside the skills folder (for example `~/.claude/skills-old/`).
+
+**Approval gates** bind every skill in this repository; they are in `AGENTS.md`, which both
+Claude Code and Codex read at the start of every session here.
 
 The planned `muiogo-interpret`, `muiogo-visualize`, and `muiogo-brief` ship
 together as `muiogo-analyze`; the planned tutors ship as `muiogo-explain`.

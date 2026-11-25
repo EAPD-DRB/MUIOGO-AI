@@ -163,8 +163,8 @@ each has results.
 **A coupled run is a long computation.** The link's README gives about 20 minutes the
 first time (baseline plus reform) and about 8 minutes on later runs, which reuse the
 baseline. The first run is longer because it builds the OG baseline from a cold start;
-the owner's under-ten-minutes rule for a baseline still applies to that part. This is an approval gate: propose the command and the expected duration,
-and launch it only after the user's explicit go. Never fire one off on your own initiative.
+the ten-minute expectation for a baseline still applies to that part. This is an approval gate:
+propose the command and the expected duration, and launch it only after the user's explicit go.
 
 ## Reading the outcome
 
@@ -220,7 +220,7 @@ Copy this and work through it:
 - [ ] couplable=1, and its qualifiers read. If couplable=0: find or build the multi-industry
       calibration (og-multi-industry-calibration), then register and check again.
 - [ ] Both CLEWs runs solved and holding results. If not: muiogo-run, then check again.
-- [ ] og-run-preflight reports GO for the link and the OG side. If NO-GO: fix, run it again.
+- [ ] og-run's check reports GO for the link and the OG side. If NO-GO: fix, run it again.
 - [ ] Proposed to the user: command, expected duration. Launch only after the explicit go.
 - [ ] Results read with the channel and direction named, and emit-only levers kept out
       of the macro headline.
@@ -228,7 +228,7 @@ Copy this and work through it:
 
 ## Approval gates
 
-Propose, draft, and prepare; the user decides. Registering a model and inspecting
-experiments and channels is free. **Stop and ask before launching any coupled run
-or any OG solve** — propose the command and the expected duration. Also stop
-before pushing, PR-ing, merging, or deleting anything.
+Propose, draft and prepare; the user decides (this repository's `AGENTS.md`). Registering a
+model and inspecting experiments and channels is free. Stop and ask before launching any coupled
+run or any OG solve (propose the command and the expected duration), and before pushing, opening
+a PR, merging or deleting anything.

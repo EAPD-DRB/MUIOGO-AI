@@ -26,7 +26,8 @@ economy-wide values live in one place.
 
 - **The builder** (`og<xxx>/create_multisector_calibration.py`, with `build_multisector_params()`
   and `main()`, run as `uv run python -m og<xxx>.create_multisector_calibration`) writes the overlay.
-  It reads the base JSON for anything it converts (chi, sigma). Never hand-edit the overlay.
+  It reads the base JSON for anything it converts (chi, sigma). Change the overlay through the
+  builder only; edits by hand are lost at the next build.
 - **Where the code lives:** derivation functions in `input_output.py`; concordances and shared
   constants (`TOTAL_CAPITAL_SHARE`, `PUBLIC_CAPITAL_SHARE`, capital-output ratio) in `constants.py`,
   so the builder and the live `Calibration` class cannot drift. Keep the legacy naive
@@ -39,7 +40,7 @@ economy-wide values live in one place.
   from the base; public-capital settings only when the multi changes them. Solver seeds stay in the
   base.
 - **Loaded alone, an overlay falls back to OG-Core's US defaults** for everything it omits, with no
-  error. Every example, tutorial and docs script must do the two-step load. Tests that loop over
+  error. Use the two-step load in every example, tutorial and docs script. Tests that loop over
   every packaged JSON expecting a full parameter set (demographics, `J`) will fail on an overlay;
   scope them to the base file.
 - **One example script** (`examples/run_og_<xxx>_multi_industry*.py`): build the specifications,
@@ -48,7 +49,7 @@ economy-wide values live in one place.
 
 ## Finding the data
 
-Search; do not assume a SAM exists or does not.
+Search before deciding whether a SAM exists.
 
 1. **Statistics office or central bank.** Supply-and-use or IO tables are enough; the make/use
    algebra runs on them directly. Some series publish the pieces you need ready made (BRA's
@@ -70,9 +71,9 @@ account, product-tax rows. Note:
 - **a "total" row or column**: exclude it explicitly, or every sum doubles;
 - **the year**: match it to the employment data and the national accounts.
 
-Delivery: never read the publisher's URL at run time. Ship a compact extract in the package's
-`data/` and register it in package data (PHL ships the SAM CSV; BRA ships five CSV extracts, keeps
-the raw workbook out of git, and has a `fetch_data.sh` plus an extractor that asserts the workbook
+Delivery: ship a compact extract in the package's `data/` rather than reading the publisher's URL
+at run time, and register it in package data (PHL ships the SAM CSV; BRA ships five CSV extracts,
+keeps the raw workbook out of git, and has a `fetch_data.sh` plus an extractor that asserts the workbook
 layout), or mirror it in `EAPD-DRB/SAM-files` (ZAF, which then needs a network connection to
 rebuild). Record publisher, technical note and year in the reader's docstring and the docs.
 
@@ -90,11 +91,11 @@ anything off the multi-industry steady state.
 ## Concordances
 
 The mapping from activities to industries (`PROD_DICT` or `ACTIVITY_TO_SECTOR`) and from
-commodities to goods (`CONS_DICT`) must partition the data exactly: every code in exactly one group,
-nothing in the dicts that is not in the data.
+commodities to goods (`CONS_DICT`) should partition the data exactly: every code in exactly one
+group, nothing in the dicts that is not in the data.
 
 Unchecked mappings ship silently wrong, because `isin` and `groupby` skip what they cannot match:
-a misspelled code, or one the SAM does not have, drops out of every sum **[ZAF, PHL]** (history:
+a misspelled code, or one the SAM does not have, drops out of every sum [ZAF, PHL] (history:
 ZAF, PHL). A test catches the class (BRA's: lengths equal the activity and product counts, value
 sets equal the group keys, no product in the data has an unmapped code). Add a
 run-time assert as well, since a new data vintage can introduce codes the test fixture does not.
@@ -149,9 +150,9 @@ gamma_m = cap_m / (cap_m + lab_m)
 has already happened inside their labour and capital rows, or not at all; say which.
 
 **Rescale to a level.** Multiply every share by `target / (VA-weighted mean of the raw shares)`, so
-the value-added-weighted mean equals the target and the cross-industry pattern survives. The target
-must be the single model's total capital share (its `gamma + gamma_g`), so both models describe the
-same economy. Check it lands exactly: after the carve-out below, the private mean equals the base
+the value-added-weighted mean equals the target and the cross-industry pattern survives. Use the
+single model's total capital share (its `gamma + gamma_g`) as the target, so both models describe
+the same economy. Check it lands exactly: after the carve-out below, the private mean equals the base
 `gamma` [PHL]. A target taken from the table's own share, while the single model uses a share from
 another source, leaves a gap that has to be closed one way or the other [BRA] (history: PHL,
 BRA).
@@ -204,7 +205,7 @@ and non-household final demand. Only household demand weights the rows, which is
 
 ## L_m
 
-Employment by industry, used only to compute Z (the model's own `L_m` is solved). It must come from
+Employment by industry, used only to compute Z (the model's own `L_m` is solved). Take it from
 outside the SAM's factor accounts, or Z collapses into a function of factor shares.
 
 When the survey is coarser than the industries (QLFS reports electricity, gas and water together),
@@ -227,8 +228,8 @@ Z_m = Y_m / ( K_m^gamma_m · L_m^(1 − gamma_m − gamma_g) )
 - The public-capital term `K_g^gamma_g` is the same for every industry and cancels in the
   normalisation; use the private `gamma_m` (after the carve-out).
 - **Allocate `K_m` by the same capital income that defines `gamma_m`.** If `gamma` uses the
-  mixed-income split, so must the allocation; allocating by all mixed income while `gamma` takes
-  only phi of it is inconsistent. **[BRA]** (history: BRA)
+  mixed-income split, so should the allocation; allocating by all mixed income while `gamma` takes
+  only phi of it is inconsistent. [BRA] (history: BRA)
 - **The capital-output ratio** from PWT for the SAM year (history: PHL, ZAF, BRA). Its level
   matters little: under the normalisation it enters relative Z only through the dispersion of
   `gamma`. Take it from PWT and move on; on PHL, the ranking held across ratios from 2.9 to 5.3.
@@ -241,9 +242,9 @@ The level is free under the normalisation; whether to rescale it is in alignment
 
 ## Tax rates by industry and good
 
-OG-Core accepts `cit_rate` as T × M and `tau_c` as T × I; scalars broadcast. Do not invent
-heterogeneity the data cannot support (PHL's guide): use the single model's scalars unless
-sector-effective rates are actually published. When they are (BRA):
+OG-Core accepts `cit_rate` as T × M and `tau_c` as T × I; scalars broadcast. Keep heterogeneity to
+what the data support (PHL's guide): use the single model's scalars unless sector-effective rates
+are actually published. When they are (BRA):
 
 - `tau_c` per good = taxes on products / (household spending at consumer prices − those taxes),
   from the use table. Energy goods come out high, services low [BRA] (history: BRA).
@@ -259,8 +260,8 @@ twice (on BRA, the two factors cut an average rate of about 9% to about 2%, agai
 single model; history: BRA). Either set both factors to 1 in the overlay, or express the
 industry pattern as multipliers on the single model's statutory rate.
 
-Then check the aggregates against the single model: the consumption-weighted mean `tau_c` must
-reproduce its `tau_c`, and CIT revenue / GDP must match. Folding real estate into a group dilutes
+Then check the aggregates against the single model: the consumption-weighted mean `tau_c` should
+reproduce its `tau_c`, and CIT revenue / GDP should match. Folding real estate into a group dilutes
 that group's effective CIT (imputed rent sits in the denominator but is not taxed); say so.
 
 ## Public capital
