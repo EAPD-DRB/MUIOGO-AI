@@ -141,8 +141,9 @@ renaming or editing a skill, refresh and check them:
 
 Skills that no longer ship (`og-run-preflight`, `calibration-provenance`,
 `og-repo-fleet-sync`, `og-analysis-studio`) are listed in
-`scripts/RETIRED_SKILLS`; the installer removes any it finds in a target folder,
-and replaces every skill it ships.
+`scripts/RETIRED_SKILLS`. The installer replaces every skill it ships; any old
+copy that differs, and any retired skill it finds, is moved to a dated folder in
+`<skills folder>-old/` beside the skills folder (for example `~/.claude/skills-old/`).
 
 **Approval gates** bind every skill in this repository; they are in `AGENTS.md`, which both
 Claude Code and Codex read at the start of every session here.

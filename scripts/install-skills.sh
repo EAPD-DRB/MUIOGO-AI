@@ -349,18 +349,32 @@ for dest in "${DESTS[@]}"; do
         continue
     fi
     copy_shared_files "$dest"
-    # Skills and files earlier versions installed that no longer ship: remove them,
-    # so an old copy cannot shadow or duplicate a current one.
+    # Old copies are moved, never deleted, to <skills folder>-old/<date>/ beside the
+    # skills folder: outside it, because both assistants load every sub-folder that
+    # holds a SKILL.md, whatever its name.
+    OLD_DIR="$(dirname "$dest")/$(basename "$dest")-old/$STAMP"
+    move_old() {   # move_old NAME WHY
+        if mkdir -p "$OLD_DIR" && mv "$dest/$1" "$OLD_DIR/$1" 2>/dev/null; then
+            print_note "$1" "$2 — old copy in $OLD_DIR"
+            return 0
+        fi
+        print_fail "$1" "could not move the old copy aside; left untouched"
+        FAILED=$((FAILED + 1))
+        return 1
+    }
+    # Skills and files earlier versions installed that no longer ship.
     while IFS= read -r old; do
         [[ -z "$old" || "$old" == \#* ]] && continue
-        if [[ -e "$dest/$old" ]]; then
-            rm -rf -- "${dest:?}/${old:?}" && print_note "$old" "no longer ships — removed"
-        fi
+        [[ -e "$dest/$old" ]] && move_old "$old" "no longer ships"
     done < "$PROJECT_ROOT/scripts/RETIRED_SKILLS"
-    # Each skill replaces any existing copy: these skills are edited at their
-    # source, never in an installed copy.
+    # Each skill replaces any installed copy; a copy that differs is moved first.
     for s in "${SELECTED[@]}"; do
-        rm -rf -- "${dest:?}/${s:?}"
+        if [[ -e "$dest/$s" ]]; then
+            if diff -rq "$SKILLS_DIR/$s" "$dest/$s" >/dev/null 2>&1; then
+                print_pass "$s"; INSTALLED=$((INSTALLED + 1)); continue
+            fi
+            move_old "$s" "updated" || continue
+        fi
         if cp -R "$SKILLS_DIR/$s" "$dest/$s" 2>/dev/null; then
             print_pass "$s"
             INSTALLED=$((INSTALLED + 1))
