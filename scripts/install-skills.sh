@@ -3,8 +3,8 @@
 # MUIOGO-AI skills installer for macOS and Linux.
 #
 # You do NOT need this to use the skills inside this repository: they live in
-# .agents/skills/ (read by Codex) with .claude/skills/ symlinks (read by Claude
-# Code), so both assistants pick them up automatically when you work here.
+# .agents/skills/ (read by Codex) with identical copies in .claude/skills/ (read
+# by Claude Code), so both assistants pick them up automatically when you work here.
 #
 # Use this script to make the skills available EVERYWHERE ELSE — your own model
 # repositories, or every project you open:
@@ -21,8 +21,8 @@
 #   ./scripts/install-skills.sh                      # interactive
 #   ./scripts/install-skills.sh --tool claude        # skip the menu
 #   ./scripts/install-skills.sh --tool both --yes    # hands-free
-#   ./scripts/install-skills.sh --only og-run-preflight,og-solver-diagnosis
-#   ./scripts/install-skills.sh --relink             # rebuild in-repo symlinks
+#   ./scripts/install-skills.sh --only og-run,og-solver-diagnosis
+#   ./scripts/install-skills.sh --sync               # refresh the in-repo .claude copies
 #   ./scripts/install-skills.sh --help
 # ──────────────────────────────────────────────────────────────────────────────
 set -uo pipefail
@@ -76,7 +76,7 @@ Examples:
   $0 --tool claude                            # menu skipped
   $0 --tool both --yes                        # hands-free, both assistants
   $0 --dir ~/.config/myassistant/skills       # somewhere else
-  $0 --only og-run-preflight --tool claude    # one skill
+  $0 --only og-run --tool claude              # one skill
 EOF
 }
 
@@ -355,6 +355,22 @@ for dest in "${DESTS[@]}"; do
         continue
     fi
     copy_shared_files "$dest"
+    # Anything moved aside goes OUTSIDE the skills folder: both assistants load
+    # every sub-folder that holds a SKILL.md, whatever its name, so an old copy
+    # left inside would still load.
+    ASIDE_DIR="$(dirname "$dest")/$(basename "$dest")-moved-aside-$STAMP"
+    # Skills and files earlier versions installed that no longer ship: move them
+    # aside (never delete) so an old copy cannot shadow or duplicate a current one.
+    while IFS= read -r old; do
+        [[ -z "$old" || "$old" == \#* ]] && continue
+        if [[ -e "$dest/$old" ]]; then
+            if mkdir -p "$ASIDE_DIR" && mv "$dest/$old" "$ASIDE_DIR/$old" 2>/dev/null; then
+                print_note "$old" "no longer ships — moved aside to $ASIDE_DIR"
+            else
+                print_warn "$old" "no longer ships; could not move it aside, remove it by hand"
+            fi
+        fi
+    done < "$PROJECT_ROOT/scripts/RETIRED_SKILLS"
     for s in "${SELECTED[@]}"; do
         # An existing skill of the same name may be the user's own work — edited
         # in place, or written by hand. Deleting it outright to "update cleanly"
@@ -366,9 +382,9 @@ for dest in "${DESTS[@]}"; do
                 INSTALLED=$((INSTALLED + 1))
                 continue
             else
-                BACKUP="$dest/$s.replaced-$STAMP"
-                if mv "$dest/$s" "$BACKUP" 2>/dev/null; then
-                    print_note "$s" "your version differs — kept at $(basename "$BACKUP")"
+                BACKUP="$ASIDE_DIR/$s"
+                if mkdir -p "$ASIDE_DIR" && mv "$dest/$s" "$BACKUP" 2>/dev/null; then
+                    print_note "$s" "your version differs — kept in $ASIDE_DIR"
                     BACKED_UP=$((BACKED_UP + 1))
                 else
                     print_fail "$s" "could not move your existing copy aside; left untouched"
@@ -385,6 +401,15 @@ for dest in "${DESTS[@]}"; do
             FAILED=$((FAILED + 1))
         fi
     done
+    # Record what was installed and from which commits, so a later check can
+    # tell an up-to-date copy from a stale one.
+    {
+        printf 'installed_by=MUIOGO-AI scripts/install-skills.sh\n'
+        printf 'date=%s\n' "$STAMP"
+        printf 'muiogo_ai_commit=%s\n' "$(git -C "$PROJECT_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+        grep '^commit=' "$PROJECT_ROOT/scripts/MODEL_TOOLS_PIN" | sed 's/^commit=/model_tools_commit=/'
+        printf 'skills=%s\n' "${SELECTED[*]}"
+    } > "$dest/.muiogo-ai-installed" 2>/dev/null || print_warn "manifest" "could not write $dest/.muiogo-ai-installed"
 done
 
 # ── Summary ───────────────────────────────────────────────────────────────────

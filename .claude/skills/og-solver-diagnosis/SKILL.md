@@ -5,41 +5,27 @@ description: "Diagnoses OG-Core solver trouble by finding the root cause before 
 
 # OG solver diagnosis
 
-Adapted from obra/superpowers `systematic-debugging` (MIT — credit: https://github.com/obra/superpowers),
-specialized to OG-Core solves with the failure classes and bisection patterns actually used in this
-model family (mined from the family's test scripts and solve logs).
+Adapted from obra/superpowers `systematic-debugging` (MIT, https://github.com/obra/superpowers) for
+OG-Core solves, with the failure classes seen across the country models.
 
-**The iron law (inherited): no fix without root-cause investigation first.** Solver knobs are
-Phase 4, not Phase 1. Most "solver failures" in this family were not solver failures — they were
-fiscal inconsistencies, calibration placeholders, or the wrong code running.
+Find the root cause before changing anything: solver settings are the last step, not the first.
+Most "solver failures" in this family were fiscal inconsistencies, calibration placeholders or the
+wrong code running.
 
-## Which world
-
-This applies when you work through MUIOGO. For a standalone OG repo installed with OG-Core's
-installer (no `muiogo-ai` involved), skip this section, not the rest of the skill: the checkout
-you were given is the world. **[KOR, THA]**
-
-This skill diagnoses a solve in **one** world: the runtime installation reached by
-`muiogo-ai`, unless the user explicitly asked about their own live one
-(`muiogo-live`). Never use bare `muiogo`, and never fall back to it. Every command
-prints a `world:` line to stderr — read it, and name that world when you report a
-diagnosis. This matters more here than anywhere else: the same country model can sit
-at different commits in each world, so a run that fails in one may be fine in the
-other, and diagnosing the wrong copy sends you after a bug that is not there. Full
-rules: `../WORLD_DISCIPLINE.md`.
+Everything here runs the way og-run describes: installed copies, the repo's own example or tuning
+script, and reading saved output (`references/og-run-rules.md`). A run built any other way cannot
+confirm or rule out anything.
 
 ## Phase 0 — Rule out contamination
 
-First establish that the failure comes from a real run: a copy installed with OG-Core's official
-installer, running its shipped example script unchanged, with nothing injected (`og-run` and
-`../OG_RUN_RULES.md`). A failure seen only in a test fixture, a saved pickle, a serial or partial
-run is a lead. Reproduce it the official way before calling it a model
-failure, and do not tell the user the model fails until you have. Measure such a run afterwards,
-from its saved output, never by altering it.
+First establish that the failure comes from a run made the user's way: an installed copy running
+the repo's example script unchanged. A failure seen only in a test fixture, a saved pickle, or a
+partial or serial run is a lead until it is reproduced that way. Measure a run from its saved
+output, never by altering it.
 
-If the failing result is surprising, or reproduces a previously-known-buggy number: suspect the
-wrong code ran before suspecting the model. Run the `og-run-preflight` skill's checks (branch+HEAD,
-import resolution, venv). Only continue here once the environment is proven clean.
+If the result is surprising, or reproduces a number from a run known to be buggy, suspect the wrong
+code ran before suspecting the model: do og-run's checks before a run (branch and commit, where the
+packages import from, the environment). Continue only once the environment is clean.
 
 ## Phase 1 — Read the log, characterize the failure
 
@@ -80,11 +66,9 @@ common ones (warm-starting a steady state that will not converge, triaging a tra
 resource-constraint error by when it happens, reading a stall diagnosis) are in
 `references/solve-procedures.md`.
 
-**Log discipline (a real loss happened without it):** every diagnostic run redirects stdout+stderr
-to a named log (`logs_<pkg>_<variant>.log`), and the script echoes its exact settings (nu, mindist,
-flags) into the log at startup. In the mined history, the decisive drift verdicts were printed to
-an interactive console and never captured — the conclusion of days of work is unrecoverable. Also
-don't trust filenames: a log named `nu06` was found printing a different variant's label.
+**Keep every run's log.** Send each run's output to a named log, with its settings at the top. Once,
+the decisive comparison was printed only to a console and lost; and a log's filename once named a
+different variant than the one it printed, so check the settings inside, not the name.
 
 ## Phase 2 — Check the two big non-solver causes
 
@@ -97,7 +81,7 @@ Before any bisection, eliminate the two causes that mimic solver failure and tha
    `r_gov_DY2 > 0`. Neither damping nor Anderson fixes this. Also check the premium is centred
    at `debt_ratio_ss` (taxonomy class A). See the fiscal-consistency reference of the
    `og-country-calibration` skill for the identity and the audit-by-instrument procedure.
-   Setting the owner's standing solver settings (Anderson, `nu` 0.2 or lower; `../OG_RUN_RULES.md`) is fine at any
+   Setting the standard solver settings (Anderson, `nu` 0.2 or lower; `references/og-run-rules.md`) is fine at any
    time; expecting them to fix a runaway is not.
 2. **Calibration placeholders binding constraints**: `zeta_K = 0.9`-style placeholders drive
    `K_d = B − D_d` negative and break the transition; the `K_d has negative elements` guard is the
@@ -105,26 +89,21 @@ Before any bisection, eliminate the two causes that mimic solver failure and tha
 
 ## Phase 3 — Bisect (one variable at a time)
 
-State a single hypothesis in writing ("I think X because Y"), then test it with the smallest
-possible run. Three bisection patterns, in increasing depth — pick the shallowest that can decide
-your hypothesis:
+State one hypothesis ("I think X because Y"), then test it with the smallest change that can decide
+it. In increasing depth:
 
-- **Parameter-level bisection** (pattern: `bisect_J1.py`): start from a known-good configuration
-  and apply the failing configuration's overrides *one at a time* (or binary-search groups) until
-  the failure appears. The first override that breaks it is your suspect. Use
-  `ENFORCE_SOLUTION_CHECKS=False` and a small `maxiter` to make each probe cheap.
-- **Function-level bisection** (pattern: `locate_J1_bug.py` / `trace_tpi_J1.py`): feed *identical
-  fixed micro inputs* (e.g. `n=0.4, b=1.0` everywhere) directly into each aggregator
-  (`get_L`, `get_K`, `get_B`, `get_BQ`, `get_C`, `get_I`) under the good and bad configs and diff
-  the outputs. Finds which function diverges without running the solver at all.
-- **Control/treatment harness** (pattern: `run_country.py` + `run_country_compare.py`): run the
-  same country with exactly one flag/setting flipped (one installer copy per side; the flip is a
-  branch of the repo or an overrides file the repo's own script reads, never a wrapper or a patch
-  at run time), capture both logs, and compare converged
-  outputs with an explicit drift threshold (0.1% was the house standard) printing a single
-  `NO DRIFT` / `DRIFT DETECTED` verdict — into the log, not just the console. Run the pair across
-  2–3 countries (IDN/PHL/ZAF in the mined history) to learn whether an effect is country-specific
-  (→ calibration) or engine-wide (→ OG-Core).
+- **Change one input at a time.** From a configuration that solves, apply the failing
+  configuration's changes one at a time (or in halves) through the repo's tuning script and an
+  overrides file, until the failure appears. The first change that breaks it is the suspect.
+- **Compare functions without solving.** In the installed environment, call each aggregator
+  (`get_L`, `get_K`, `get_B`, `get_BQ`, `get_C`, `get_I`) with identical fixed inputs (e.g.
+  `n=0.4, b=1.0`) under the good and bad configurations and compare the outputs. This finds the
+  function that differs without a solve.
+- **Control and treatment.** Install the two sides as separate copies (the difference is a branch
+  of the repo, or an overrides file its own script reads), run the example in each, and compare the
+  saved outputs against an explicit threshold (0.1% has been the standard), recording the verdict in
+  the log. Repeating the pair on two or three countries tells you whether an effect is
+  country-specific (calibration) or engine-wide (OG-Core).
 
 Two auxiliary techniques from the mined history:
 
@@ -136,20 +115,15 @@ Two auxiliary techniques from the mined history:
   calibration block causes ill-conditioning, substitute the generic OG-Core default for just that
   block and see if the symptom disappears.
 
-**Probes find leads; official runs confirm them.** Harnesses, bisection scripts and fixture
-replays are how you find a suspect. They still run in an installer copy, through the repo's own
-scripts or the installed package's own functions, with the preflight's GO: "it is only a lead" is
-never a reason to build an environment by hand, install another ogcore into a copy, wrap or patch a
-script, or launch one step of a sequence by hand (`../OG_RUN_RULES.md`). Those shortcuts
-are how invalid results arise in the first place (history: ETH). Before you report it as the cause, confirm it on an
-installer-installed copy running the shipped example, and label anything not yet confirmed that
-way as a lead. A probe that starts its own dask client needs an `if __name__ == "__main__":`
-guard (each worker re-imports the script), and code meant to run on the workers is changed there
-with `client.run`. Do not time an official run while probes are running.
+Before reporting a cause, confirm it with the example script in an installed copy, and call
+anything not yet confirmed that way a lead. Hand-built environments, another ogcore installed into a
+copy, and wrapped or patched scripts are how invalid results arose in the first place (history:
+ETH). Time runs one at a time.
 
 **Re-decide after every probe.** Two failed fixes on the same hypothesis = the diagnosis is wrong;
-go back to Phase 1 with the new evidence. Three failed fixes = stop and question the setup itself
-(calibration, model version, or test fixture), and discuss with the user before a fourth.
+go back to Phase 1 with the new evidence. Three failed fixes: question the setup itself
+(calibration, model version or test fixture) and talk it through with the person you are working
+with before a fourth.
 
 ## Phase 4 — Remedies, in order of legitimacy
 
@@ -160,8 +134,8 @@ the repo's open PRs. A fix that already landed, or is waiting in a PR, changes t
 1. **Fix the cause** (calibration value, fiscal balance, code bug, stale fixture) — always
    preferred. Add the cheapest regression guard that would have caught it (a value-pinning test, a
    drift check).
-2. **Oscillation/stall knobs** (treat oscillation, never runaway): first confirm the owner's
-   standing settings, Anderson (`TPI_outer_method="anderson"`) with `nu` 0.2 or lower; then heavier damping, lowering `nu` further;
+2. **Oscillation/stall knobs** (treat oscillation, never runaway): first confirm the standard
+   settings, Anderson (`TPI_outer_method="anderson"`) with `nu` 0.2 or lower; then heavier damping, lowering `nu` further;
    for a multi-industry cold start, the continuation solve (flat anchor → morph gamma/Z; see the
    `og-multi-industry-calibration` skill).
 3. **Convergence-criteria honesty**: loosening `mindist` or raising `maxiter` is masking, not
@@ -171,35 +145,13 @@ the repo's open PRs. A fix that already landed, or is waiting in a PR, changes t
 Report the diagnosis with the evidence chain: log lines → class → hypothesis → probe result →
 fix → verification run. Separate what you verified from what you assume.
 
-## Validating an OG-Core change against the country models
+## Validating an OG-Core change
 
-A common request: "check my OG-Core change doesn't break the countries". The control/treatment
-pattern above applies, with four checks first:
+Checking that an OG-Core change keeps every country solving is og-run's "Testing a code change";
+this skill takes over when one of those runs fails or differs.
 
-1. **Can each country load on both sides?** Run og-run-preflight with `--params-json` for each
-   country against the control ogcore and the treatment ogcore. A country whose packaged
-   parameters do not load on one side cannot be compared; report it rather than patching it.
-2. **Which control?** The merge base of the change, not today's master, unless the user asks
-   for master: otherwise unrelated upstream changes land in the comparison.
-3. **Same inputs on both sides.** Run with `update_from_api=False` (the user's rule for
-   validation runs) so a live data refresh cannot differ between the two.
-4. **Does the run reach the changed code?** A baseline may never touch it; add the reform that
-   does.
+## What costs time
 
-Each variant gets its own install from OG-Core's official installer (`--repo-url <URL> --branch
-<branch>` for the change, a plain install for the control), in its own folder; never switch a
-branch under a running battery. Test suites for each variant run inside that same install, with
-the repo's own pytest command, never in a development worktree. How to install an unreleased ogcore without the environment silently using another
-build: `references/solve-procedures.md`, "Running against an unreleased ogcore". Report per country: the expected value, master, and the change, with the
-resource-constraint error at t=0 and beyond. The whole battery is one itemised proposal; launch
-only after the user's go.
-
-## Cost gate on probes
-
-Log reading, greps, and aggregator-level probes (no solve) are free — do them liberally. Anything
-that *solves* costs real time: a capped-iteration SS probe is borderline (propose it with its
-expected runtime); a full SS, any TPI run, a control/treatment pair, or a multi-country sweep is
-expensive — present the probe plan (which runs, why, expected total time) and get the user's
-explicit approval before launching. Never queue a battery of diagnostic runs on your own, and
-never re-launch a failed run "to see if it happens again" without asking. Skills propose, and
-long computations never start without the user's explicit go.
+Reading logs and output and calling aggregator functions take seconds: do them freely. Anything that
+solves takes minutes, and a battery takes hours: say which runs, why and how long before starting,
+and do not relaunch a failed run just to see whether it fails again.

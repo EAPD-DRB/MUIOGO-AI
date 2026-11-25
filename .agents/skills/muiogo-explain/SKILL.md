@@ -120,7 +120,7 @@ Establish the calibration from the installation, not from assumption. The countr
 repo holds its calibration code and data, and its own README and docs describe
 what was fitted. `og-country-calibration` is the authoritative playbook for what
 each parameter block means and which values are defensible;
-`calibration-provenance` traces an individual number to its source. Note whether
+its provenance reference traces an individual number to its source. Note whether
 the model is **single-industry or multi-industry** — the link reports this, and it
 determines whether energy channels can act at all.
 
@@ -173,7 +173,7 @@ calibration, a missing sector, or a skipped channel changes what a result is wor
 - Structural defects → `clews-model-review`.
 - Numbers, comparisons, charts → `muiogo-analyze`.
 - Changing the calibration → `og-country-calibration`.
-- Where a specific number came from → `calibration-provenance`.
+- Where a specific number came from → `og-country-calibration` (its provenance reference).
 
 ## Approval gates
 

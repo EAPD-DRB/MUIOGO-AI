@@ -164,7 +164,7 @@ Multiple clones are otherwise unproblematic: git keeps no machine-level record
 of them, so a repo may be cloned any number of times, on different branches.
 The two things that do bite are disk (an OG country model is 0.7–2.8 GB) and
 Python shadowing — every clone needs its own `.venv`, and a run must use that
-checkout's interpreter, which is what `og-run-preflight` checks.
+checkout's interpreter, which is what og-run's check before a run verifies.
 
 ## 3. Integration findings (gaps the plan must close)
 

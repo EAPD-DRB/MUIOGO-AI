@@ -18,12 +18,12 @@ OG-Core seeds the household problem from constants (savings 0.07 for every age a
 0.35), with the bequest guesses derived from them. Older ogcore hard-coded them; newer versions expose
 them as parameters (`initial_guess_b_SS` and relatives). Each is still one scalar across all ages and
 types, so the problem below remains, though the scalar can be raised. For a wealthy, ageing, high-saving
-population a uniform seed is not imprecise, it is catastrophic:
+population a uniform seed is far off, not just imprecise:
 
 - the bequest seed lands two orders of magnitude low (JPN: 134× in aggregate, 349× for the top income
   group; history: JPN);
 - domestic capital `K_d = B − D_d` therefore starts negative (wealth near zero against domestically
-  held government debt), so `SS_fsolve` clamps it and substitutes `1e9` residuals, destroying the
+  held government debt), so `SS_fsolve` clamps it and substitutes `1e9` residuals, which breaks the
   finite-difference Jacobian the default `hybr` root-finder depends on;
 - `initial_guess_factor_SS` is validated to a maximum of 500,000, while a low-unit currency needs far
   more (on JPN about 14 times the cap, more on IDN), so the right seed cannot be entered as a
@@ -46,11 +46,11 @@ validator cap. Measured on JPN, identical parameters, same 7-worker client:
 
 `b` and `n` are in model units, so a seed stays valid across changes to the currency scale, the
 demographic window and modest parameter moves. Ship the seed with the repo (~9 KB) and regenerate it
-after any large recalibration; without it a fresh checkout may not solve. Reference implementation:
-OG-JPN's `ogjpn/warm_start.py` + `examples/save_warm_start.py`. Code shipped in the country repo,
-like this, is part of how that repo runs, so it does not break the owner's "nothing bespoke" rule;
-an ad-hoc driver or patch outside the repo would. When an ogcore release ships the same fix, retire the
-repo's patch: grep the repo for patched ogcore
+after any large recalibration; without it a fresh checkout may not solve. The JPN and ETH cases in
+og-country-calibration's history cite implementations. Code shipped in the country repo,
+like this, is part of how that repo runs, so the repo's own scripts use it within the run rules; a
+driver or patch outside the repo is outside them. When an ogcore release ships the same fix, retire
+the repo's patch: grep the repo for patched ogcore
 functions after each ogcore bump and compare with its changelog.
 
 **Warm-starting is not retuning the seed parameters.** Setting `initial_guess_r_SS`/`TR_SS` to their
@@ -61,21 +61,21 @@ is computed from. Warm-start the matrices; leave the scalar parameters alone.
 **Worth automating.** Every country repo will hit this. Writing the seed on every successful solve
 and reusing it by default makes reruns cheap; a shared helper saves each repo re-deriving it. The
 proper fix is upstream: seeds derived from parameters ogcore already has (`b ≈ (K/Y + D_d/Y)·Y`).
-**[net-new: JPN]**
+[JPN]
 
 ## Initial-guess fragility: nearness is not solvability
 
-**[PHL]** Guesses retuned to the exact solved values (factor to 5 digits) sent the solver through a
+[PHL] Guesses retuned to the exact solved values (factor to 5 digits) sent the solver through a
 `K_d < 0` region and failed the steady state, while older, farther guesses converged cleanly. Choose
-packaged guesses by solve-path robustness; keep the set that works, do not chase proximity. Transient
-"K_d has negative elements" warnings during iteration are benign only if the identities hold in the
+packaged guesses by solve-path robustness; keep the set that works rather than the closest one.
+Transient "K_d has negative elements" warnings during iteration are benign only if the identities hold in the
 saved pickle (`K = K_d + K_f`, `K_d = B − D_d`). Check the pickle, not the console: `get_K_splits`
 floors a negative `K_d` at `0.05·B`, and a floored value in the final solution breaks the identity.
 
 ## Triage an RC_error by where in time it happens
 
-**[net-new: JPN]** ogcore pickles TPI output before it raises, so read
-`TPI_vars.pkl["resource_constraint_error"]` even from a failed run (recent ogcore also prints the
+[JPN] ogcore pickles TPI output before it raises, so read
+`TPI_vars.pkl["resource_constraint_error"]` even from a failed run (some versions also print the
 maximum error, its period and the tolerance). The location is the diagnosis:
 
 - **smooth and decaying over the first several periods** → the initial condition, i.e. initial
@@ -97,27 +97,27 @@ Recent ogcore logs a diagnosis when the TPI outer loop stops improving over
 
 ## Running against an unreleased ogcore
 
-**Preferred: keep the official installer, pin ogcore by commit on a test branch** **[KOR; ETH's
-main already pins this way]**. On a throwaway branch of the country repo, add
+**Preferred: keep the official installer, pin ogcore by commit on a test branch** [KOR, ETH]. On a throwaway branch of the country repo, add
 `[tool.uv.sources] ogcore = { git = "<URL>", rev = "<full sha>" }` (a fork URL, or
 `file:///<path to an OG-Core clone>` for a local integration commit that is not pushed), run
 `uv lock`, commit, and install that branch with OG-Core's installer like any other. The run is then
-the shipped example from an installer copy; og-run-preflight reports the ogcore source and commit,
+the shipped example from an installer copy; og-run's check reports the ogcore source and commit,
 and `--params-json` proves the JSON loads on it. Keep the pin off the calibration branch.
 
-Before installing an integration build (master plus a PR), **check it carries the PR**: grep the
+Before installing an integration build (master plus a PR), check it carries the PR: grep the
 built `default_parameters.json` for the new parameter. A stale local copy of the PR branch merged
 into master cleanly and silently contained none of the PR's code (KOR); merge the PR's actual head
 (`gh pr view <n> --json headRefOid`). Conflicts in CHANGELOG and tests only are routine.
 
-**Fallback, the older pattern:** **[PHL]** `uv run --with-editable <ogcore-checkout>` can silently resolve ogcore from the uv cache,
-and probing with `python -c` from the checkout root masks it through cwd shadowing, so do not use
-it. The pattern: put the unreleased ogcore in its own worktree, built from the released base plus
+**Fallback, the older pattern:** [PHL] `uv run --with-editable <ogcore-checkout>` can silently
+resolve ogcore from the uv cache, and checking with `python -c` from the checkout root masks it
+through cwd shadowing, so avoid it. The pattern: put the unreleased ogcore in its own worktree, built from the released base plus
 the one PR's diff (not a branch carrying unrelated upstream merges, which once broke the steady
 state through an unrelated payroll change). Give the country repo its own worktree and venv,
-install that ogcore into it editable, invoke `.venv/bin/python` (never `uv run`, which re-syncs to
+install that ogcore into it editable, invoke `.venv/bin/python` (not `uv run`, which re-syncs to
 the lock), and `assert <ogcore worktree> in ogcore.__file__` before anything else; the assert has
-caught real contamination. og-run-preflight's ogcore line should then report that local build. This is a development pattern for
-testing an upstream change, not a way to make official runs. Keep the packaged JSON loadable on
+caught real contamination. og-run's check should then report that local build. Use it only while
+developing an upstream change: its results do not count as evidence under the run rules, so make
+any run whose numbers matter with the preferred pattern. Keep the packaged JSON loadable on
 released ogcore too: tests that build a `Specifications` strip not-yet-released parameters when absent
 (`hasattr` guard), so the suite stays green on both.

@@ -24,20 +24,10 @@ record of what happened, with its numbers and evidence, is in [`docs/og-lessons/
 in Model-tools; a `(history: XXX)` marker flags where a lesson's numbers moved there. Derive your
 own values.
 
-**Run rules:** follow [og-run-rules.md](references/og-run-rules.md): under ten minutes for a
-healthy single-industry baseline, the example-script pattern, always parallel, Anderson with
-`nu` ≤ 0.2, preflight, and the user's explicit go before any solve beyond a quick check.
-
-## Which world
-
-This skill acts on **one** world: the runtime installation reached by `muiogo-ai`,
-unless the user explicitly asked for their own live one (`muiogo-live`). Never use
-bare `muiogo`, and never fall back to it. Every command prints a `world:` line to
-stderr — read it, and name that world when you report a result or a number. Worlds
-hold different OG checkouts and different model registries, so the same country
-model can exist in both at different commits. Locate the checkout you mean with
-`muiogo-ai status` rather than assuming a path. Full rules:
-`../WORLD_DISCIPLINE.md`.
+**Running the model:** install with OG-Core's installer and run the repo's example script unchanged
+from that copy's environment; a run outside this path cannot be reproduced or compared
+([og-run-rules.md](references/og-run-rules.md)). A multi-industry baseline takes longer than the
+single-industry one's ten minutes, mostly in the steady state.
 
 ## Where the worked code is
 
@@ -51,7 +41,7 @@ multi-industry branch, not only its docs; docs and code disagree in places in al
 | OG-BRA (the most developed) | Input-output tables with a published domestic Leontief | The mixed-income split; exact domestic tracing; per-good `tau_c` and per-industry CIT; funded public capital; the M=1 equivalence test; the concordance test |
 
 OG-IDN and OG-ETH carry only the upstream scaffold (naive `io_matrix`, one `gamma` copied to every
-industry, `Z` = 1). Do not treat their multisector files as worked examples.
+industry, `Z` = 1). Treat their multisector files as scaffolds, not worked examples.
 
 ## The ladder
 
@@ -79,9 +69,9 @@ the docs.
 - **Take `gamma`'s level from the single model** and the dispersion from the data.
 - **Convert `chi_n` and `chi_b` by `k^(σ−1)`** for OG-Core's unnormalised composite price. In PHL it
   closed half to four fifths of the gaps to the single model.
-- **Prove the plumbing with the equivalence test**: identical industries must reproduce M=1.
+- **Prove the plumbing with the equivalence test**: identical industries should reproduce M=1.
 - **`factor` is the best single number for a level misalignment.** Use the Z level to align
-  `factor`, never to close `r` or `K_f/K` gaps.
+  `factor`, not to close `r` or `K_f/K` gaps.
 - **Try a cold solve; fall back to continuation** when relative prices spread widely.
 - **Run the same reform through both models** and compare the percent-change tables.
 
@@ -121,7 +111,8 @@ Loop-backs:
 - **The single model is recalibrated** → rebuild the overlay and re-solve both models in the same
   change; update any numbers one model's docs quote about the other.
 - **One industry's Z is wildly out of line** → its employment number (step 5).
-- **The reform disagrees in sign between the models** → back to step 9; do not ship.
+- **The reform disagrees in sign between the models** → back to step 9; hold the change until
+  they agree.
 
 ## Reference files
 
@@ -135,15 +126,9 @@ Loop-backs:
 
 - `og-country-calibration`: the single-industry calibration this builds on, the fiscal dashboard,
   and the calibration PR format.
-- `og-run`, `og-run-preflight`: launching solves.
+- `og-run`: installing, checking and launching solves.
 - `og-solver-diagnosis`: a solve that will not converge.
 - `og-clews-linked-run`: coupled OG-CLEWS work needs a multi-industry model with an electricity
   industry.
 
 If one is not available to you, do the job directly and say which skill would have covered it.
-
-## Approval gates
-
-Build, derive, test and commit locally freely. Solves beyond a quick steady-state check, pushing,
-opening PRs and anything across several repos are proposed and wait for the user. Ask before push
-and before the PR, never in the same step. Never merge.

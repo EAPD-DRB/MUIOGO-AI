@@ -1,112 +1,111 @@
-# Tuning loop and environment
+# Solving, tuning and the environment
 
-The run rules are in og-run-rules.md. When a solve misbehaves (a steady state that will not
-converge, a transition-path resource-constraint error, a stall), use og-solver-diagnosis: it holds
-the warm-start procedure, the RC_error triage by timing, and the pattern for running against an
-unreleased ogcore. The short version for calibration work: suspect the cold-start seed before the
-calibration, and do the RC_error triage before any tuning.
+How to run the model is in og-run-rules.md (a copy ships with this skill). This file holds the
+tuning loop, how to spend runs while exploring, and environment checks. When a solve misbehaves (a
+steady state that will not converge, a resource-constraint error on the transition, a stall), use
+og-solver-diagnosis.
 
 Contents
-- Environment
-- Run engineering: detail and evidence
-- The in-model tuning loop
-- Tuning-loop order: sourced parameters first
+- Settle the inputs, then tune once
+- The tuning loop
+- Spending runs while exploring
+- Watch a run; do not wait on it
+- Measuring what a change does
+- The environment
 - Derived parameters regenerate together
 
-## Environment
+Each lesson gives the rule, the check, why, and where it was learned (`[CODE]`; the case is in
+`lessons/<CODE>.md`).
 
-- **What `Calibration` delivers.** `Calibration(p, update_from_api=False)` (the class default)
-  fetches nothing and overlays only no-op identity values (single-industry `alpha_c=[1.0]`,
-  `io_matrix=[[1.0]]`; empty for multi-industry); `macro_params` and `demographic_params` are `{}`
-  and `e` is `None`. Count what it actually sets: OG-JPN delivered seven parameters where
-  thirty-four mattered. The packaged JSON is what makes the whole surface visible. **[net-new: JPN]**
-- **uv, not conda, through the official installer.** Install with OG-Core's `scripts/install.sh`
-  (it runs `uv sync --extra dev` for you), then run the shipped example from that install
-  (`../OG_RUN_RULES.md`). `AGENTS.md` is the source of truth for anything the installer does not
-  cover; `docs/book/content/contributing/contributor_guide.md` is stale (still conda) in most
-  repos. **[family]**
-- **Never commit a `uv.lock` change from calibration work.** The lock is Dependabot-managed; if a
-  local `uv sync` touches it, `git restore uv.lock`. Confirm `uv.lock` and `.python-version` are not
-  in the PR diff. **[family among EAPD-DRB repos: PHL/ZAF/IDN/ETH; PSLmodels repos BRA/USA differ]**
-- **Check the resolved ogcore in `uv.lock`, not the `pyproject.toml` floor.** The `ogcore>=` floors
-  are not synced across repos, and the resolved versions differ too. To compare a repo with its
-  siblings, grep `name = "ogcore"` in `uv.lock`. A parameter this skill relies on
-  (`TPI_outer_method`, `r_gov_floor`, the `initial_guess_b_SS` family) may be missing from an older
-  resolved ogcore; check with `hasattr` and treat an ogcore bump as its own change. A bump can also
-  rename a parameter or change its shape, so load the packaged JSON against the new version
-  (og-run-preflight `--params-json`) and fix what it rejects before running.
-- **Preflight** (og-run-preflight): print branch + HEAD of every repo involved and `sys.executable`;
-  assert imports resolve inside the intended checkout
-  (`uv run python -c "import ogXXX, ogcore; print(ogXXX.__file__, ogcore.__file__)"`). Editable
-  installs, script-dir shadowing and cwd shadowing silently run another checkout's code; this has
-  caught real contamination. **[emerging: a house rule in OG-ETH's informality work; the full combo
-  net-new]**
-- **The example run is a smoke test, not a correctness check.** `test_run_example.py`
-  (`@pytest.mark.local`) only checks the process is still alive after ~5 minutes; it never checks SS or
-  TPI values. Numeric validation is the
-  dashboard. **[family]**
-- **CI-equivalent suite:** `uv run python -m pytest -m 'not local' -q`. **[family]**
+## Settle the inputs, then tune once
 
-## Run engineering: detail and evidence
+**Rule.** Agree the targets, settle every sourced input from data (one decision at a time, each
+logged with its source and the alternatives considered), then tune the dials once: the tax dials
+against their revenue lines, `r_gov_shift` against the effective rate, `zeta_K` against the foreign
+share, patience last (macro-open-economy.md). Validate with the example script, steady state and
+transition.
 
-The rules are in og-run-rules.md. The evidence behind them:
+**Check.** Before tuning, every parameter is in one of three states: sourced, tuned to a named
+moment, or defaulted with a written reason. After a tax change, re-tune `zeta_K`; after a sourced
+input changes, redo the tax dials, then `zeta_K`, then patience. A sourced value is never moved to hit a
+target.
 
-- **Why seven workers.** `SS.py` and `TPI.py` both call `client.submit` inside
-  `for j in range(p.J)`, so workers beyond `J` idle. Seven is maximum parallelism when `J = 7` (the
-  ports); OG-USA ships `J = 10`.
-- **Why not a serial steady state.** Older measurements found the SS slower through the client than
-  serial (~38s vs ~6s per GE evaluation **[JPN]**; 12+ min vs 66s **[PHL]**). They came from older
-  ogcore, which re-sent the parameters to the workers on every evaluation. If the SS through the
-  client is slow on a current ogcore, report it as a finding rather than building a serial driver.
-  A two-phase hand driver (SS serial → pickle → TPI with the client) was once used for speed
-  **[PHL]**; it is not the example pattern and is not used for official runs.
-- **Why Anderson.** The M=1 PHL transition went from ~30–70 damped iterations (~20 min) to 11–12
-  (~2–2.5 min) with monotonically falling distances **[PHL]**; OG-Core's own changelog reports a
-  stiff multi-industry reform converging in 53 outer iterations vs 126 under constant `nu = 0.1`. It
-  is TPI-only (it does nothing for a steady-state problem).
+**Why.** Every tuned dial is fitted against the inputs below it; correcting inputs after tuning
+cost fourteen rounds on one country and many on others. [JPN, ETH, PHL]
 
-## The in-model tuning loop
+## The tuning loop
 
-**[PHL]** The tuning loop is cheap: use real solves, not algebra. A warm-guess SS solve takes
-seconds, so *solve → read the revenue dashboard → adjust dials → re-solve* converges in 3–5
-iterations for half a dozen simultaneous dials (GS φ2, `tau_c`, CIT adjustment, `p_wealth`,
-`r_gov_shift`, `zeta_K`). Ship a small tuning script in the repo (`examples/tune_ss.py`) that loads
-the packaged JSON plus an overrides dict, builds the same worker pool as the example script, calls
-`runner(..., time_path=False, client=client)`, and prints model vs target by instrument. Because the
-repo ships it, it runs from the installed copy like any repo code (og-run-rules.md, "Calibration
-tuning runs through repo code too"); a driver in a scratch folder is the departure the run rules
-forbid. Two things it is not:
+**Rule.** Tune with real solves through the repo's tuning script: it loads the packaged JSON plus
+an overrides file, solves, prints model against target, and writes the next round's overrides with
+every setting carried forward. Several repos have one (for example `examples/tune.py` or
+`examples/tune_ss.py`); if yours has none, add one as its own change. [ZAF,
+ETH, PHL] Static dials (the income-tax scale; `tau_c`, an effective rate matched in the model
+because its base is the model's own consumption; the corporate factor; `p_wealth`; `tau_bq`;
+`r_gov_shift`; `zeta_K`) are tuned on warm-started steady states with secant steps, usually in three
+to five rounds; spend transition rounds only on what the transition judges (patience, initial
+wealth, spending paths). When the dials settle, fold them into the JSON (and any scales into the
+code that builds it), commit, re-install, and solve the packaged JSON with no overrides.
 
-- not an official run: once the dials settle, fold the overrides into the JSON and run the example
-  script through the client;
-- not the last solve: always finish with a standalone solve of the packaged JSON itself (no
-  overrides). It catches schema errors and seed problems the overrides path hides. If it fails, go
-  back to the overrides you just folded in.
+**Check.**
+- Every solve logs to a named file with its settings first. [KOR]
+- Each solve is seeded from the last converged one; after a large change (preferences, the capital
+  stock) regenerate the warm-start seed, if the repo keeps one. A move that breaks a warm-started solve is a
+  calibration signal; one that breaks a cold start is usually the seed. [KOR, ETH]
+- A parameter made a constant is no longer steered by the tuning script.
+- The final reported numbers come from the example script on the packaged JSON.
 
-Two habits make the loop debuggable. **Log every solve** to a named file with its settings echoed
-first (`logs/tune_r04.log`): a stalled solve read only through a filtered console cannot be
-diagnosed afterwards (og-solver-diagnosis, log discipline). And **seed every solve from the last
-converged one** (the warm start, SKILL.md step 11; OG-JPN's `warm_start.py` is the pattern): on KOR the same calibration took 394 s from
-uniform seeds and 32 s warm. A dial move that breaks a warm-started solve is a calibration
-signal; one that breaks a cold-started solve is usually the seed. **[KOR]**
+**Why.** A warm-started steady state takes seconds where a cold one took minutes; the no-overrides
+solve catches schema and seed errors the overrides hide. [KOR, PHL]
 
-## Tuning-loop order: sourced parameters first
+## Spending runs while exploring
 
-**[net-new: JPN]** The loop converges in 3–5 rounds only once the sourced parameters are settled. Any
-change to a sourced parameter invalidates every tuned dial below it, because they were fitted against
-the old base. Work in this order and expect one full retune per upstream correction:
+**Rule.** One probe per idea, at a bound, read for what it buys and what it costs on the other
+moments; then decide. Before tuning an idea in full, test it on the smallest object that can fail
+it (one household's lifetime, one steady state).
 
-1. sourced structurals: `gamma`, `delta`, `g_y`, the demographic window, spending shares;
-2. tuned tax dials against the revenue targets;
-3. `beta` against `K/Y`;
-4. retune (2) if (3) moved the bases.
+**Check.** Rounds per idea while exploring: one. A mechanism stated to the user is computed from the
+saved output, with the number; a guess is labelled as one.
 
-JPN took fourteen rounds because `gamma`, `delta`, `g_y`, `alpha_T` and the window were each
-corrected after the tax dials were tuned. Audit the whole parameter surface before starting the loop,
-not one parameter at a time. After any tax change, re-tune `zeta_K` (macro-open-economy.md).
+**Why.** Exploring with full tuning rounds and transition solves for each idea cost hours, and
+confident explanations not computed from the output sent the work the wrong way. [ETH]
+
+## Watch a run; do not wait on it
+
+**Rule.** From launch, read the log and the workers' CPU. Stop early when the log shows restarts
+or the steady state runs far longer than expected, and diagnose (og-solver-diagnosis).
+
+**Check.** CPU near the number of workers; the steady state in seconds to a couple of minutes; no
+repeated "initial guess" restarts in the log.
+
+**Why.** Stalled runs left unwatched for an hour were read afterwards as one long attempt when they
+were a ladder of restarts. [ETH]
+
+## Measuring what a change does
+
+**Rule.** Calibrate the best version first; then measure what one choice does with a single run
+that switches it off, from the finished calibration.
+
+**Why.** Tuning a control and a treatment in parallel doubles every round and measures the
+difference between two unfinished calibrations. [ETH]
+
+## The environment
+
+- **What the packaged JSON carries.** `Calibration(p, update_from_api=False)` fetches nothing and
+  sets only identity values; the packaged JSON is the calibration. Count what differs from your
+  ogcore's `default_parameters.json`: every key left at the default is unexamined unless
+  documented. [JPN]
+- **Which ogcore.** Read the resolved ogcore in the lockfile, not the `pyproject.toml` floor. A
+  parameter a lesson relies on may be missing or renamed in your build: check with
+  `hasattr(Specifications(), name)` in that environment, and load the packaged JSON against a new
+  ogcore before anything else. Treat an ogcore upgrade as its own change.
+- **Before a long tuning campaign,** look for OG-Core changes that speed the solve (open or merged)
+  and run on a version that carries them, installed the official way (og-run).
+- **The repo's setup instructions** (`AGENTS.md`, contributor guide) and its lockfile conventions
+  apply; calibration work does not change dependencies.
 
 ## Derived parameters regenerate together
 
-**[PHL]** Anything computed from demographics (the model-consistent `g_RM` path from `g_n`, the
-`eta_RM` matrix from `omega_SS`) belongs in the demographics-regeneration tool, so a demographics
-rebuild cannot leave it stale. Add a test asserting packaged value == constructor(packaged inputs).
+Anything computed from the demographics (a `g_RM` path from `g_n`, an `eta` or `eta_RM` built from
+the population) belongs in the code that regenerates the demographics, so a rebuild cannot leave it
+stale. If the repo regenerates its packaged JSON, a test that the packaged values equal the
+regenerated ones covers all of them at once. [PHL, ETH]
