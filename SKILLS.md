@@ -123,7 +123,7 @@ renaming or editing a skill, refresh and check them:
 
 - **[Model-tools](https://github.com/EAPD-DRB/Model-tools)** holds the OG skills
   (`og-run`, `og-solver-diagnosis`, `og-country-calibration`,
-  `og-multi-industry-calibration`, `og-scenario-report`, `og-clews-linked-run`).
+  `og-multi-industry-calibration`, `og-scenario-report`).
   They are vendored here unchanged at the commit in `scripts/MODEL_TOOLS_PIN`;
   never edit them here. Fix them in Model-tools, then move the pin:
 
@@ -136,8 +136,9 @@ renaming or editing a skill, refresh and check them:
   Model-tools is also the home of the CLEWs skills and the handoff skills; the
   copies here have drifted from it in both directions and will join the pin once
   they are reconciled.
-- **This repository** holds the `muiogo-*` skills, which drive this repo's
-  `muiogo` command line, and `WORLD_DISCIPLINE.md`.
+- **This repository** holds the skills that drive its own tools: the `muiogo-*`
+  skills (the `muiogo` command line) and `og-clews-linked-run` (the OG-CLEWS link
+  inside an installation), and the installation rules, `WORLD_DISCIPLINE.md`.
 
 Skills that no longer ship (`og-run-preflight`, `calibration-provenance`,
 `og-repo-fleet-sync`, `og-analysis-studio`) are listed in

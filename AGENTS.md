@@ -47,8 +47,7 @@ this section wins.
   with `--check`. Users install copies elsewhere with
   `scripts/install-skills.sh`. See `SKILLS.md` for the catalogue.
 - The OG skills (`og-run`, `og-solver-diagnosis`, `og-country-calibration`,
-  `og-multi-industry-calibration`, `og-scenario-report`, `og-clews-linked-run`)
-  live in EAPD-DRB/Model-tools and are vendored here unchanged at the commit in
+  `og-multi-industry-calibration`, `og-scenario-report`) live in EAPD-DRB/Model-tools and are vendored here unchanged at the commit in
   `scripts/MODEL_TOOLS_PIN`. Never edit them here: fix them in Model-tools,
   then run `python scripts/model_tools_skills.py --update <commit>` and
   `scripts/install-skills.sh --sync`. `--check` confirms the copies match.
