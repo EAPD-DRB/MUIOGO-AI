@@ -14,8 +14,9 @@
 #   4. Report what was installed
 #
 # Skills are plain folders of Markdown and helper scripts. Nothing is installed
-# system-wide, nothing is downloaded, and nothing outside the target folder is
-# touched.
+# system-wide and nothing is downloaded. Besides the target folder, the script
+# writes only <target>-old/<date>/ beside it (old copies it moved aside) and, for
+# Codex, moves old copies out of ~/.codex/skills into ~/.codex/skills-old/<date>/.
 #
 # Usage:
 #   ./scripts/install-skills.sh                      # interactive
@@ -128,7 +129,7 @@ copy_shared_files() {
 }
 
 STAMP="$(date +%Y%m%d-%H%M%S)"
-print_note() { printf '  \033[33m~\033[0m %-34s %s\n' "$1" "$2"; }
+print_note() { printf "  ${YELLOW}~${RESET} %-34s %s\n" "$1" "$2"; }
 print_fail() { printf "  ${RED}[FAIL]${RESET} %s%s\n" "$1" "${2:+  ${DIM}($2)${RESET}}"; }
 print_warn() { printf "  ${YELLOW}[WARN]${RESET} %s%s\n" "$1" "${2:+  ${DIM}($2)${RESET}}"; }
 print_skip() { printf "  ${YELLOW}[SKIP]${RESET} %s%s\n" "$1" "${2:+  ${DIM}($2)${RESET}}"; }
@@ -344,6 +345,7 @@ fi
 # ── Install ───────────────────────────────────────────────────────────────────
 START_TIME="$(date +%s)"
 INSTALLED=0
+AGENTS_INSTALLED=()
 FAILED=0
 
 IFS=',' read -ra DESTS <<< "$TARGET_DIRS"
@@ -358,6 +360,7 @@ for dest in "${DESTS[@]}"; do
     for a in "${AVAILABLE[@]}"; do
         [[ -e "$dest/$a" && " ${TO_INSTALL[*]} " != *" $a "* ]] && TO_INSTALL+=("$a")
     done
+    [[ "$dest" == "$HOME/.agents/skills" ]] && AGENTS_INSTALLED=("${TO_INSTALL[@]}")
     section "Installing ${#TO_INSTALL[@]} skills into $dest"
     if ! mkdir -p "$dest" 2>/dev/null; then
         print_fail "$dest" "cannot create folder"
@@ -406,7 +409,9 @@ done
 # catalogue or retired skill found there to ~/.codex/skills-old/<date>/.
 if [[ "$TARGET_DIRS" == *"$HOME/.agents/skills"* && -d "$HOME/.codex/skills" ]]; then
     LEGACY="$HOME/.codex/skills"
-    for n in "${AVAILABLE[@]}" $(grep -v '^#' "$PROJECT_ROOT/scripts/RETIRED_SKILLS"); do
+    # Only what was just installed in ~/.agents/skills, plus retired names, so an
+    # --only run never takes away a skill Codex could still see.
+    for n in "${AGENTS_INSTALLED[@]}" $(grep -v '^#' "$PROJECT_ROOT/scripts/RETIRED_SKILLS"); do
         if [[ -e "$LEGACY/$n" ]]; then
             mkdir -p "$HOME/.codex/skills-old/$STAMP" && mv "$LEGACY/$n" "$HOME/.codex/skills-old/$STAMP/$n" \
                 && print_note "$n" "old Codex copy moved to ~/.codex/skills-old/$STAMP"
