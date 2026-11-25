@@ -60,7 +60,8 @@ this section wins.
 
 ## Process
 
-Light by design: push to `main` freely, branch when you want review, issues
-optional. Write findings into the repo, not just the conversation. Runs against
+Light by design for the people who maintain it: push to `main` freely, branch
+when you want review, issues optional. An assistant still follows the approval
+gates above and asks before any push. Write findings into the repo, not just the conversation. Runs against
 MUIOGO follow the model-run discipline: print the pin/branch and verify what the
 environment actually imports before trusting results.

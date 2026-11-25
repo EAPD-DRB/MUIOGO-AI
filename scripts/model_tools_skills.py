@@ -59,7 +59,8 @@ def export(pin, commit, source, dest):
 
 def differences(a, b):
     cmp = filecmp.dircmp(a, b)
-    diffs = [f"{p}: differs" for p in cmp.diff_files] + [f"{p}: only in pinned" for p in cmp.left_only] + [f"{p}: only here" for p in cmp.right_only]
+    _, changed, errors = filecmp.cmpfiles(a, b, cmp.common_files, shallow=False)
+    diffs = [f"{p}: differs" for p in changed + errors] + [f"{p}: only in pinned" for p in cmp.left_only] + [f"{p}: only here" for p in cmp.right_only]
     for sub in cmp.common_dirs:
         diffs += [f"{sub}/{d}" for d in differences(Path(a) / sub, Path(b) / sub)]
     return diffs

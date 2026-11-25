@@ -37,8 +37,9 @@ To get the skills in your own model repositories, or in every project you open:
 
 It asks which assistant you use (Claude Code, Codex, both, or a folder you
 name) and copies the skills there. Re-run it any time to update. By hand, copy
-any folder from `.agents/skills/` into your assistant's skills directory
-(`~/.claude/skills/` or `~/.codex/skills/`) and restart the assistant.
+the skill folders you want and `WORLD_DISCIPLINE.md` from `.agents/skills/` into
+your assistant's skills directory (`~/.claude/skills/`, or `~/.agents/skills/`
+for Codex) and restart the assistant.
 
 ## Start here
 

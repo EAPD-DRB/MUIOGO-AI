@@ -116,6 +116,13 @@ copy_shared_files() {
     for f in "$SKILLS_DIR"/*.md; do
         [[ -f "$f" ]] || continue
         n="$(basename "$f")"
+        # A differing copy is moved aside first, like a skill, never overwritten.
+        if [[ -e "$dest/$n" ]] && ! cmp -s "$f" "$dest/$n"; then
+            local old_dir
+            old_dir="$(dirname "$dest")/$(basename "$dest")-old/$STAMP"
+            mkdir -p "$old_dir" && mv "$dest/$n" "$old_dir/$n" \
+                && print_note "$n" "updated — old copy in $old_dir"
+        fi
         cp "$f" "$dest/$n" 2>/dev/null || print_fail "$n" "copy failed"
     done
 }
