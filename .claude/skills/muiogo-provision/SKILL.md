@@ -179,9 +179,9 @@ with their own launcher (`muiogo-ai import --zip` on an installed setup). It is
 also the right thing to do **before** any
 destructive change — a scenario edit or a re-run cannot be undone.
 
-For publishing a case back to its country repository with a handoff note and an
-audit trail, use `push-handoff` instead; it packages, checksums, and records
-provenance the way the team expects.
+For publishing a Fiji or Philippines case back to its country repository, use
+`push-handoff` instead; it packages the case without solver results, records its
+checksum, and commits and pushes the intended country-repository change.
 
 ## Validating inputs before a long solve
 

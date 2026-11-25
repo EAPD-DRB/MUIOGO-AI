@@ -52,7 +52,7 @@ for Codex) and restart the assistant.
 | Skill | What it does |
 |---|---|
 | `muiogo-provision` | Installs an OG country model, imports a case archive or Excel workbook, exports a shareable zip, and validates inputs before a long solve. |
-| `pull-handoff` | Clones or fast-forwards the CLEWs country repos, unzips their current MUIO cases into repository-local working trees, and maintains the MUIOGO DataStorage symlinks. |
+| `pull-handoff` | Clones or fast-forwards the CLEWs country repos, unzips their current MUIO cases into repository-local working trees, and maintains the MUIOGO DataStorage symlinks, keeping or backing up any local work it would replace. |
 | `push-handoff` | Zips the repository-local cases without solver results, checks their symlinks and SHA-256, then commits and pushes the intended country-repo changes. |
 
 ## MUIOGO — running models and analysing results
@@ -124,8 +124,9 @@ renaming or editing a skill, refresh and check them:
 
 - **[Model-tools](https://github.com/EAPD-DRB/Model-tools)** holds the OG skills
   (`og-run`, `og-solver-diagnosis`, `og-country-calibration`,
-  `og-multi-industry-calibration`, `og-scenario-report`).
-  They are vendored here unchanged at the commit in `scripts/MODEL_TOOLS_PIN`;
+  `og-multi-industry-calibration`, `og-scenario-report`), the CLEWs skills and
+  the handoff skills (`pull-handoff`, `push-handoff`): every skill listed in
+  `scripts/MODEL_TOOLS_PIN`. They are vendored here unchanged at the commit there;
   never edit them here. Fix them in Model-tools, then move the pin:
 
   ```bash
@@ -133,10 +134,6 @@ renaming or editing a skill, refresh and check them:
   ./scripts/install-skills.sh --sync
   python scripts/model_tools_skills.py --check
   ```
-
-  Model-tools is also the home of the CLEWs skills and the handoff skills; the
-  copies here have drifted from it in both directions and will join the pin once
-  they are reconciled.
 - **This repository** holds the skills that drive its own tools: the `muiogo-*`
   skills (the `muiogo` command line) and `og-clews-linked-run` (the OG-CLEWS link
   inside an installation), and the installation rules, `WORLD_DISCIPLINE.md`.

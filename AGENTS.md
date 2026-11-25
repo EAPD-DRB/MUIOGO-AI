@@ -46,9 +46,8 @@ this section wins.
   work); refresh them with `scripts/install-skills.sh --sync` and check them
   with `--check`. Users install copies elsewhere with
   `scripts/install-skills.sh`. See `SKILLS.md` for the catalogue.
-- The OG skills (`og-run`, `og-solver-diagnosis`, `og-country-calibration`,
-  `og-multi-industry-calibration`, `og-scenario-report`) live in EAPD-DRB/Model-tools and are vendored here unchanged at the commit in
-  `scripts/MODEL_TOOLS_PIN`. Never edit them here: fix them in Model-tools,
+- The OG, CLEWs and handoff skills listed in `scripts/MODEL_TOOLS_PIN` live in
+  EAPD-DRB/Model-tools and are vendored here unchanged at the commit there. Never edit them here: fix them in Model-tools,
   then run `python scripts/model_tools_skills.py --update <commit>` and
   `scripts/install-skills.sh --sync`. `--check` confirms the copies match.
 - `client/` — the `muiogo-client` package (Python + CLI). Mechanical HTTP work
