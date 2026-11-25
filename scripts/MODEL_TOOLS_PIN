@@ -1,5 +1,5 @@
 # Skills vendored unchanged from EAPD-DRB/Model-tools (their only home).
 # Change them there, then move this pin: python scripts/model_tools_skills.py --update <commit>
 repo=https://github.com/EAPD-DRB/Model-tools
-commit=6b8895d
+commit=95f60dec7ee294e5fb75879152f0543ddd04302a
 skills=og-run og-solver-diagnosis og-country-calibration og-multi-industry-calibration og-scenario-report build-clews-model assess-clews-calibration calibrate-clews-model clews-model-review clews-model-fix add-fisheries-sector add-environmental-accounting pull-handoff push-handoff
