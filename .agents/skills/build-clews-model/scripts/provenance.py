@@ -914,11 +914,15 @@ class LedgerValidator:
                         required
                     )
                 )
-        # With no touched scope named, every uncovered input is judged the same
-        # way as before the scope existed; naming a scope splits touched inputs
-        # (always strict) from inherited ones (waivable before delivery).
-        uncovered_required = [r for r in uncovered if r in required_populated]
-        legacy_uncovered = [r for r in uncovered if r not in required_populated]
+        uncovered_required = sorted(set(uncovered) & required_populated)
+        legacy_uncovered = sorted(set(uncovered) - required_populated)
+        unmatched = sorted(
+            {
+                model_file
+                for model_file in mapped_csv
+                if not any(covers(model_file, relative) for relative in populated)
+            }
+        )
         if not populated:
             self.fail(
                 "no populated input CSV found under {0}".format(inputs_dir)
@@ -930,7 +934,7 @@ class LedgerValidator:
                 )
             )
         if legacy_uncovered:
-            if self.required_inputs or self.allow_inherited_coverage_gaps:
+            if self.required_inputs:
                 label = "inherited untouched model inputs"
             else:
                 label = "populated model inputs"
@@ -941,13 +945,6 @@ class LedgerValidator:
                 self.warn(message)
             else:
                 self.fail(message)
-        unmatched = sorted(
-            {
-                model_file
-                for model_file in mapped_csv
-                if not any(covers(model_file, relative) for relative in populated)
-            }
-        )
         for model_file in unmatched:
             self.warn(
                 "MODEL_MAP.csv: model_file {0} matches no populated input under "

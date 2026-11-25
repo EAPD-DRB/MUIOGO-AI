@@ -199,8 +199,10 @@ if [[ $DO_CHECK -eq 1 ]]; then
 fi
 
 if [[ $DO_RELINK -eq 1 ]]; then
-    if [[ -n "$(git -C "$PROJECT_ROOT" status --porcelain -- .claude/skills 2>/dev/null)" ]]; then
-        err ".claude/skills has uncommitted changes; commit or move them before --sync (it rebuilds the folder)"
+    # Tracked files can always be restored from git; refuse only if the folder
+    # holds files git does not know about, which a rebuild would lose.
+    if git -C "$PROJECT_ROOT" status --porcelain --untracked-files=all -- .claude/skills 2>/dev/null | grep -q '^??'; then
+        err ".claude/skills holds files git does not track; move them before --sync (it rebuilds the folder)"
     fi
     section "Refreshing .claude/skills from .agents/skills"
     # The copies are tracked by git, so rebuilding them from .agents/skills is safe.

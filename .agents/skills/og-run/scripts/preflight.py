@@ -366,6 +366,13 @@ def ogcore_build(python: str, rep: Report, repo: str | None = None) -> None:
         rep.info("INFO", f"ogcore {version}: installed from {url.get('url', '?')} at commit {commit}")
     else:
         src = url.get("url", "").replace("file://", "")
+        if repo is not None and os.path.realpath(src) == os.path.realpath(repo):
+            # OG-Core's own checkout: the installer installs the repo into its
+            # own environment as an editable package, which is how OG-Core runs
+            # its tests. Only a build from somewhere else is a hand install.
+            rep.ok(f"ogcore {version}: this OG-Core checkout itself, as the installer "
+                   "installs it")
+            return
         kind = "editable local checkout" if url.get("dir_info", {}).get("editable") else "local build"
         rep.fail(f"ogcore {version}: {kind} from {src} -- installed by hand into this "
                  "environment. Pin the build in the repo (a branch with "
